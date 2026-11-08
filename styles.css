@@ -4,3 +4,19 @@
 
 /* Consistent interface icon system */
 .ui-icon{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}.inline-icon{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin-left:3px}.button-play .ui-icon{width:17px;height:17px}.button-arrow .ui-icon{width:20px;height:20px}.icon-button .ui-icon{width:19px;height:19px;margin:auto}.nav-item>span{display:grid;place-items:center;min-height:22px}.nav-item .ui-icon{width:21px;height:21px}.nav-start .ui-icon{width:20px;height:20px}.notice>span{display:flex;align-items:flex-start}.notice .ui-icon{width:17px;height:17px}.back-button .ui-icon{width:15px;height:15px}
+
+
+/* Höhenprofil: klare Achsen, Werte und Messpunkt-Markierungen */
+.chart-box{height:auto;min-height:190px}
+.elevation-summary{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 12px}
+.elevation-stat{display:flex;gap:7px;align-items:baseline;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:#0b1925;color:var(--muted);font-size:11px}
+.elevation-stat strong{color:var(--text);font-family:Manrope,sans-serif;font-size:13px}
+.elevation-chart{display:block;width:100%;height:auto;overflow:visible}
+.elevation-chart .grid-line{stroke:rgba(184,207,221,.14);stroke-width:1;stroke-dasharray:3 4}
+.elevation-chart .axis-line{stroke:rgba(184,207,221,.38);stroke-width:1}
+.elevation-chart .axis-label{fill:var(--muted);font:10px 'DM Sans',sans-serif}
+.elevation-chart .axis-title{fill:var(--muted);font:10px 'DM Sans',sans-serif}
+.elevation-chart .profile-line{fill:none;stroke:var(--teal);stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.elevation-chart .profile-marker{fill:var(--teal);stroke:#08131f;stroke-width:2;vector-effect:non-scaling-stroke}
+.elevation-chart .marker-label{fill:var(--text);font:10px 'DM Sans',sans-serif;font-weight:700}
+.elevation-footnote{margin-top:6px;color:var(--muted);font-size:10px;line-height:1.55}
