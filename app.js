@@ -1,4 +1,4 @@
-/* VELOX 0.1.0 — local-first cycling tracker */
+/* VELOX 0.2.0 — local-first cycling tracker */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -51,8 +51,52 @@
       req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
     });
   }
+
+  function dbAddMany(records){
+    return new Promise((resolve,reject)=>{
+      if(!records.length){resolve();return;}
+      const tx=db.transaction(STORE,"readwrite"),store=tx.objectStore(STORE);
+      records.forEach(record=>store.add(record));
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error||new Error("Import-Transaktion fehlgeschlagen."));
+      tx.onabort=()=>reject(tx.error||new Error("Import-Transaktion abgebrochen."));
+    });
+  }
   const allRides=async()=>((await dbRequest("readonly","all"))||[]).sort((a,b)=>b.startedAt-a.startedAt);
   const activeSeconds=(ride)=>Math.max(0,((ride.endedAt||Date.now())-ride.startedAt-(ride.pausedMs||0)-(ride.status==="paused"?Date.now()-(ride.pauseStarted||Date.now()):0))/1000);
+  function median(values){
+    const sorted=values.slice().sort((a,b)=>a-b),middle=Math.floor(sorted.length/2);
+    return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
+  }
+  function buildElevationProfile(points){
+    const samples=[];let distance=0,segment=0,previous=null;
+    for(const point of points){
+      if(previous){
+        const d=haversine(previous,point),dt=(point.t-previous.t)/1000;
+        if(Number.isFinite(d)&&d>0.8&&d<150)distance+=d;
+        if(!Number.isFinite(dt)||dt<=0||dt>90||d>=150)segment++;
+      }
+      const altitudeAccuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
+      if(Number.isFinite(point.alt)&&(altitudeAccuracy===null||altitudeAccuracy<=50)){
+        samples.push({distanceM:distance,altitude:point.alt,time:point.t,segment});
+      }
+      previous=point;
+    }
+    const smoothed=samples.map((sample,index)=>{
+      const values=[sample.altitude],before=samples[index-1],after=samples[index+1];
+      if(before&&before.segment===sample.segment&&sample.distanceM-before.distanceM<=60&&sample.time-before.time<=45000)values.push(before.altitude);
+      if(after&&after.segment===sample.segment&&after.distanceM-sample.distanceM<=60&&after.time-sample.time<=45000)values.push(after.altitude);
+      return {...sample,elevationM:median(values)};
+    });
+    let gain=0,loss=0,lastSegment=null,anchor=null;
+    for(const sample of smoothed){
+      if(sample.segment!==lastSegment){lastSegment=sample.segment;anchor=sample.elevationM;continue;}
+      const delta=sample.elevationM-anchor;
+      if(delta>=3){gain+=delta;anchor=sample.elevationM;}
+      else if(delta<=-3){loss+=-delta;anchor=sample.elevationM;}
+    }
+    return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length};
+  }
   const movingSeconds=(ride)=>{
     const p=ride.points||[];let total=0;
     for(let i=1;i<p.length;i++){
@@ -62,21 +106,20 @@
     return total;
   };
   function calcRide(ride){
-    const p=ride.points||[];let distance=0,gain=0,loss=0;
+    const p=ride.points||[];let distance=0;
     for(let i=1;i<p.length;i++){
       const d=haversine(p[i-1],p[i]);
-      if(d<150 && d>0.8)distance+=d;
-      const a=p[i-1].alt,b=p[i].alt;
-      if(Number.isFinite(a)&&Number.isFinite(b)){
-        const delta=b-a;
-        if(Math.abs(delta)>=3){if(delta>0)gain+=delta;else loss+=Math.abs(delta);}
-      }
+      if(d<150&&d>0.8)distance+=d;
     }
+    const elevation=buildElevationProfile(p);
     const elapsed=activeSeconds(ride),moving=movingSeconds(ride);
     const avg=moving>0?distance/moving*3.6:0;
     const speeds=[];
-    for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]);if(dt>0&&dt<=30&&d<150)speeds.push(d/dt*3.6);}
-    return {distanceM:distance,elevationGain:gain,elevationLoss:loss,elapsedSeconds:elapsed,movingSeconds:moving,averageSpeed:avg,maxSpeed:speeds.length?Math.max(...speeds):0};
+    for(let i=1;i<p.length;i++){
+      const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]),speed=d/dt*3.6;
+      if(dt>0&&dt<=30&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);
+    }
+    return {distanceM:distance,elevationGain:elevation.gain,elevationLoss:elevation.loss,elapsedSeconds:elapsed,movingSeconds:moving,averageSpeed:avg,maxSpeed:speeds.length?Math.max(...speeds):0};
   }
   function setPage(page){
     currentPage=page;
@@ -147,8 +190,8 @@
     if(!navigator.geolocation){showToast("GPS wird von diesem Browser nicht unterstützt.");return;}
     if(!window.isSecureContext){showToast("GPS benötigt eine sichere HTTPS-Verbindung.");return;}
     activeRide={id:"ride-"+Date.now(),name:"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,points:[],status:"recording"};
-    try{await dbRequest("readwrite","put",activeRide);}catch(e){showToast("Lokale Speicherung nicht verfügbar.");return;}
-    $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Ⅱ Pause";
+    try{await dbRequest("readwrite","put",activeRide);}catch(e){activeRide=null;showToast("Lokale Speicherung nicht verfügbar.");return;}
+    $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Pause";
     $("trackingStatus").textContent="GPS wird gesucht …";$("trackingDot").style.background="#d9b879";
     liveMap=liveMap||initMap("liveMap");liveLine=null;liveMarker=null;
     setPage("track");
@@ -157,7 +200,7 @@
   }
   async function onPosition(pos){
     if(!activeRide||activeRide.status!=="recording")return;
-    const c=pos.coords,point={lat:c.latitude,lon:c.longitude,t:pos.timestamp||Date.now(),alt:Number.isFinite(c.altitude)?c.altitude:null,accuracy:c.accuracy};
+    const c=pos.coords,point={lat:c.latitude,lon:c.longitude,t:pos.timestamp||Date.now(),alt:Number.isFinite(c.altitude)?c.altitude:null,altAccuracy:Number.isFinite(c.altitudeAccuracy)?c.altitudeAccuracy:null,accuracy:c.accuracy};
     const prev=activeRide.points[activeRide.points.length-1];
     if(prev){const d=haversine(prev,point);const dt=(point.t-prev.t)/1000;if(d>150||dt<=0)return;if(d<1.5&&dt<3)return;}
     activeRide.points.push(point);
@@ -190,7 +233,7 @@
       activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));
       delete activeRide.pauseStarted;activeRide.status="recording";
       watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
-      $("pauseRide").textContent="Ⅱ Pause";$("trackingStatus").textContent="Aufzeichnung läuft";
+      $("pauseRide").textContent="Pause";$("trackingStatus").textContent="Aufzeichnung läuft";
     }
     await dbRequest("readwrite","put",activeRide);updateLive();
   }
@@ -228,11 +271,45 @@
   }
   function metric(label,value){return '<article class="metric-card"><span>'+label+'</span><strong>'+value+'</strong></article>';}
   function renderElevation(points){
-    const vals=points.map(p=>p.alt).filter(v=>Number.isFinite(v));
-    const box=$("elevationChart");if(!vals.length){box.innerHTML='<div class="empty-state">Keine GPS-Höhendaten für diese Tour vorhanden.</div>';return;}
-    const min=Math.min(...vals),max=Math.max(...vals),range=Math.max(1,max-min),w=600,h=130;
-    const xy=vals.map((v,i)=>(i/(Math.max(1,vals.length-1))*w)+","+(h-((v-min)/range*(h-18))-8)).join(" ");
-    box.innerHTML='<svg viewBox="0 0 600 140" preserveAspectRatio="none"><defs><linearGradient id="elevFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#5bd6c5" stop-opacity=".35"/><stop offset="1" stop-color="#5bd6c5" stop-opacity="0"/></linearGradient></defs><polygon points="0,140 '+xy+' 600,140" fill="url(#elevFill)"/><polyline points="'+xy+'" fill="none" stroke="#5bd6c5" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>';
+    const box=$("elevationChart"),profile=buildElevationProfile(points);
+    const samples=profile.samples;
+    if(samples.length<2){
+      box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Höhenpunkte für ein Profil vorhanden.</div>';
+      return;
+    }
+    const min=Math.min(...samples.map(p=>p.elevationM)),max=Math.max(...samples.map(p=>p.elevationM));
+    const padding=Math.max(4,(max-min)*0.08);
+    const yMin=Math.floor((min-padding)/5)*5,yMax=Math.ceil((max+padding)/5)*5,yRange=Math.max(10,yMax-yMin);
+    const xMax=Math.max(1,profile.distanceM,samples[samples.length-1].distanceM);
+    const left=54,top=12,width=570,height=132,bottom=top+height;
+    const xFor=value=>left+(value/xMax)*width;
+    const yFor=value=>top+((yMax-value)/yRange)*height;
+    const stride=Math.max(1,Math.ceil(samples.length/280)),chartSamples=[];
+    for(let i=0;i<samples.length;i++){
+      if(i===0||i===samples.length-1||i%stride===0||samples[i].segment!==samples[i-1]?.segment)chartSamples.push(samples[i]);
+    }
+    const groups=[];let group=[],lastSegment=null;
+    chartSamples.forEach(sample=>{
+      if(sample.segment!==lastSegment){if(group.length)groups.push(group);group=[sample];lastSegment=sample.segment;}
+      else group.push(sample);
+    });
+    if(group.length)groups.push(group);
+    const grid=[];
+    for(let i=0;i<=4;i++){
+      const value=yMax-(yRange*i/4),y=top+(height*i/4);
+      grid.push('<line class="grid-line" x1="'+left+'" y1="'+y+'" x2="'+(left+width)+'" y2="'+y+'"/><text class="axis-label" x="'+(left-9)+'" y="'+(y+4)+'" text-anchor="end">'+Math.round(value)+'</text>');
+    }
+    const paths=groups.map(group=>{
+      if(group.length<2)return '';
+      const coords=group.map(p=>xFor(p.distanceM)+','+yFor(p.elevationM)).join(' ');
+      return '<polyline class="profile-line" points="'+coords+'"/>';
+    }).join('');
+    const first=samples[0],last=samples[samples.length-1];
+    const firstX=xFor(first.distanceM),firstY=yFor(first.elevationM),lastX=xFor(last.distanceM),lastY=yFor(last.elevationM);
+    const startAnchor=firstX>left+70?'end':'start',endAnchor=lastX>left+width-70?'end':'start';
+    const xLabels='<text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text>';
+    const markers='<circle class="profile-marker" cx="'+firstX+'" cy="'+firstY+'" r="4"/><text class="marker-label" x="'+(firstX+(startAnchor==="start"?6:-6))+'" y="'+Math.max(10,firstY-9)+'" text-anchor="'+startAnchor+'">Start</text><circle class="profile-marker" cx="'+lastX+'" cy="'+lastY+'" r="4"/><text class="marker-label" x="'+(lastX+(endAnchor==="start"?6:-6))+'" y="'+Math.max(10,lastY-9)+'" text-anchor="'+endAnchor+'">Ziel</text>';
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">Abstieg <strong>−'+Math.round(profile.loss)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Höhenprofil mit '+samples.length+' gültigen GPS-Höhenpunkten"><text class="axis-title" x="8" y="12">Höhe (m)</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+paths+markers+xLabels+'</svg><p class="elevation-footnote">GPS-Höhenpunkte: '+profile.validCount+' von '+profile.totalCount+'. Ein lokaler Medianfilter dämpft einzelne Ausreißer; Höhenänderungen unter 3 m werden nicht zur Summe addiert.</p>';
   }
   function exportGPX(r){
     const pts=r.points||[];if(!pts.length){showToast("Keine GPS-Punkte zum Export vorhanden.");return;}
@@ -246,9 +323,38 @@
   async function exportBackup(){
     const rides=await allRides();downloadFile("velox-backup-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify({app:"VELOX",version:1,exportedAt:new Date().toISOString(),rides},null,2),"application/json");showToast("Sicherung erstellt.");
   }
+  function validImportedRide(ride){
+    return ride&&typeof ride==="object"&&ride.id!==undefined&&ride.id!==null&&String(ride.id).trim()!==""&&Number.isFinite(ride.startedAt)&&Array.isArray(ride.points)&&ride.points.every(point=>point&&Number.isFinite(point.lat)&&point.lat>=-90&&point.lat<=90&&Number.isFinite(point.lon)&&point.lon>=-180&&point.lon<=180&&Number.isFinite(point.t));
+  }
   async function importBackup(file){
-    try{const data=JSON.parse(await file.text());if(data.app!=="VELOX"||!Array.isArray(data.rides))throw new Error("Ungültige VELOX-Sicherung");for(const r of data.rides){if(r.id&&Array.isArray(r.points))await dbRequest("readwrite","put",r);}await refresh();showToast(data.rides.length+" Tour(en) importiert.");}
-    catch(e){showToast("Import fehlgeschlagen: ungültige Datei.");}
+    try{
+      const data=JSON.parse(await file.text());
+      if(data.app!=="VELOX"||!Array.isArray(data.rides))throw new Error("Ungültige VELOX-Sicherung");
+      const existing=await allRides(),usedIds=new Set(existing.map(ride=>String(ride.id)));
+      const imported=[];let remapped=0,skipped=0;
+      data.rides.forEach((source,index)=>{
+        if(!validImportedRide(source)){skipped++;return;}
+        const originalId=String(source.id);let id=originalId;
+        if(usedIds.has(id)){
+          const base=originalId+"-import-"+Date.now()+"-"+index;
+          id=base;let suffix=1;
+          while(usedIds.has(id))id=base+"-"+suffix++;
+          remapped++;
+        }
+        usedIds.add(id);
+        const ride={...source,id,points:source.points.map(point=>({...point}))};
+        if(id!==originalId)ride.importedFromId=originalId;
+        imported.push(ride);
+      });
+      await dbAddMany(imported);
+      await refresh();
+      const parts=[imported.length+" Tour(en) hinzugefügt."];
+      if(remapped)parts.push(remapped+" doppelte ID(s) angepasst");
+      if(skipped)parts.push(skipped+" ungültige Tour(en) übersprungen");
+      showToast(parts.join(" "));
+    }catch(e){
+      console.error(e);showToast("Import fehlgeschlagen. Vorhandene Touren wurden nicht überschrieben.");
+    }
   }
   $("startRide").addEventListener("click",startRide);
   $("pauseRide").addEventListener("click",pauseRide);
