@@ -55,7 +55,7 @@ Empfohlene Cloudflare-Pages-Einstellungen für diese statische App:
 - Framework preset: **None**
 - Production branch: **main**
 - Build command: **leer lassen**
-- Build output directory: **/**
+- Build output directory: **.**
 - Root directory: **/**
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
