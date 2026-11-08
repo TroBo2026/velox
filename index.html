@@ -4,9 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1724">
-  <meta name="description" content="VELOX – dein lokaler Fahrrad-Tracker.">
+  <meta name="description" content="VELOX – dein lokaler Fahrrad-Tracker mit GPS-Tourenanalyse.">
   <title>VELOX – Your ride. Your world.</title>
   <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="stylesheet" href="./styles.css">
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
@@ -27,7 +28,7 @@
         <div class="hero">
           <div class="eyebrow">DEIN RAD. DEINE DATEN.</div>
           <h1>Bereit für<br><em>die nächste Tour?</em></h1>
-          <p>Deine Fahrten. Präzise erfasst. Lokal gespeichert.</p>
+          <p>Deine Fahrten. Nachvollziehbar erfasst. Lokal gespeichert.</p>
           <button class="primary-button start-button" id="startRide"><span class="button-play"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="currentColor" stroke="none"/></svg></span><span>Tour starten</span><span class="button-arrow"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></button>
         </div>
         <div class="section-heading"><div><span class="eyebrow">ÜBERSICHT</span><h2>Deine Aktivität</h2></div><span class="period-pill">Gesamt</span></div>
@@ -53,7 +54,7 @@
           <div><span>Ø Geschwindigkeit</span><strong id="liveAverage">0,0 <small>km/h</small></strong></div>
         </div>
         <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption">GPS-STRECKENVERLAUF</div></div>
-        <div class="tracking-actions"><button class="secondary-button" id="pauseRide" disabled>Ⅱ Pause</button><button class="danger-button" id="stopRide" disabled>Tour beenden</button></div>
+        <div class="tracking-actions"><button class="secondary-button" id="pauseRide" disabled>Pause</button><button class="danger-button" id="stopRide" disabled>Tour beenden</button></div>
         <p class="small-note">Für GPS-Aufzeichnung Standortzugriff erlauben und diese Seite geöffnet halten. Auf iOS kann eine Web-App bei gesperrtem Bildschirm unterbrochen werden.</p>
       </section>
 
@@ -76,7 +77,7 @@
           <article class="metric-card"><span>Ø Tourdistanz</span><strong id="statsAverageDistance">0 <small>km</small></strong></article>
         </div>
         <div class="panel"><span class="eyebrow">DEINE STRECKEN</span><h3>Persönliche Routenkarte</h3><div id="personalMap" class="detail-map"></div><p>Alle gespeicherten GPS-Strecken auf einer Karte. Kartendaten werden bei Internetverbindung von OpenStreetMap geladen.</p></div>
-        <div class="panel"><span class="eyebrow">HINWEIS ZUR DATENQUALITÄT</span><h3>Messung statt Schätzung</h3><p>Distanz und Geschwindigkeit werden aus GPS-Positionen und Zeitstempeln berechnet. Höhenmeter basieren auf den vom Gerät gelieferten GPS-Höhenwerten und zählen nur Höhenänderungen ab 3 m. Ohne kompatible Sensoren zeigt VELOX keine Herzfrequenz-, Trittfrequenz- oder Leistungsmessungen an.</p></div>
+        <div class="panel"><span class="eyebrow">HINWEIS ZUR DATENQUALITÄT</span><h3>Messung statt Schätzung</h3><p>Distanz und Geschwindigkeit werden aus GPS-Positionen und Zeitstempeln berechnet. Höhenmeter werden aus einem lokal geglätteten Verlauf der GPS-Höhenwerte berechnet; Änderungen unter 3 m werden nicht zur Summe addiert. Ohne kompatible Sensoren zeigt VELOX keine Herzfrequenz-, Trittfrequenz- oder Leistungsmessungen an.</p></div>
       </section>
 
       <section class="page" id="page-settings">
@@ -84,7 +85,7 @@
         <div class="panel setting-row"><div><h3>Daten exportieren</h3><p>Alle Touren als JSON-Sicherung speichern.</p></div><button class="secondary-button compact" id="exportBackup">Export</button></div>
         <div class="panel setting-row"><div><h3>Daten importieren</h3><p>Eine zuvor exportierte VELOX-Sicherung einlesen.</p></div><button class="secondary-button compact" id="importBackup">Import</button><input id="backupFile" type="file" accept="application/json,.json" hidden></div>
         <div class="panel setting-row"><div><h3>Alle Daten löschen</h3><p>Entfernt alle lokal gespeicherten Touren unwiderruflich.</p></div><button class="danger-outline compact" id="deleteAll">Löschen</button></div>
-        <div class="panel"><span class="eyebrow">VERSION 0.1.0</span><h3>VELOX – Your ride. Your world.</h3><p>Testversion. Noch keine Apple-Watch-Anbindung, keine automatische Herzfrequenz-/Leistungsmessung und keine garantierte Hintergrundaufzeichnung.</p></div>
+        <div class="panel"><span class="eyebrow">VERSION 0.2.0</span><h3>VELOX – Your ride. Your world.</h3><p>Testversion 0.2.0. Noch keine Apple-Watch-Anbindung, keine automatische Herzfrequenz-/Leistungsmessung und keine garantierte Hintergrundaufzeichnung.</p></div>
       </section>
     </main>
 
