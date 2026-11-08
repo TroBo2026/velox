@@ -185,7 +185,7 @@
     if(activeRide.status==="recording"){
       activeRide.status="paused";activeRide.pauseStarted=Date.now();
       if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
-      $("pauseRide").textContent="▶ Fortsetzen";$("trackingStatus").textContent="Pausiert";
+      $("pauseRide").textContent="Fortsetzen";$("trackingStatus").textContent="Pausiert";
     }else{
       activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));
       delete activeRide.pauseStarted;activeRide.status="recording";
