@@ -73,8 +73,8 @@
     for(const point of points){
       if(previous){
         const d=haversine(previous,point),dt=(point.t-previous.t)/1000;
-        if(Number.isFinite(d)&&d>0.8&&d<150)distance+=d;
-        if(!Number.isFinite(dt)||dt<=0||dt>90||d>=150)segment++;
+        if(Number.isFinite(d)&&d>0.8&&d<150&&dt>0&&dt<=30)distance+=d;
+        if(!Number.isFinite(dt)||dt<=0||dt>30||d>=150)segment++;
       }
       const altitudeAccuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
       if(Number.isFinite(point.alt)&&(altitudeAccuracy===null||altitudeAccuracy<=50)){
@@ -101,7 +101,8 @@
     const p=ride.points||[];let total=0;
     for(let i=1;i<p.length;i++){
       const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]);
-      if(dt>0&&dt<=30&&d<150&&(d/dt*3.6)>=1)total+=dt;
+      const speed=d/dt*3.6;
+      if(dt>0&&dt<=30&&d>0.8&&d<150&&speed>=1&&speed<=100)total+=dt;
     }
     return total;
   };
@@ -109,7 +110,8 @@
     const p=ride.points||[];let distance=0;
     for(let i=1;i<p.length;i++){
       const d=haversine(p[i-1],p[i]);
-      if(d<150&&d>0.8)distance+=d;
+      const dt=(p[i].t-p[i-1].t)/1000;
+      if(dt>0&&dt<=30&&d<150&&d>0.8)distance+=d;
     }
     const elevation=buildElevationProfile(p);
     const elapsed=activeSeconds(ride),moving=movingSeconds(ride);
@@ -117,7 +119,7 @@
     const speeds=[];
     for(let i=1;i<p.length;i++){
       const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]),speed=d/dt*3.6;
-      if(dt>0&&dt<=30&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);
+      if(dt>0&&dt<=30&&d>0.8&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);
     }
     return {distanceM:distance,elevationGain:elevation.gain,elevationLoss:elevation.loss,elapsedSeconds:elapsed,movingSeconds:moving,averageSpeed:avg,maxSpeed:speeds.length?Math.max(...speeds):0};
   }
@@ -214,11 +216,18 @@
     $("trackingStatus").textContent=messages[err.code]||"GPS-Fehler";
     showToast(messages[err.code]||"GPS-Fehler");
   }
+  function currentSpeed(points){
+    if(points.length<2)return 0;
+    const a=points[points.length-2],b=points[points.length-1],dt=(b.t-a.t)/1000,d=haversine(a,b);
+    if(dt<=0||dt>30||d<=0.8||d>=150)return 0;
+    const speed=d/dt*3.6;
+    return Number.isFinite(speed)&&speed<=100?speed:0;
+  }
   function updateLive(){
     if(!activeRide)return;
     const c=calcRide(activeRide);
     $("liveDistance").textContent=fmt(c.distanceM/1000,2);
-    $("liveSpeed").innerHTML=fmt(c.averageSpeed===0?0:(activeRide.points.length>1?(()=>{const a=activeRide.points.at(-2),b=activeRide.points.at(-1);return haversine(a,b)/Math.max(1,(b.t-a.t)/1000)*3.6;})():0))+' <small>km/h</small>';
+    $("liveSpeed").innerHTML=fmt(currentSpeed(activeRide.points))+" <small>km/h</small>";
     $("liveDuration").textContent=fmtTime(c.elapsedSeconds);
     $("liveElevation").innerHTML=Math.round(c.elevationGain)+' <small>m</small>';
     $("liveAverage").innerHTML=fmt(c.averageSpeed)+' <small>km/h</small>';
