@@ -3,16 +3,17 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält den ersten testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.1.0
+## Aktueller Stand – Version 0.2.0
 
 - GPS-Aufzeichnung über die Browser-Standortfunktion
 - Tour pausieren, fortsetzen und beenden
 - Distanz, Dauer, aktuelle und durchschnittliche Geschwindigkeit
-- GPS-Höhenprofil sowie berechneter Auf- und Abstieg
+- Distanzbezogenes GPS-Höhenprofil mit Achsen, Start-/Zielmarkierung und lokaler Median-Glättung
+- Auf- und Abstieg aus geglätteten GPS-Höhenwerten; Höhenpunkte mit gemeldeter vertikaler Ungenauigkeit über 50 m werden ausgelassen
 - Separate Tourenliste mit Detailansicht und Streckenkarte
 - Persönliche Karte mit allen gespeicherten GPS-Routen
 - GPX-Export einzelner Touren
-- JSON-Export und -Import aller Tourdaten
+- JSON-Export und -Import aller Tourdaten; beim Import werden vorhandene Touren nie überschrieben, doppelte IDs erhalten eine neue Import-ID
 - Lokale Speicherung im Browser über IndexedDB
 - Installierbare PWA-Grundstruktur und Offline-App-Shell-Cache
 
@@ -23,16 +24,16 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält den ersten
 - Es gibt keinen VELOX-Server, der Tourdaten entgegennimmt.
 - Vor dem Löschen von Browserdaten oder einer Neuinstallation eine JSON-Sicherung exportieren.
 - Die Kartenansicht lädt Kartenausschnitte von OpenStreetMap. Dafür werden beim Anzeigen der Karte Netzwerkanfragen an den Kartendienst gesendet; die aufgezeichnete GPX-Tour wird nicht an VELOX-Server hochgeladen.
-- Die App lädt derzeit Leaflet und Schrift-/Darstellungsressourcen extern. Offline sind deshalb nicht alle Karten- und Designressourcen verfügbar.
+- Die App lädt derzeit Leaflet und Schrift-/Darstellungsressourcen extern. Offline sind deshalb nicht alle Karten- und Designressourcen verfügbar. Das App-Symbol und die lokale App-Shell werden zusätzlich im Service Worker zwischengespeichert; Karten bleiben onlineabhängig.
 
 ## Grenzen des Web-Prototyps
 
-Diese Version ist ein testbarer erster Funktionsstand, noch keine vollständige native Fahrrad-App.
+Diese Version 0.2.0 ist ein testbarer Funktionsstand, noch keine vollständige native Fahrrad-App.
 
 - iOS kann Browser-Tabs und Web-Apps im Hintergrund anhalten. GPS-Aufzeichnung bei gesperrtem Bildschirm ist daher nicht zuverlässig garantiert. Während eines Tests VELOX geöffnet und den Bildschirm aktiv lassen.
 - Apple-Watch-, HealthKit- und Bluetooth-Sensor-Anbindung sind noch nicht implementiert.
 - Herzfrequenz, Watt, Trittfrequenz und Kalorien werden nicht erfunden oder simuliert.
-- GPS-Höhenwerte sind ungenau und können schwanken. Die Höhenmeter sind eine Näherungsberechnung aus den verfügbaren GPS-Höhenpunkten, keine barometrische Messung.
+- GPS-Höhenwerte sind ungenau und können schwanken. Ein lokaler Medianfilter dämpft einzelne Ausreißer; Änderungen unter 3 m werden nicht zur kumulierten Summe addiert. Das bleibt eine Näherungsberechnung, keine barometrische Messung.
 - Offline-Karten sind noch nicht enthalten.
 - Für GPS wird eine sichere HTTPS-Adresse und eine erteilte Standortberechtigung benötigt.
 
@@ -43,12 +44,13 @@ Diese Version ist ein testbarer erster Funktionsstand, noch keine vollständige 
 | `index.html` | App-Struktur und Ansichten |
 | `styles.css` | Responsive VELOX-Oberfläche |
 | `app.js` | GPS, Berechnungen, IndexedDB, Touren, Export/Import |
-| `manifest.webmanifest` | PWA-Metadaten |
+| `manifest.webmanifest` | PWA-Metadaten und SVG-App-Icon |
+| `icon.svg` | VELOX-App-/Browser-Icon |
 | `sw.js` | Cache für den App-Shell |
 
 ## Kostenlos testen und bereitstellen
 
-Das Repository bleibt privat. GitHub Pages ist bei GitHub Free auf öffentliche Repositories beschränkt. Cloudflare Pages kann dagegen mit einem privaten GitHub-Repository verbunden werden und bei Änderungen am Branch `main` automatisch neu bereitstellen.
+Das Repository ist derzeit öffentlich. GitHub Pages ist bei GitHub Free auf öffentliche Repositories beschränkt. Cloudflare Pages kann dagegen mit einem privaten GitHub-Repository verbunden werden und bei Änderungen am Branch `main` automatisch neu bereitstellen.
 
 Empfohlene Cloudflare-Pages-Einstellungen für diese statische App:
 
