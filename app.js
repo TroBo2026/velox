@@ -55,7 +55,10 @@
   const activeSeconds=(ride)=>Math.max(0,((ride.endedAt||Date.now())-ride.startedAt-(ride.pausedMs||0)-(ride.status==="paused"?Date.now()-(ride.pauseStarted||Date.now()):0))/1000);
   const movingSeconds=(ride)=>{
     const p=ride.points||[];let total=0;
-    for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000;if(dt>0&&dt<=30)total+=dt;}
+    for(let i=1;i<p.length;i++){
+      const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]);
+      if(dt>0&&dt<=30&&d<150&&(d/dt*3.6)>=1)total+=dt;
+    }
     return total;
   };
   function calcRide(ride){
