@@ -1,0 +1,244 @@
+/* VELOX 0.1.0 — local-first cycling tracker */
+(() => {
+  "use strict";
+  const DB_NAME = "velox-local";
+  const DB_VERSION = 1;
+  const STORE = "rides";
+  const $ = (id) => document.getElementById(id);
+  let db;
+  let currentPage = "home";
+  let activeRide = null;
+  let watchId = null;
+  let timerId = null;
+  let liveMap = null;
+  let liveLine = null;
+  let liveMarker = null;
+  let detailMap = null;
+  let toastTimer = null;
+
+  const fmt = (n, digits=1) => Number(n || 0).toLocaleString("de-DE",{minimumFractionDigits:digits,maximumFractionDigits:digits});
+  const fmtTime = (seconds) => {
+    const s=Math.max(0,Math.floor(seconds||0)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;
+    return [h,m,r].map(v=>String(v).padStart(2,"0")).join(":");
+  };
+  const haversine = (a,b) => {
+    const R=6371000,rad=v=>v*Math.PI/180,dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon);
+    const x=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
+    return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+  };
+  const showToast = (msg) => {
+    const el=$("toast");el.textContent=msg;el.classList.add("show");
+    clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),2800);
+  };
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      if(!("indexedDB" in window)){reject(new Error("Dieser Browser unterstützt keine lokale Datenbank."));return;}
+      const req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:"id"});};
+      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+    });
+  }
+  function dbRequest(mode,action,value){
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);
+      let req;
+      if(action==="all")req=store.getAll();
+      if(action==="put")req=store.put(value);
+      if(action==="delete")req=store.delete(value);
+      if(action==="clear")req=store.clear();
+      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+    });
+  }
+  const allRides=async()=>((await dbRequest("readonly","all"))||[]).sort((a,b)=>b.startedAt-a.startedAt);
+  const activeSeconds=(ride)=>Math.max(0,((ride.endedAt||Date.now())-ride.startedAt-(ride.pausedMs||0))/1000);
+  const movingSeconds=(ride)=>{
+    const p=ride.points||[];let total=0;
+    for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000;if(dt>0&&dt<=30)total+=dt;}
+    return total;
+  };
+  function calcRide(ride){
+    const p=ride.points||[];let distance=0,gain=0,loss=0;
+    for(let i=1;i<p.length;i++){
+      const d=haversine(p[i-1],p[i]);
+      if(d<150 && d>0.8)distance+=d;
+      const a=p[i-1].alt,b=p[i].alt;
+      if(Number.isFinite(a)&&Number.isFinite(b)){
+        const delta=b-a;
+        if(Math.abs(delta)>=3){if(delta>0)gain+=delta;else loss+=Math.abs(delta);}
+      }
+    }
+    const elapsed=activeSeconds(ride),moving=movingSeconds(ride);
+    const avg=moving>0?distance/moving*3.6:0;
+    const speeds=[];
+    for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]);if(dt>0&&dt<=30&&d<150)speeds.push(d/dt*3.6);}
+    return {distanceM:distance,elevationGain:gain,elevationLoss:loss,elapsedSeconds:elapsed,movingSeconds:moving,averageSpeed:avg,maxSpeed:speeds.length?Math.max(...speeds):0};
+  }
+  function setPage(page){
+    currentPage=page;
+    document.querySelectorAll(".page").forEach(el=>el.classList.toggle("active",el.id==="page-"+page));
+    document.querySelectorAll(".nav-item").forEach(el=>el.classList.toggle("selected",el.dataset.page===page));
+    if(page==="home"||page==="rides"||page==="stats")refresh();
+    if(page==="track")setTimeout(()=>{if(liveMap)liveMap.invalidateSize();},100);
+    window.scrollTo({top:0,behavior:"instant"});
+  }
+  document.addEventListener("click",e=>{
+    const nav=e.target.closest("[data-page]");
+    if(nav){e.preventDefault();setPage(nav.dataset.page);}
+  });
+  function initMap(elementId,center=[51.05,13.74]){
+    if(!window.L)return null;
+    const map=L.map(elementId,{zoomControl:true,attributionControl:true}).setView(center,13);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+    return map;
+  }
+  function drawLive(points){
+    if(!liveMap)return;
+    const coords=points.map(p=>[p.lat,p.lon]);
+    if(liveLine)liveLine.setLatLngs(coords);else liveLine=L.polyline(coords,{color:"#5bd6c5",weight:5,opacity:.95}).addTo(liveMap);
+    if(coords.length){const last=coords[coords.length-1];if(liveMarker)liveMarker.setLatLng(last);else liveMarker=L.circleMarker(last,{radius:7,color:"#07131f",weight:3,fillColor:"#5bd6c5",fillOpacity:1}).addTo(liveMap);liveMap.setView(last,Math.max(liveMap.getZoom(),15));}
+  }
+  async function refresh(){
+    const rides=await allRides();let distance=0,time=0,elev=0;
+    rides.forEach(r=>{const c=calcRide(r);distance+=c.distanceM;time+=c.movingSeconds;elev+=c.elevationGain;});
+    $("totalDistance").innerHTML=fmt(distance/1000)+" <small>km</small>";
+    $("totalTime").innerHTML=fmt(time/3600,1)+" <small>h</small>";
+    $("totalElevation").innerHTML=Math.round(elev)+" <small>m</small>";
+    $("totalRides").textContent=rides.length;
+    $("statsDistance").innerHTML=fmt(distance/1000)+" <small>km</small>";
+    $("statsTime").innerHTML=fmt(time/3600)+" <small>h</small>";
+    $("statsElevation").innerHTML=Math.round(elev)+" <small>m</small>";
+    $("statsAverageDistance").innerHTML=fmt(rides.length?distance/1000/rides.length:0)+" <small>km</small>";
+    renderRideList($("recentRides"),rides.slice(0,3));renderRideList($("allRides"),rides);
+  }
+  function renderRideList(container,rides){
+    if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Touren gespeichert.</div>';return;}
+    container.innerHTML=rides.map(r=>{
+      const c=calcRide(r),date=new Date(r.startedAt).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"});
+      return '<button class="ride-card" data-ride="'+r.id+'"><div><h3>'+escapeHtml(r.name||"Fahrradtour")+'</h3><p>'+date+' · '+fmt(c.movingSeconds/60,0)+' min · '+fmt(c.averageSpeed)+' km/h Ø</p></div><div class="ride-distance">'+fmt(c.distanceM/1000)+' <small>km</small></div></button>';
+    }).join("");
+    container.querySelectorAll("[data-ride]").forEach(el=>el.addEventListener("click",()=>openDetail(el.dataset.ride)));
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  async function startRide(){
+    if(!navigator.geolocation){showToast("GPS wird von diesem Browser nicht unterstützt.");return;}
+    if(!window.isSecureContext){showToast("GPS benötigt eine sichere HTTPS-Verbindung.");return;}
+    activeRide={id:"ride-"+Date.now(),name:"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,points:[],status:"recording"};
+    try{await dbRequest("readwrite","put",activeRide);}catch(e){showToast("Lokale Speicherung nicht verfügbar.");return;}
+    $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Ⅱ Pause";
+    $("trackingStatus").textContent="GPS wird gesucht …";$("trackingDot").style.background="#d9b879";
+    liveMap=liveMap||initMap("liveMap");liveLine=null;liveMarker=null;
+    setPage("track");
+    watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+    timerId=setInterval(updateLive,1000);updateLive();
+  }
+  async function onPosition(pos){
+    if(!activeRide||activeRide.status!=="recording")return;
+    const c=pos.coords,point={lat:c.latitude,lon:c.longitude,t:pos.timestamp||Date.now(),alt:Number.isFinite(c.altitude)?c.altitude:null,accuracy:c.accuracy};
+    const prev=activeRide.points[activeRide.points.length-1];
+    if(prev){const d=haversine(prev,point);const dt=(point.t-prev.t)/1000;if(d>150||dt<=0)return;if(d<1.5&&dt<3)return;}
+    activeRide.points.push(point);
+    await dbRequest("readwrite","put",activeRide);
+    $("trackingStatus").textContent="Aufzeichnung läuft";$("trackingDot").style.background="var(--teal)";
+    $("gpsAccuracy").textContent="GPS ±"+Math.round(c.accuracy)+" m";
+    drawLive(activeRide.points);updateLive();
+  }
+  function onGeoError(err){
+    const messages={1:"Standortzugriff verweigert. Bitte in den iOS-Einstellungen erlauben.",2:"GPS-Position nicht verfügbar.",3:"GPS-Zeitüberschreitung. Suche läuft weiter."};
+    $("trackingStatus").textContent=messages[err.code]||"GPS-Fehler";
+    showToast(messages[err.code]||"GPS-Fehler");
+  }
+  function updateLive(){
+    if(!activeRide)return;
+    const c=calcRide(activeRide);
+    $("liveDistance").textContent=fmt(c.distanceM/1000,2);
+    $("liveSpeed").innerHTML=fmt(c.averageSpeed===0?0:(activeRide.points.length>1?(()=>{const a=activeRide.points.at(-2),b=activeRide.points.at(-1);return haversine(a,b)/Math.max(1,(b.t-a.t)/1000)*3.6;})():0))+' <small>km/h</small>';
+    $("liveDuration").textContent=fmtTime(c.elapsedSeconds);
+    $("liveElevation").innerHTML=Math.round(c.elevationGain)+' <small>m</small>';
+    $("liveAverage").innerHTML=fmt(c.averageSpeed)+' <small>km/h</small>';
+  }
+  async function pauseRide(){
+    if(!activeRide)return;
+    if(activeRide.status==="recording"){
+      activeRide.status="paused";activeRide.pauseStarted=Date.now();
+      if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
+      $("pauseRide").textContent="▶ Fortsetzen";$("trackingStatus").textContent="Pausiert";
+    }else{
+      activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));
+      delete activeRide.pauseStarted;activeRide.status="recording";
+      watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+      $("pauseRide").textContent="Ⅱ Pause";$("trackingStatus").textContent="Aufzeichnung läuft";
+    }
+    await dbRequest("readwrite","put",activeRide);updateLive();
+  }
+  async function stopRide(){
+    if(!activeRide)return;
+    if(activeRide.status==="paused"){activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));delete activeRide.pauseStarted;}
+    if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
+    clearInterval(timerId);timerId=null;
+    activeRide.status="completed";activeRide.endedAt=Date.now();
+    const c=calcRide(activeRide);
+    await dbRequest("readwrite","put",activeRide);
+    activeRide=null;$("pauseRide").disabled=true;$("stopRide").disabled=true;
+    $("trackingStatus").textContent="Tour gespeichert";$("trackingDot").style.background="var(--teal)";
+    showToast(c.distanceM>0?"Tour lokal gespeichert.":"Tour ohne ausreichende GPS-Daten gespeichert.");
+    await refresh();setPage("rides");
+  }
+  async function openDetail(id){
+    const r=(await allRides()).find(x=>x.id===id);if(!r)return;
+    const c=calcRide(r),date=new Date(r.startedAt).toLocaleString("de-DE",{dateStyle:"full",timeStyle:"short"});
+    $("rideDetail").innerHTML='<div class="detail-header"><span class="eyebrow">TOURENDETAIL</span><h1>'+escapeHtml(r.name||"Fahrradtour")+'</h1><p class="muted">'+date+'</p></div>'+
+      '<div class="metric-grid detail-metrics">'+
+      metric("Distanz",fmt(c.distanceM/1000)+" km")+metric("Fahrzeit",fmtTime(c.movingSeconds))+metric("Ø Geschwindigkeit",fmt(c.averageSpeed)+" km/h")+metric("Max. Geschwindigkeit",fmt(c.maxSpeed)+" km/h")+
+      metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+metric("GPS-Punkte",r.points.length)+metric("Aufzeichnungsdauer",fmtTime(c.elapsedSeconds))+'</div>'+
+      '<div class="detail-map" id="detailMap"></div>'+
+      '<div class="panel"><span class="eyebrow">HÖHENPROFIL</span><h3>Höhenverlauf</h3><div class="chart-box" id="elevationChart"></div><p>Quelle: GPS-Höhenwerte des Geräts. Die Genauigkeit hängt vom Empfang und Sensor ab.</p></div>'+
+      '<div class="panel"><span class="eyebrow">DATENQUELLE</span><h3>Messwerte & Berechnungen</h3><p>Distanz und Geschwindigkeit aus GPS-Positionen und Zeitstempeln. Höhenmeter aus geglätteten GPS-Höhenunterschieden. Keine Herzfrequenz-, Watt- oder Trittfrequenzwerte vorhanden, sofern keine kompatiblen Sensoren eingebunden sind.</p></div>'+
+      '<div class="tracking-actions"><button class="secondary-button" id="exportGpx">GPX exportieren</button><button class="danger-outline" id="deleteRide">Tour löschen</button></div>';
+    setPage("detail");
+    setTimeout(()=>{
+      detailMap=initMap("detailMap",r.points.length?[r.points[0].lat,r.points[0].lon]:[51.05,13.74]);
+      if(detailMap&&r.points.length){const line=L.polyline(r.points.map(p=>[p.lat,p.lon]),{color:"#5bd6c5",weight:5}).addTo(detailMap);detailMap.fitBounds(line.getBounds(),{padding:[20,20]});L.marker([r.points[0].lat,r.points[0].lon]).addTo(detailMap).bindPopup("Start");L.marker([r.points.at(-1).lat,r.points.at(-1).lon]).addTo(detailMap).bindPopup("Ziel");}
+      renderElevation(r.points);
+    },150);
+    $("exportGpx").onclick=()=>exportGPX(r);$("deleteRide").onclick=async()=>{if(confirm("Diese Tour dauerhaft löschen?")){await dbRequest("readwrite","delete",r.id);showToast("Tour gelöscht.");setPage("rides");}};
+  }
+  function metric(label,value){return '<article class="metric-card"><span>'+label+'</span><strong>'+value+'</strong></article>';}
+  function renderElevation(points){
+    const vals=points.map(p=>p.alt).filter(v=>Number.isFinite(v));
+    const box=$("elevationChart");if(!vals.length){box.innerHTML='<div class="empty-state">Keine GPS-Höhendaten für diese Tour vorhanden.</div>';return;}
+    const min=Math.min(...vals),max=Math.max(...vals),range=Math.max(1,max-min),w=600,h=130;
+    const xy=vals.map((v,i)=>(i/(Math.max(1,vals.length-1))*w)+","+(h-((v-min)/range*(h-18))-8)).join(" ");
+    box.innerHTML='<svg viewBox="0 0 600 140" preserveAspectRatio="none"><defs><linearGradient id="elevFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#5bd6c5" stop-opacity=".35"/><stop offset="1" stop-color="#5bd6c5" stop-opacity="0"/></linearGradient></defs><polygon points="0,140 '+xy+' 600,140" fill="url(#elevFill)"/><polyline points="'+xy+'" fill="none" stroke="#5bd6c5" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>';
+  }
+  function exportGPX(r){
+    const pts=r.points||[];if(!pts.length){showToast("Keine GPS-Punkte zum Export vorhanden.");return;}
+    const esc=s=>String(s).replace(/[<>&'"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c]));
+    const trk=pts.map(p=>'<trkpt lat="'+p.lat+'" lon="'+p.lon+'">'+(Number.isFinite(p.alt)?'<ele>'+p.alt+'</ele>':'')+'<time>'+new Date(p.t).toISOString()+'</time></trkpt>').join("");
+    downloadFile("velox-"+r.id+".gpx",'<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="VELOX" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>'+esc(r.name||"VELOX Tour")+'</name><trkseg>'+trk+'</trkseg></trk></gpx>',"application/gpx+xml");
+  }
+  function downloadFile(name,content,type){
+    const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  async function exportBackup(){
+    const rides=await allRides();downloadFile("velox-backup-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify({app:"VELOX",version:1,exportedAt:new Date().toISOString(),rides},null,2),"application/json");showToast("Sicherung erstellt.");
+  }
+  async function importBackup(file){
+    try{const data=JSON.parse(await file.text());if(data.app!=="VELOX"||!Array.isArray(data.rides))throw new Error("Ungültige VELOX-Sicherung");for(const r of data.rides){if(r.id&&Array.isArray(r.points))await dbRequest("readwrite","put",r);}await refresh();showToast(data.rides.length+" Tour(en) importiert.");}
+    catch(e){showToast("Import fehlgeschlagen: ungültige Datei.");}
+  }
+  $("startRide").addEventListener("click",startRide);
+  $("pauseRide").addEventListener("click",pauseRide);
+  $("stopRide").addEventListener("click",stopRide);
+  $("exportBackup").addEventListener("click",exportBackup);
+  $("importBackup").addEventListener("click",()=>$("backupFile").click());
+  $("backupFile").addEventListener("change",e=>{if(e.target.files[0])importBackup(e.target.files[0]);e.target.value="";});
+  $("deleteAll").addEventListener("click",async()=>{if(confirm("Wirklich alle VELOX-Touren auf diesem Gerät löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.")){await dbRequest("readwrite","clear");await refresh();showToast("Alle lokalen Tourdaten gelöscht.");}});
+  $("installHint").addEventListener("click",()=>showToast('Safari: Teilen → „Zum Home-Bildschirm“ hinzufügen.'));
+  async function init(){
+    try{db=await openDB();await refresh();}
+    catch(e){showToast("Lokale Datenbank konnte nicht geöffnet werden.");console.error(e);}
+    if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
+    if(window.L)liveMap=initMap("liveMap");
+  }
+  init();
+})();
