@@ -8,5 +8,13 @@
   "display": "standalone",
   "background_color": "#08131f",
   "theme_color": "#0b1724",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
