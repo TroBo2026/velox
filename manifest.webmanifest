@@ -1,0 +1,12 @@
+{
+  "name": "VELOX – Your ride. Your world.",
+  "short_name": "VELOX",
+  "description": "Lokaler Fahrrad-Tracker mit GPS-Aufzeichnung und Tourenanalyse.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#08131f",
+  "theme_color": "#0b1724",
+  "orientation": "portrait"
+}
