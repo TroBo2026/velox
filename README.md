@@ -1,160 +1,71 @@
-VELOX
+# VELOX
+**YOUR RIDE. YOUR WORLD.**
 
-YOUR RIDE. YOUR WORLD.
+VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält den ersten testbaren Web-App-Prototyp für iPhone und iPad.
 
-VELOX is a modern cycling platform focused on precise ride tracking, detailed performance analysis and a personal cycling history.
+## Aktueller Stand – Version 0.1.0
 
-Our goal is to create a premium cycling experience for iPhone, iPad and Apple Watch.
+- GPS-Aufzeichnung über die Browser-Standortfunktion
+- Tour pausieren, fortsetzen und beenden
+- Distanz, Dauer, aktuelle und durchschnittliche Geschwindigkeit
+- GPS-Höhenprofil sowie berechneter Auf- und Abstieg
+- Separate Tourenliste mit Detailansicht und Streckenkarte
+- Persönliche Karte mit allen gespeicherten GPS-Routen
+- GPX-Export einzelner Touren
+- JSON-Export und -Import aller Tourdaten
+- Lokale Speicherung im Browser über IndexedDB
+- Installierbare PWA-Grundstruktur und Offline-App-Shell-Cache
 
-Main Features
+## Datenschutz und Datenspeicherung
 
-GPS-based ride tracking
+- Kein VELOX-Konto und kein Login erforderlich.
+- Tourdaten werden im Browser auf dem verwendeten Gerät gespeichert.
+- Es gibt keinen VELOX-Server, der Tourdaten entgegennimmt.
+- Vor dem Löschen von Browserdaten oder einer Neuinstallation eine JSON-Sicherung exportieren.
+- Die Kartenansicht lädt Kartenausschnitte von OpenStreetMap. Dafür werden beim Anzeigen der Karte Netzwerkanfragen an den Kartendienst gesendet; die aufgezeichnete GPX-Tour wird nicht an VELOX-Server hochgeladen.
+- Die App lädt derzeit Leaflet und Schrift-/Darstellungsressourcen extern. Offline sind deshalb nicht alle Karten- und Designressourcen verfügbar.
 
-Individual ride history
+## Grenzen des Web-Prototyps
 
-Detailed ride analysis
+Diese Version ist ein testbarer erster Funktionsstand, noch keine vollständige native Fahrrad-App.
 
-Interactive elevation profiles
+- iOS kann Browser-Tabs und Web-Apps im Hintergrund anhalten. GPS-Aufzeichnung bei gesperrtem Bildschirm ist daher nicht zuverlässig garantiert. Während eines Tests VELOX geöffnet und den Bildschirm aktiv lassen.
+- Apple-Watch-, HealthKit- und Bluetooth-Sensor-Anbindung sind noch nicht implementiert.
+- Herzfrequenz, Watt, Trittfrequenz und Kalorien werden nicht erfunden oder simuliert.
+- GPS-Höhenwerte sind ungenau und können schwanken. Die Höhenmeter sind eine Näherungsberechnung aus den verfügbaren GPS-Höhenpunkten, keine barometrische Messung.
+- Offline-Karten sind noch nicht enthalten.
+- Für GPS wird eine sichere HTTPS-Adresse und eine erteilte Standortberechtigung benötigt.
 
-Speed and distance statistics
+## Dateien
 
-Elevation gain and loss
+| Datei | Aufgabe |
+|---|---|
+| `index.html` | App-Struktur und Ansichten |
+| `styles.css` | Responsive VELOX-Oberfläche |
+| `app.js` | GPS, Berechnungen, IndexedDB, Touren, Export/Import |
+| `manifest.webmanifest` | PWA-Metadaten |
+| `sw.js` | Cache für den App-Shell |
 
-Personal route map
+## Kostenlos testen und bereitstellen
 
-Performance analysis
+Das Repository bleibt privat. GitHub Pages ist bei GitHub Free auf öffentliche Repositories beschränkt. Cloudflare Pages kann dagegen mit einem privaten GitHub-Repository verbunden werden und bei Änderungen am Branch `main` automatisch neu bereitstellen.
 
-Personal records
+Empfohlene Cloudflare-Pages-Einstellungen für diese statische App:
 
-Multiple bike profiles
+- Framework preset: **None**
+- Production branch: **main**
+- Build command: **leer lassen**
+- Build output directory: **/**
+- Root directory: **/**
 
-Sensor integration
+Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
 
-Apple Watch support
+## Geplante Entwicklung
 
-Local data storage
+1. Stabilität und GPS-Qualität testen
+2. Datenmodell und Höhenprofil verbessern
+3. GPX-Import und Tourenverwaltung erweitern
+4. Sensorintegration prüfen
+5. Native iOS-/watchOS-Version evaluieren
 
-GPX import and export
-
-Individual Ride Data
-
-Every ride is stored separately.
-
-Opening a ride displays its own:
-
-GPS route
-
-Distance and duration
-
-Average and maximum speed
-
-Elevation profile
-
-Elevation gain and loss
-
-Gradient analysis
-
-Sensor data, when available
-
-Weather information, when available
-
-Overall statistics are calculated separately from the individual rides.
-
-Data & Privacy
-
-VELOX is designed around local-first storage.
-
-No mandatory user account
-
-No login or logout
-
-Ride data stored locally
-
-Offline ride recording as a development goal
-
-Optional data export and backup
-
-Measured values, calculated values and estimates are clearly distinguished.
-
-Technology
-
-Planned technologies:
-
-Swift
-
-SwiftUI
-
-CoreLocation
-
-MapKit
-
-SwiftData
-
-HealthKit
-
-Web technologies for the initial prototype
-
-Development Roadmap
-
-Phase 1 – Foundation
-
-Dashboard
-
-Navigation
-
-Local data architecture
-
-Ride history
-
-Phase 2 – GPS Tracking
-
-GPS recording
-
-Live speed
-
-Distance and duration
-
-Automatic ride saving
-
-Phase 3 – Ride Analysis
-
-Elevation profiles
-
-Detailed ride statistics
-
-Gradient analysis
-
-Personal records
-
-Phase 4 – VELOX MAP
-
-Personal route map
-
-Route history
-
-Route comparisons
-
-Phase 5 – Advanced Features
-
-Sensor integration
-
-Training analysis
-
-Apple Watch support
-
-AI-assisted ride analysis
-
-Project Principles
-
-Real data instead of fabricated measurements.
-
-Every ride remains individually accessible.
-
-Overall statistics remain separate.
-
-Privacy and local storage come first.
-
-No mandatory subscriptions or paid services.
-
-VELOX – YOUR RIDE. YOUR WORLD.
-
+**Grundprinzipien:** echte Messwerte statt erfundener Daten, jede Tour einzeln zugänglich, Gesamtstatistiken getrennt, lokale Speicherung zuerst und keine verpflichtenden Abos.
