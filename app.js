@@ -14,6 +14,8 @@
   let liveLine = null;
   let liveMarker = null;
   let detailMap = null;
+  let personalMap = null;
+  let personalLines = [];
   let toastTimer = null;
 
   const fmt = (n, digits=1) => Number(n || 0).toLocaleString("de-DE",{minimumFractionDigits:digits,maximumFractionDigits:digits});
@@ -50,7 +52,7 @@
     });
   }
   const allRides=async()=>((await dbRequest("readonly","all"))||[]).sort((a,b)=>b.startedAt-a.startedAt);
-  const activeSeconds=(ride)=>Math.max(0,((ride.endedAt||Date.now())-ride.startedAt-(ride.pausedMs||0))/1000);
+  const activeSeconds=(ride)=>Math.max(0,((ride.endedAt||Date.now())-ride.startedAt-(ride.pausedMs||0)-(ride.status==="paused"?Date.now()-(ride.pauseStarted||Date.now()):0))/1000);
   const movingSeconds=(ride)=>{
     const p=ride.points||[];let total=0;
     for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000;if(dt>0&&dt<=30)total+=dt;}
@@ -79,6 +81,7 @@
     document.querySelectorAll(".nav-item").forEach(el=>el.classList.toggle("selected",el.dataset.page===page));
     if(page==="home"||page==="rides"||page==="stats")refresh();
     if(page==="track")setTimeout(()=>{if(liveMap)liveMap.invalidateSize();},100);
+    if(page==="stats")setTimeout(()=>renderPersonalMap(),180);
     window.scrollTo({top:0,behavior:"instant"});
   }
   document.addEventListener("click",e=>{
@@ -109,6 +112,24 @@
     $("statsElevation").innerHTML=Math.round(elev)+" <small>m</small>";
     $("statsAverageDistance").innerHTML=fmt(rides.length?distance/1000/rides.length:0)+" <small>km</small>";
     renderRideList($("recentRides"),rides.slice(0,3));renderRideList($("allRides"),rides);
+  }
+  async function renderPersonalMap(){
+    const rides=await allRides();
+    const points=rides.flatMap(r=>r.points||[]);
+    const box=$("personalMap");
+    if(!points.length){box.innerHTML='<div class="empty-state">Noch keine GPS-Strecken vorhanden.</div>';return;}
+    if(!window.L){box.innerHTML='<div class="empty-state">Kartenbibliothek nicht geladen. Bitte Internetverbindung prüfen.</div>';return;}
+    if(!personalMap)personalMap=initMap("personalMap",[points[0].lat,points[0].lon]);
+    if(!personalMap)return;
+    personalLines.forEach(line=>personalMap.removeLayer(line));personalLines=[];
+    rides.forEach(r=>{
+      const p=r.points||[];if(p.length<2)return;
+      const line=L.polyline(p.map(x=>[x.lat,x.lon]),{color:"#5bd6c5",weight:4,opacity:.72}).addTo(personalMap);
+      personalLines.push(line);
+    });
+    const valid=personalLines.flatMap(line=>line.getLatLngs());
+    if(valid.length)personalMap.fitBounds(L.latLngBounds(valid),{padding:[20,20]});
+    setTimeout(()=>personalMap.invalidateSize(),80);
   }
   function renderRideList(container,rides){
     if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Touren gespeichert.</div>';return;}
