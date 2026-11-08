@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1724">
+  <meta name="description" content="VELOX – dein lokaler Fahrrad-Tracker.">
+  <title>VELOX – Your ride. Your world.</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VELOX">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" data-page="home" aria-label="VELOX Startseite"><span class="brand-mark">V</span><span>VELOX</span></a>
+      <div class="topbar-right"><span class="local-indicator"><i></i> LOKAL</span><button class="icon-button" id="installHint" aria-label="Installationshinweis" title="Zum Home-Bildschirm hinzufügen">＋</button></div>
+    </header>
+
+    <main id="appMain">
+      <section class="page active" id="page-home">
+        <div class="hero">
+          <div class="eyebrow">DEIN RAD. DEINE DATEN.</div>
+          <h1>Bereit für<br><em>die nächste Tour?</em></h1>
+          <p>Deine Fahrten. Präzise erfasst. Lokal gespeichert.</p>
+          <button class="primary-button start-button" id="startRide"><span class="button-play">▶</span><span>Tour starten</span><span class="button-arrow">↗</span></button>
+        </div>
+        <div class="section-heading"><div><span class="eyebrow">ÜBERSICHT</span><h2>Deine Aktivität</h2></div><span class="period-pill">Gesamt</span></div>
+        <div class="metric-grid">
+          <article class="metric-card"><span>Gesamtdistanz</span><strong id="totalDistance">0,0 <small>km</small></strong><small class="metric-foot">Alle gespeicherten Touren</small></article>
+          <article class="metric-card"><span>Fahrzeit</span><strong id="totalTime">0 <small>h</small></strong><small class="metric-foot">Bewegungszeit</small></article>
+          <article class="metric-card"><span>Höhenmeter</span><strong id="totalElevation">0 <small>m</small></strong><small class="metric-foot">Aufstieg gesamt</small></article>
+          <article class="metric-card"><span>Touren</span><strong id="totalRides">0</strong><small class="metric-foot">Einzeln gespeichert</small></article>
+        </div>
+        <div class="section-heading recent-heading"><div><span class="eyebrow">ARCHIV</span><h2>Letzte Touren</h2></div><button class="text-button" data-page="rides">Alle anzeigen ↗</button></div>
+        <div id="recentRides" class="ride-list"><div class="empty-state">Noch keine Touren vorhanden.<br>Starte deine erste VELOX-Aufzeichnung.</div></div>
+        <div class="notice"><span>ⓘ</span><p>GPS-Höhenwerte können schwanken. VELOX kennzeichnet berechnete Werte und speichert die Rohdaten für spätere Auswertungen.</p></div>
+      </section>
+
+      <section class="page" id="page-track">
+        <div class="page-title"><span class="eyebrow">LIVE-AUFZEICHNUNG</span><h1>Deine Tour</h1></div>
+        <div class="tracking-status"><span class="status-dot" id="trackingDot"></span><span id="trackingStatus">Bereit</span><span id="gpsAccuracy" class="accuracy">GPS nicht aktiv</span></div>
+        <div class="live-distance"><strong id="liveDistance">0,00</strong><span>KM</span></div>
+        <div class="live-grid">
+          <div><span>Geschwindigkeit</span><strong id="liveSpeed">0,0 <small>km/h</small></strong></div>
+          <div><span>Fahrzeit</span><strong id="liveDuration">00:00:00</strong></div>
+          <div><span>Höhenmeter</span><strong id="liveElevation">0 <small>m</small></strong></div>
+          <div><span>Ø Geschwindigkeit</span><strong id="liveAverage">0,0 <small>km/h</small></strong></div>
+        </div>
+        <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption">GPS-STRECKENVERLAUF</div></div>
+        <div class="tracking-actions"><button class="secondary-button" id="pauseRide" disabled>Ⅱ Pause</button><button class="danger-button" id="stopRide" disabled>Tour beenden</button></div>
+        <p class="small-note">Für GPS-Aufzeichnung Standortzugriff erlauben und diese Seite geöffnet halten. Auf iOS kann eine Web-App bei gesperrtem Bildschirm unterbrochen werden.</p>
+      </section>
+
+      <section class="page" id="page-rides">
+        <div class="page-title"><span class="eyebrow">DEIN ARCHIV</span><h1>Touren</h1><p>Jede Fahrt bleibt separat abrufbar.</p></div>
+        <div id="allRides" class="ride-list"><div class="empty-state">Noch keine gespeicherten Touren.</div></div>
+      </section>
+
+      <section class="page" id="page-detail">
+        <button class="back-button" data-page="rides">← Zurück zu Touren</button>
+        <div id="rideDetail"></div>
+      </section>
+
+      <section class="page" id="page-stats">
+        <div class="page-title"><span class="eyebrow">AUSWERTUNG</span><h1>Statistiken</h1><p>Zusammenfassung aller gespeicherten Fahrten.</p></div>
+        <div class="metric-grid stats-grid">
+          <article class="metric-card"><span>Distanz gesamt</span><strong id="statsDistance">0 <small>km</small></strong></article>
+          <article class="metric-card"><span>Fahrzeit gesamt</span><strong id="statsTime">0 <small>h</small></strong></article>
+          <article class="metric-card"><span>Aufstieg gesamt</span><strong id="statsElevation">0 <small>m</small></strong></article>
+          <article class="metric-card"><span>Ø Tourdistanz</span><strong id="statsAverageDistance">0 <small>km</small></strong></article>
+        </div>
+        <div class="panel"><span class="eyebrow">HINWEIS ZUR DATENQUALITÄT</span><h3>Messung statt Schätzung</h3><p>Distanz und Geschwindigkeit werden aus GPS-Positionen und Zeitstempeln berechnet. Höhenmeter basieren auf den vom Gerät gelieferten GPS-Höhenwerten und werden geglättet. Ohne kompatible Sensoren zeigt VELOX keine Herzfrequenz-, Trittfrequenz- oder Leistungsmessungen an.</p></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-title"><span class="eyebrow">KONTROLLE</span><h1>Einstellungen</h1><p>Deine Daten bleiben auf diesem Gerät.</p></div>
+        <div class="panel setting-row"><div><h3>Daten exportieren</h3><p>Alle Touren als JSON-Sicherung speichern.</p></div><button class="secondary-button compact" id="exportBackup">Export</button></div>
+        <div class="panel setting-row"><div><h3>Daten importieren</h3><p>Eine zuvor exportierte VELOX-Sicherung einlesen.</p></div><button class="secondary-button compact" id="importBackup">Import</button><input id="backupFile" type="file" accept="application/json,.json" hidden></div>
+        <div class="panel setting-row"><div><h3>Alle Daten löschen</h3><p>Entfernt alle lokal gespeicherten Touren unwiderruflich.</p></div><button class="danger-outline compact" id="deleteAll">Löschen</button></div>
+        <div class="panel"><span class="eyebrow">VERSION 0.1.0</span><h3>VELOX – Your ride. Your world.</h3><p>Testversion. Noch keine Apple-Watch-Anbindung, keine automatische Herzfrequenz-/Leistungsmessung und keine garantierte Hintergrundaufzeichnung.</p></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Hauptnavigation">
+      <button class="nav-item selected" data-page="home"><span>⌂</span><small>Start</small></button>
+      <button class="nav-item" data-page="rides"><span>▤</span><small>Touren</small></button>
+      <button class="nav-item nav-start" data-page="track"><span>＋</span><small>Track</small></button>
+      <button class="nav-item" data-page="stats"><span>⌁</span><small>Analyse</small></button>
+      <button class="nav-item" data-page="settings"><span>⚙</span><small>Mehr</small></button>
+    </nav>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="./app.js"></script>
+</body>
+</html>
