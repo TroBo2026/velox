@@ -121,7 +121,7 @@
       const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]),speed=d/dt*3.6;
       if(dt>0&&dt<=30&&d>0.8&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);
     }
-    return {distanceM:distance,elevationGain:elevation.gain,elevationLoss:elevation.loss,elapsedSeconds:elapsed,movingSeconds:moving,averageSpeed:avg,maxSpeed:speeds.length?Math.max(...speeds):0};
+    return {distanceM:distance,elevationGain:elevation.gain,elevationLoss:elevation.loss,elapsedSeconds:elapsed,movingSeconds:moving,averageSpeed:avg,maxSpeed:speeds.reduce((maximum,speed)=>Math.max(maximum,speed),0)};
   }
   function setPage(page){
     currentPage=page;
@@ -286,7 +286,7 @@
       box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Höhenpunkte für ein Profil vorhanden.</div>';
       return;
     }
-    const min=Math.min(...samples.map(p=>p.elevationM)),max=Math.max(...samples.map(p=>p.elevationM));
+    const elevationRange=samples.reduce((range,p)=>({min:Math.min(range.min,p.elevationM),max:Math.max(range.max,p.elevationM)}),{min:Infinity,max:-Infinity}),min=elevationRange.min,max=elevationRange.max;
     const padding=Math.max(4,(max-min)*0.08);
     const yMin=Math.floor((min-padding)/5)*5,yMax=Math.ceil((max+padding)/5)*5,yRange=Math.max(10,yMax-yMin);
     const xMax=Math.max(1,profile.distanceM,samples[samples.length-1].distanceM);
