@@ -3,9 +3,12 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.4.0
+## Aktueller Stand – Version 0.5.0
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
+- Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
+- Sensorstatus in der Live-Ansicht: GPS-Höhe, Barometerverfügbarkeit und tatsächlich verwendete Höhenquelle
+- Native Bridge-Vertrag: `velox:native-altimeter` mit `altitudeM`, `accuracyM`, `pressureKPa` und optionalem Zeitstempel; ohne native Quelle bleibt VELOX bei GPS
 - Live-Daten: Distanz, Geschwindigkeit, Fahrzeit, Aufstieg, Durchschnittstempo, aktuelle GPS-Höhe, aktuelle Steigung, Fahrzeitanteil und Höhen-Datenqualität
 - Tourenanalyse: Distanz, Fahrzeit, Standzeit, Durchschnitts- und Maximaltempo, Auf- und Abstieg, höchster/tiefster Punkt, durchschnittliche Steigung, steilste Steigung und steilste Abfahrt
 - Höhenprofil mit Distanzachse, Start-/Zielmarkierung und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte
@@ -29,6 +32,9 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 
 ## Sensoren und Messgenauigkeit
 
+- Die Web-App besitzt jetzt eine modulare Sensor-Schnittstelle. Sie akzeptiert native Altimeter-Messwerte nur mit plausibler Höhe, Druckwert, Zeitstempel und expliziter Genauigkeit. Frische GPS- und Barometerwerte werden anhand ihrer gemeldeten Unsicherheit gewichtet. Veraltete oder ungültige Messwerte werden ignoriert.
+- Safari auf iOS stellt Webseiten weiterhin keine verlässliche öffentliche Drucksensor-API bereit. Die Barometerfusion bleibt deshalb in der normalen Web-Version inaktiv, bis eine native iOS-Hülle echte Core-Motion-Werte über die dokumentierte Bridge liefert.
+
 - Die aktuelle Web-App verwendet GPS-Höhenwerte des Geräts. Ein Medianfilter dämpft einzelne Ausreißer; die Qualitätsanzeige macht sichtbar, wenn nur wenige oder ungenaue Höhenmessungen vorhanden sind.
 - Das iPhone kann über seine Hardware einen barometrischen Drucksensor besitzen. Safari auf iOS bietet Webseiten aber keine verlässliche standardisierte Schnittstelle, um diesen Rohdruck direkt auszulesen. VELOX behauptet deshalb nicht, aktuell barometrische Höhenwerte zu messen.
 - Für eine spätere native iOS-App ist eine Barometer-Anbindung über Core Motion vorgesehen. Damit kann die GPS-Höhe ergänzt und über Druckänderungen stabilisiert werden; eine Kalibrierung gegen bekannte Höhen/GPS bleibt sinnvoll.
@@ -48,7 +54,7 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 |---|---|
 | `index.html` | App-Struktur und Ansichten |
 | `styles.css` | Responsive VELOX-Oberfläche |
-| `app.js` | GPS, Berechnungen, IndexedDB, Touren, Export/Import |
+| `app.js` | GPS, Berechnungen, IndexedDB, Touren, Export/Import |\n| `sensor-core.js` | Validierung und Fusion von GPS- und nativen Barometerdaten |
 | `manifest.webmanifest` | PWA-Metadaten und SVG-App-Icon |
 | `icon.svg` | VELOX-App-/Browser-Icon |
 | `sw.js` | Cache für die App-Shell |
