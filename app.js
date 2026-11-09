@@ -125,6 +125,21 @@
     }
     return {average:weightedDistance?weightedSum/weightedDistance:0,maximum:grades.reduce((max,x)=>Math.max(max,x.grade),0),minimum:grades.reduce((min,x)=>Math.min(min,x.grade),0),samples:grades.length};
   }
+  function currentGrade(points){
+    if(points.length<2)return null;
+    const last=points[points.length-1];
+    if(!Number.isFinite(last.alt)||(last.altAccuracy||0)>35)return null;
+    for(let i=points.length-2;i>=0;i--){
+      const first=points[i],distance=haversine(first,last),elapsed=(last.t-first.t)/1000;
+      if(elapsed>90)break;
+      if(distance<20)continue;
+      if(distance>80)break;
+      if(!Number.isFinite(first.alt)||(first.altAccuracy||0)>35)continue;
+      const grade=(last.alt-first.alt)/distance*100;
+      return Number.isFinite(grade)&&Math.abs(grade)<=35?grade:null;
+    }
+    return null;
+  }
   function calcRide(ride){
     const p=ride.points||[];let distance=0;
     for(let i=1;i<p.length;i++){const d=haversine(p[i-1],p[i]),dt=(p[i].t-p[i-1].t)/1000;if(dt>0&&dt<=30&&d<150&&d>0.8)distance+=d;}
@@ -306,7 +321,8 @@
     $("liveAverage").innerHTML=fmt(c.averageSpeed)+' <small>km/h</small>';
     const last=activeRide.points[activeRide.points.length-1],elevation=buildElevationProfile(activeRide.points),grades=gradeStats(activeRide.points);
     $("liveAltitude").innerHTML=last&&Number.isFinite(last.alt)?Math.round(last.alt)+' <small>m</small>':'– <small>m</small>';
-    $("liveGrade").innerHTML=grades.samples?fmt(grades.average)+' <small>%</small>':'– <small>%</small>';
+    const liveGrade=currentGrade(activeRide.points);
+    $("liveGrade").innerHTML=liveGrade===null?'– <small>%</small>':fmt(liveGrade)+' <small>%</small>';
     $("liveMovingRatio").innerHTML=fmt(c.movingRatio,0)+' <small>%</small>';
     $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":"Begrenzt";
   }
