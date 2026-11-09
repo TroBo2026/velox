@@ -188,6 +188,25 @@
     $("statsElevation").innerHTML=Math.round(elev)+" <small>m</small>";
     $("statsAverageDistance").innerHTML=fmt(rides.length?distance/1000/rides.length:0)+" <small>km</small>";
     renderRideList($("recentRides"),rides.slice(0,3));renderRideList($("allRides"),rides);
+    renderRideComparison(rides.slice(0,3));
+  }
+  function renderRideComparison(rides){
+    const host=$("rideComparison");if(!host)return;
+    if(rides.length<2){host.innerHTML='<p class="small-note">Mindestens zwei gespeicherte Touren erforderlich. Deine Fahrten bleiben lokal auf diesem Gerät.</p>';return;}
+    const columns=rides.map(ride=>({ride,calc:calcRide(ride)}));
+    const rows=[
+      ["Distanz",c=>fmt(c.distanceM/1000)+" km"],
+      ["Fahrzeit",c=>fmtTime(c.movingSeconds)],
+      ["Ø Geschwindigkeit",c=>fmt(c.averageSpeed)+" km/h"],
+      ["Max. Geschwindigkeit",c=>fmt(c.maxSpeed)+" km/h"],
+      ["Aufstieg",c=>Math.round(c.elevationGain)+" m"],
+      ["Abstieg",c=>Math.round(c.elevationLoss)+" m"],
+      ["Höchster Punkt",c=>c.elevationMax===null?"–":Math.round(c.elevationMax)+" m"],
+      ["Ø Steigung",c=>c.gradeSamples?fmt(c.gradeAverage)+" %":"–"]
+    ];
+    const header='<div class="comparison-scroll"><table class="comparison-table"><thead><tr><th>Messwert</th>'+columns.map(({ride})=>'<th>'+escapeHtml(new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}))+'</th>').join("")+'</tr></thead><tbody>';
+    const body=rows.map(([label,format])=>'<tr><th>'+label+'</th>'+columns.map(({calc})=>'<td>'+format(calc)+'</td>').join("")+'</tr>').join("");
+    host.innerHTML=header+body+'</tbody></table></div><p class="small-note">Verglichen werden die letzten '+columns.length+' gespeicherten Touren. Nur tatsächlich vorhandene GPS-Daten werden berücksichtigt.</p>';
   }
   function selectedMapRides(){
     const filter=$("mapDateFilter")?.value||"all",now=Date.now();
