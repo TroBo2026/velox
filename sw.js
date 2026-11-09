@@ -1,5 +1,5 @@
-const CACHE = "velox-shell-v4";
-const SHELL = ["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg"];
+const CACHE = "velox-shell-v5";
+const SHELL = ["./","./index.html","./styles.css","./sensor-core.js","./app.js","./manifest.webmanifest","./icon.svg"];
 
 self.addEventListener("install",event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
