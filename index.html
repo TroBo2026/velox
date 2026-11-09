@@ -59,6 +59,7 @@
         </div>
         <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption">GPS-STRECKENVERLAUF</div></div>
         <div class="tracking-actions"><button class="secondary-button" id="pauseRide" disabled>Pause</button><button class="danger-button" id="stopRide" disabled>Tour beenden</button></div>
+        <div class="panel sensor-panel"><span class="eyebrow">SENSORSTATUS</span><div class="sensor-status-grid"><div><span>GPS-Höhe</span><strong id="sensorGpsStatus">Wird geprüft …</strong></div><div><span>Barometer</span><strong id="sensorBarometerStatus">In dieser Web-App nicht verfügbar</strong></div><div><span>Höhenquelle</span><strong id="sensorAltitudeSource">Noch keine Messung</strong></div></div><p>Ein iPhone-Barometer kann VELOX erst über eine native iOS-Anbindung Messwerte liefern. Die Web-App zeigt keine erfundenen Sensordaten an.</p></div>
         <p class="small-note">Für GPS-Aufzeichnung Standortzugriff erlauben und diese Seite geöffnet halten. Auf iOS kann eine Web-App bei gesperrtem Bildschirm unterbrochen werden.</p>
       </section>
 
@@ -106,6 +107,7 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="./app.js"></script>
+  <script src="./sensor-core.js"></script>
+<script src="./app.js"></script>
 </body>
 </html>
