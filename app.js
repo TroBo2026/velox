@@ -1,4 +1,4 @@
-/* VELOX 0.6.0 — local-first cycling tracker */
+/* VELOX 0.6.1 — local-first cycling tracker */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -48,12 +48,17 @@
   function dbRequest(mode,action,value){
     return new Promise((resolve,reject)=>{
       const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);
-      let req;
+      let req,result,settled=false;
       if(action==="all")req=store.getAll();
       if(action==="put")req=store.put(value);
       if(action==="delete")req=store.delete(value);
       if(action==="clear")req=store.clear();
-      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+      const fail=error=>{if(!settled){settled=true;reject(error||new Error("IndexedDB-Transaktion fehlgeschlagen."));}};
+      req.onsuccess=()=>{result=req.result;};
+      req.onerror=()=>fail(req.error);
+      tx.oncomplete=()=>{if(!settled){settled=true;resolve(result);}};
+      tx.onerror=()=>fail(tx.error);
+      tx.onabort=()=>fail(tx.error||new Error("IndexedDB-Transaktion abgebrochen."));
     });
   }
 
@@ -101,7 +106,7 @@
     }
     const accurate=smoothed.filter(sample=>sample.accuracy!==null);
     const medianAccuracy=accurate.length?median(accurate.map(sample=>sample.accuracy)):null;
-    const quality=smoothed.length<5?"low":medianAccuracy===null?"medium":medianAccuracy<=12?"high":medianAccuracy<=25?"medium":"low";
+    const quality=smoothed.length<5||medianAccuracy===null?"low":medianAccuracy<=12?"high":medianAccuracy<=25?"medium":"low";
     let minimum=null,maximum=null;
     for(const sample of smoothed){minimum=minimum===null?sample.elevationM:Math.min(minimum,sample.elevationM);maximum=maximum===null?sample.elevationM:Math.max(maximum,sample.elevationM);}
     return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length,minimum,maximum,medianAccuracy,quality};
@@ -116,27 +121,30 @@
     return total;
   };
   function gradeStats(points){
-    const grades=[];let weightedSum=0,weightedDistance=0;
-    for(let i=1;i<points.length;i++){
-      const a=points[i-1],b=points[i],d=haversine(a,b),dt=(b.t-a.t)/1000;
-      if(d<8||d>100||dt<=0||dt>30||!Number.isFinite(a.alt)||!Number.isFinite(b.alt))continue;
-      const accuracy=Math.max(a.altAccuracy||0,b.altAccuracy||0);if(accuracy>35)continue;
-      const grade=(b.alt-a.alt)/d*100;if(!Number.isFinite(grade)||Math.abs(grade)>35)continue;
-      grades.push({grade,distance:d});weightedSum+=grade*d;weightedDistance+=d;
+    const profile=buildElevationProfile(points),samples=profile.samples,grades=[];
+    let weightedSum=0,weightedDistance=0;
+    for(let i=1;i<samples.length;i++){
+      const a=samples[i-1],b=samples[i],distance=b.distanceM-a.distanceM,elapsed=(b.time-a.time)/1000;
+      if(a.segment!==b.segment||distance<8||distance>100||elapsed<=0||elapsed>60)continue;
+      const grade=(b.elevationM-a.elevationM)/distance*100;
+      if(!Number.isFinite(grade)||Math.abs(grade)>35)continue;
+      grades.push({grade,distance});weightedSum+=grade*distance;weightedDistance+=distance;
     }
     return {average:weightedDistance?weightedSum/weightedDistance:0,maximum:grades.reduce((max,x)=>Math.max(max,x.grade),0),minimum:grades.reduce((min,x)=>Math.min(min,x.grade),0),samples:grades.length};
   }
   function currentGrade(points){
-    if(points.length<2)return null;
-    const last=points[points.length-1];
-    if(!Number.isFinite(last.alt)||(last.altAccuracy||0)>35)return null;
-    for(let i=points.length-2;i>=0;i--){
-      const first=points[i],distance=haversine(first,last),elapsed=(last.t-first.t)/1000;
+    const samples=buildElevationProfile(points).samples;
+    if(samples.length<2)return null;
+    const last=samples[samples.length-1];
+    if(Date.now()-last.time>90000)return null;
+    for(let i=samples.length-2;i>=0;i--){
+      const first=samples[i];
+      if(first.segment!==last.segment)break;
+      const distance=last.distanceM-first.distanceM,elapsed=(last.time-first.time)/1000;
       if(elapsed>90)break;
-      if(distance<20)continue;
+      if(elapsed<=0||distance<20)continue;
       if(distance>80)break;
-      if(!Number.isFinite(first.alt)||(first.altAccuracy||0)>35)continue;
-      const grade=(last.alt-first.alt)/distance*100;
+      const grade=(last.elevationM-first.elevationM)/distance*100;
       return Number.isFinite(grade)&&Math.abs(grade)<=35?grade:null;
     }
     return null;
@@ -291,7 +299,7 @@
     if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Touren gespeichert.</div>';return;}
     container.innerHTML=rides.map(r=>{
       const c=calcRide(r),date=new Date(r.startedAt).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"});
-      return '<button class="ride-card" data-ride="'+r.id+'"><div><h3>'+escapeHtml(r.name||"Fahrradtour")+'</h3><p>'+date+' · '+fmt(c.movingSeconds/60,0)+' min · '+fmt(c.averageSpeed)+' km/h Ø</p></div><div class="ride-distance">'+fmt(c.distanceM/1000)+' <small>km</small></div></button>';
+      return '<button class="ride-card" data-ride="'+escapeHtml(r.id)+'"><div><h3>'+escapeHtml(r.name||"Fahrradtour")+'</h3><p>'+date+' · '+fmt(c.movingSeconds/60,0)+' min · '+fmt(c.averageSpeed)+' km/h Ø</p></div><div class="ride-distance">'+fmt(c.distanceM/1000)+' <small>km</small></div></button>';
     }).join("");
     container.querySelectorAll("[data-ride]").forEach(el=>el.addEventListener("click",()=>openDetail(el.dataset.ride)));
   }
@@ -440,10 +448,10 @@
     }).join('');
     const first=samples[0],last=samples[samples.length-1];
     const firstX=xFor(first.distanceM),firstY=yFor(first.elevationM),lastX=xFor(last.distanceM),lastY=yFor(last.elevationM);
-    const startAnchor=firstX>left+70?'end':'start',endAnchor=lastX>left+width-70?'end':'start';
     const xLabels='<text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text>';
-    const markers='<circle class="profile-marker" cx="'+firstX+'" cy="'+firstY+'" r="4"/><text class="marker-label" x="'+(firstX+(startAnchor==="start"?6:-6))+'" y="'+Math.max(10,firstY-9)+'" text-anchor="'+startAnchor+'">Start</text><circle class="profile-marker" cx="'+lastX+'" cy="'+lastY+'" r="4"/><text class="marker-label" x="'+(lastX+(endAnchor==="start"?6:-6))+'" y="'+Math.max(10,lastY-9)+'" text-anchor="'+endAnchor+'">Ziel</text>';
-    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">Abstieg <strong>−'+Math.round(profile.loss)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Höhenprofil mit '+samples.length+' gültigen GPS-Höhenpunkten"><text class="axis-title" x="8" y="12">Höhe (m)</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+paths+markers+xLabels+'</svg><p class="elevation-footnote">GPS-Höhenpunkte: '+profile.validCount+' von '+profile.totalCount+'. Ein Medianfilter über bis zu fünf benachbarte Messungen dämpft Ausreißer; Höhenänderungen unter 4 m werden nicht zur Summe addiert.</p>';
+    const endpoints='<line class="route-endpoint" x1="'+left+'" y1="'+top+'" x2="'+left+'" y2="'+bottom+'"/><line class="route-endpoint" x1="'+(left+width)+'" y1="'+top+'" x2="'+(left+width)+'" y2="'+bottom+'"/><text class="endpoint-label" x="'+(left+5)+'" y="'+(top+11)+'" text-anchor="start">Start</text><text class="endpoint-label" x="'+(left+width-5)+'" y="'+(top+11)+'" text-anchor="end">Ziel</text>';
+    const sampleMarkers='<circle class="profile-marker" cx="'+firstX+'" cy="'+firstY+'" r="4"/><circle class="profile-marker" cx="'+lastX+'" cy="'+lastY+'" r="4"/>';
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">Abstieg <strong>−'+Math.round(profile.loss)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Höhenprofil mit '+samples.length+' gültigen GPS-Höhenpunkten"><text class="axis-title" x="8" y="12">Höhe (m)</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+endpoints+paths+sampleMarkers+xLabels+'</svg><p class="elevation-footnote">GPS-Höhenpunkte: '+profile.validCount+' von '+profile.totalCount+'. Die gestrichelten Linien markieren Tourstart und -ende; die Höhenlinie beginnt bzw. endet erst am ersten bzw. letzten verlässlichen Höhenmesspunkt. Ein Medianfilter über bis zu fünf benachbarte Messungen dämpft Ausreißer; Änderungen unter 4 m werden nicht zur Summe addiert.</p>';
   }
   function renderSpeedProfile(points){
     const box=$("speedChart"),samples=[];let distance=0;
