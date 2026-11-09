@@ -34,3 +34,7 @@
 .map-ride-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .map-ride-toggle small{color:var(--muted);font-size:9px;white-space:nowrap}
 .map-filter-empty{color:var(--muted);font-size:11px;margin:4px 0}
+
+/* Erweiterte Live-Fahrdaten */
+.live-grid>div{min-width:0}
+.live-grid>div strong{font-variant-numeric:tabular-nums}
