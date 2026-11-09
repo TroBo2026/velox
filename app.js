@@ -15,7 +15,12 @@
   let liveMarker = null;
   let detailMap = null;
   let personalMap = null;
-  let personalLines = [];
+  let personalLines = new Map();
+  let personalRidesCache = [];
+  let personalHeatLayer = null;
+  let personalHeatVisible = false;
+  const personalVisibility = new Map();
+  const mapColors = ["#5bd6c5","#e7bd75","#8ca8ff","#d98ce8","#ff8e80","#8fd18b","#f0a75b","#7bd1e8"];
   let toastTimer = null;
 
   const fmt = (n, digits=1) => Number(n || 0).toLocaleString("de-DE",{minimumFractionDigits:digits,maximumFractionDigits:digits});
@@ -161,23 +166,74 @@
     $("statsAverageDistance").innerHTML=fmt(rides.length?distance/1000/rides.length:0)+" <small>km</small>";
     renderRideList($("recentRides"),rides.slice(0,3));renderRideList($("allRides"),rides);
   }
+  function selectedMapRides(){
+    const filter=$("mapDateFilter")?.value||"all",now=Date.now();
+    const cutoff=filter==="30"?now-30*86400000:filter==="90"?now-90*86400000:filter==="year"?now-365*86400000:0;
+    return personalRidesCache.filter(ride=>!cutoff||ride.startedAt>=cutoff);
+  }
+  function renderMapRideFilters(rides){
+    const host=$("personalRideFilters");if(!host)return;
+    if(!rides.length){host.innerHTML='<p class="map-filter-empty">Keine Touren im gewählten Zeitraum.</p>';return;}
+    host.innerHTML=rides.map((ride,index)=>{
+      const id=String(ride.id),checked=personalVisibility.get(id)!==false;
+      const date=new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"});
+      return '<label class="map-ride-toggle"><input type="checkbox" data-map-ride="'+escapeHtml(id)+'" '+(checked?'checked':'')+'><span class="map-ride-swatch" style="--ride-color:'+mapColors[index%mapColors.length]+'"></span><span class="map-ride-name">'+escapeHtml(ride.name||"Fahrradtour")+'</span><small>'+date+'</small></label>';
+    }).join("");
+    host.querySelectorAll("[data-map-ride]").forEach(input=>input.addEventListener("change",()=>{
+      personalVisibility.set(input.dataset.mapRide,input.checked);
+      updatePersonalMapLayers();
+    }));
+  }
+  function updatePersonalMapLayers(){
+    if(!personalMap)return;
+    personalLines.forEach(layer=>personalMap.removeLayer(layer));personalLines.clear();
+    if(personalHeatLayer){personalMap.removeLayer(personalHeatLayer);personalHeatLayer=null;}
+    const rides=selectedMapRides().filter(ride=>personalVisibility.get(String(ride.id))!==false);
+    const bounds=[];
+    rides.forEach((ride,index)=>{
+      const points=ride.points||[];if(points.length<2)return;
+      const color=mapColors[personalRidesCache.indexOf(ride)%mapColors.length];
+      const line=L.polyline(points.map(point=>[point.lat,point.lon]),{color,weight:4,opacity:.82,lineCap:"round",lineJoin:"round"}).addTo(personalMap);
+      personalLines.set(String(ride.id),line);
+      line.getLatLngs().forEach(point=>bounds.push(point));
+    });
+    if(personalHeatVisible&&rides.length){
+      const cells=new Map();
+      rides.forEach(ride=>(ride.points||[]).forEach(point=>{
+        const key=Math.round(point.lat/0.0005)+":"+Math.round(point.lon/0.0005);
+        let cell=cells.get(key);
+        if(!cell){cell={lat:0,lon:0,count:0};cells.set(key,cell);}
+        cell.lat+=point.lat;cell.lon+=point.lon;cell.count++;
+      }));
+      personalHeatLayer=L.layerGroup();
+      cells.forEach(cell=>{
+        if(cell.count<2)return;
+        const strength=Math.min(1,cell.count/12),color=cell.count>=12?"#ff775f":cell.count>=6?"#f4bd65":"#5bd6c5";
+        L.circleMarker([cell.lat/cell.count,cell.lon/cell.count],{radius:5+strength*10,stroke:false,fillColor:color,fillOpacity:.12+strength*.38,interactive:false}).addTo(personalHeatLayer);
+      });
+      personalHeatLayer.addTo(personalMap);
+    }
+    if(bounds.length)personalMap.fitBounds(L.latLngBounds(bounds),{padding:[24,24],maxZoom:15});
+    const heatButton=$("mapHeatToggle");
+    if(heatButton){heatButton.classList.toggle("active",personalHeatVisible);heatButton.setAttribute("aria-pressed",String(personalHeatVisible));}
+  }
   async function renderPersonalMap(){
-    const rides=await allRides();
-    const points=rides.flatMap(r=>r.points||[]);
+    personalRidesCache=await allRides();
+    const points=personalRidesCache.flatMap(ride=>ride.points||[]);
     const box=$("personalMap");
     if(!points.length){box.innerHTML='<div class="empty-state">Noch keine GPS-Strecken vorhanden.</div>';return;}
     if(!window.L){box.innerHTML='<div class="empty-state">Kartenbibliothek nicht geladen. Bitte Internetverbindung prüfen.</div>';return;}
     if(!personalMap)personalMap=initMap("personalMap",[points[0].lat,points[0].lon]);
     if(!personalMap)return;
-    personalLines.forEach(line=>personalMap.removeLayer(line));personalLines=[];
-    rides.forEach(r=>{
-      const p=r.points||[];if(p.length<2)return;
-      const line=L.polyline(p.map(x=>[x.lat,x.lon]),{color:"#5bd6c5",weight:4,opacity:.72}).addTo(personalMap);
-      personalLines.push(line);
-    });
-    const valid=personalLines.flatMap(line=>line.getLatLngs());
-    if(valid.length)personalMap.fitBounds(L.latLngBounds(valid),{padding:[20,20]});
+    renderMapRideFilters(selectedMapRides());
+    updatePersonalMapLayers();
     setTimeout(()=>personalMap.invalidateSize(),80);
+  }
+  function fitPersonalMap(){
+    if(!personalMap)return;
+    const points=[];
+    personalLines.forEach(line=>line.getLatLngs().forEach(point=>points.push(point)));
+    if(points.length)personalMap.fitBounds(L.latLngBounds(points),{padding:[24,24],maxZoom:15});
   }
   function renderRideList(container,rides){
     if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Touren gespeichert.</div>';return;}
@@ -365,6 +421,13 @@
       console.error(e);showToast("Import fehlgeschlagen. Vorhandene Touren wurden nicht überschrieben.");
     }
   }
+  $("mapDateFilter")?.addEventListener("change",()=>{
+    renderMapRideFilters(selectedMapRides());updatePersonalMapLayers();
+  });
+  $("mapFit")?.addEventListener("click",fitPersonalMap);
+  $("mapHeatToggle")?.addEventListener("click",()=>{
+    personalHeatVisible=!personalHeatVisible;updatePersonalMapLayers();
+  });
   $("startRide").addEventListener("click",startRide);
   $("pauseRide").addEventListener("click",pauseRide);
   $("stopRide").addEventListener("click",stopRide);
