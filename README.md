@@ -3,7 +3,7 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.5.0
+## Aktueller Stand – Version 0.6.0
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
 - Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
@@ -11,6 +11,8 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Native Bridge-Vertrag: `velox:native-altimeter` mit `altitudeM`, `accuracyM`, `pressureKPa` und optionalem Zeitstempel; ohne native Quelle bleibt VELOX bei GPS
 - Live-Daten: Distanz, Geschwindigkeit, Fahrzeit, Aufstieg, Durchschnittstempo, aktuelle GPS-Höhe, aktuelle Steigung, Fahrzeitanteil und Höhen-Datenqualität
 - Tourenanalyse: Distanz, Fahrzeit, Standzeit, Durchschnitts- und Maximaltempo, Auf- und Abstieg, höchster/tiefster Punkt, durchschnittliche Steigung, steilste Steigung und steilste Abfahrt
+- Geglättetes Geschwindigkeitsprofil über die Streckendistanz in jeder Tour-Detailansicht
+- Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken
 - Höhenprofil mit Distanzachse, Start-/Zielmarkierung und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte
 - Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter 4 m werden nicht zur kumulierten Höhenmeter-Summe addiert
 - Qualitätskennzeichnung der Höhenmessung anhand der verfügbaren GPS-Höhendaten
@@ -78,7 +80,7 @@ Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen
 1. Reale iPhone-Tests für GPS-Qualität, Höhenprofil, Tourenspeicherung und iOS-Verhalten
 2. Native iOS-Sensoranbindung für Barometer/Core Motion prüfen und umsetzen, sobald ein nativer App-Unterbau vorhanden ist
 3. Echte Herzfrequenz-, Trittfrequenz- und Leistungssensoren anbinden
-4. Tourenvergleich, detaillierte Geschwindigkeits-/Steigungsprofile und Rekorde
+4. Erweiterte Steigungsprofile, frei wählbare Tourenvergleiche und Rekorde
 5. Native iOS-/watchOS-Version und Offline-Karten evaluieren
 
 **Grundprinzipien:** echte Messwerte statt erfundener Daten, jede Tour einzeln zugänglich, Gesamtstatistiken getrennt, lokale Speicherung zuerst und keine verpflichtenden Abos.
