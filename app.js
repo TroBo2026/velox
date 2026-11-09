@@ -120,8 +120,8 @@
     }
     return total;
   };
-  function gradeStats(points){
-    const profile=buildElevationProfile(points),samples=profile.samples,grades=[];
+  function gradeStats(profile){
+    const samples=profile.samples,grades=[];
     let weightedSum=0,weightedDistance=0;
     for(let i=1;i<samples.length;i++){
       const a=samples[i-1],b=samples[i],distance=b.distanceM-a.distanceM,elapsed=(b.time-a.time)/1000;
@@ -132,8 +132,8 @@
     }
     return {average:weightedDistance?weightedSum/weightedDistance:0,maximum:grades.reduce((max,x)=>Math.max(max,x.grade),0),minimum:grades.reduce((min,x)=>Math.min(min,x.grade),0),samples:grades.length};
   }
-  function currentGrade(points){
-    const samples=buildElevationProfile(points).samples;
+  function currentGrade(profile){
+    const samples=profile.samples;
     if(samples.length<2)return null;
     const last=samples[samples.length-1];
     if(Date.now()-last.time>90000)return null;
@@ -152,12 +152,12 @@
   function calcRide(ride){
     const p=ride.points||[];let distance=0;
     for(let i=1;i<p.length;i++){const d=haversine(p[i-1],p[i]),dt=(p[i].t-p[i-1].t)/1000;if(dt>0&&dt<=30&&d<150&&d>0.8)distance+=d;}
-    const elevation=buildElevationProfile(p),grades=gradeStats(p);
+    const elevation=buildElevationProfile(p),grades=gradeStats(elevation);
     const elapsed=activeSeconds(ride),moving=movingSeconds(ride),avg=moving>0?distance/moving*3.6:0;
     const speeds=[];
     for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]),speed=d/dt*3.6;if(dt>0&&dt<=30&&d>0.8&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);}
     const stopped=Math.max(0,elapsed-moving);
-    return {distanceM:distance,elevationGain:elevation.gain,elevationLoss:elevation.loss,elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationQuality:elevation.quality,elevationAccuracy:elevation.medianAccuracy,gradeAverage:grades.average,gradeMax:grades.maximum,gradeMin:grades.minimum,gradeSamples:grades.samples,elapsedSeconds:elapsed,movingSeconds:moving,stoppedSeconds:stopped,movingRatio:elapsed?moving/elapsed*100:0,averageSpeed:avg,maxSpeed:speeds.reduce((maximum,speed)=>Math.max(maximum,speed),0)};
+    return {distanceM:distance,elevationProfile:elevation,elevationGain:elevation.gain,elevationLoss:elevation.loss,elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationQuality:elevation.quality,elevationAccuracy:elevation.medianAccuracy,gradeAverage:grades.average,gradeMax:grades.maximum,gradeMin:grades.minimum,gradeSamples:grades.samples,elapsedSeconds:elapsed,movingSeconds:moving,stoppedSeconds:stopped,movingRatio:elapsed?moving/elapsed*100:0,averageSpeed:avg,maxSpeed:speeds.reduce((maximum,speed)=>Math.max(maximum,speed),0)};
   }
   function setPage(page){
     currentPage=page;
@@ -356,9 +356,9 @@
     $("liveDuration").textContent=fmtTime(c.elapsedSeconds);
     $("liveElevation").innerHTML=Math.round(c.elevationGain)+' <small>m</small>';
     $("liveAverage").innerHTML=fmt(c.averageSpeed)+' <small>km/h</small>';
-    const last=activeRide.points[activeRide.points.length-1],elevation=buildElevationProfile(activeRide.points),grades=gradeStats(activeRide.points);
+    const last=activeRide.points[activeRide.points.length-1],elevation=c.elevationProfile;
     $("liveAltitude").innerHTML=last&&Number.isFinite(last.alt)?Math.round(last.alt)+' <small>m</small>':'– <small>m</small>';
-    const liveGrade=currentGrade(activeRide.points);
+    const liveGrade=currentGrade(elevation);
     $("liveGrade").innerHTML=liveGrade===null?'– <small>%</small>':fmt(liveGrade)+' <small>%</small>';
     $("liveMovingRatio").innerHTML=fmt(c.movingRatio,0)+' <small>%</small>';
     $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":"Begrenzt";
