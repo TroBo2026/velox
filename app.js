@@ -372,7 +372,7 @@
       metric("Distanz",fmt(c.distanceM/1000)+" km")+metric("Fahrzeit",fmtTime(c.movingSeconds))+metric("Ø Geschwindigkeit",fmt(c.averageSpeed)+" km/h")+metric("Max. Geschwindigkeit",fmt(c.maxSpeed)+" km/h")+
       metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+metric("Höchster Punkt",c.elevationMax===null?"–":Math.round(c.elevationMax)+" m")+metric("Tiefster Punkt",c.elevationMin===null?"–":Math.round(c.elevationMin)+" m")+metric("Ø Steigung",c.gradeSamples?fmt(c.gradeAverage)+" %":"–")+metric("Max. Steigung",c.gradeSamples?fmt(c.gradeMax)+" %":"–")+metric("Steilste Abfahrt",c.gradeSamples?fmt(Math.abs(c.gradeMin))+" %":"–")+metric("Fahrzeitanteil",fmt(c.movingRatio,0)+" %")+metric("Standzeit",fmtTime(c.stoppedSeconds))+metric("GPS-Punkte",r.points.length)+metric("Aufzeichnungsdauer",fmtTime(c.elapsedSeconds))+'</div>'+
       '<div class="detail-map" id="detailMap"></div>'+
-      '<div class="panel"><span class="eyebrow">HÖHENPROFIL</span><h3>Höhenverlauf</h3><div class="chart-box" id="elevationChart"></div><p>Quelle: GPS-Höhenwerte des Geräts. Die Genauigkeit hängt vom Empfang und Sensor ab.</p></div>'+
+      '<div class="panel"><span class="eyebrow">HÖHENPROFIL</span><h3>Höhenverlauf</h3><div class="chart-box" id="elevationChart"></div><p>Quelle: GPS-Höhenwerte des Geräts. Die Genauigkeit hängt vom Empfang und Sensor ab.</p></div><div class="panel"><span class="eyebrow">GESCHWINDIGKEITSPROFIL</span><h3>Tempo über die Strecke</h3><div class="chart-box" id="speedChart"></div><p>Aus gültigen GPS-Punktabständen berechnet; kurze Ausreißer und unplausible Werte werden ausgeschlossen.</p></div>'+
       '<div class="panel"><span class="eyebrow">DATENQUELLE</span><h3>Messwerte & Berechnungen</h3><p>Distanz, Geschwindigkeit und Steigung aus GPS-Positionen und Zeitstempeln. Höhenmeter aus geglätteten GPS-Höhenwerten mit Qualitätsprüfung und Ausreißerfilter. Herzfrequenz, Leistung und Trittfrequenz werden erst angezeigt, wenn eine spätere kompatible Sensor-Anbindung echte Messwerte liefert. Das iOS-Web kann den internen Barometer-Druckwert derzeit nicht direkt auslesen.</p></div>'+
       '<div class="tracking-actions"><button class="secondary-button" id="exportGpx">GPX exportieren</button><button class="danger-outline" id="deleteRide">Tour löschen</button></div>';
     setPage("detail");
@@ -380,6 +380,7 @@
       detailMap=initMap("detailMap",r.points.length?[r.points[0].lat,r.points[0].lon]:[51.05,13.74]);
       if(detailMap&&r.points.length){const line=L.polyline(r.points.map(p=>[p.lat,p.lon]),{color:"#5bd6c5",weight:5}).addTo(detailMap);detailMap.fitBounds(line.getBounds(),{padding:[20,20]});L.marker([r.points[0].lat,r.points[0].lon]).addTo(detailMap).bindPopup("Start");L.marker([r.points.at(-1).lat,r.points.at(-1).lon]).addTo(detailMap).bindPopup("Ziel");}
       renderElevation(r.points);
+      renderSpeedProfile(r.points);
     },150);
     $("exportGpx").onclick=()=>exportGPX(r);$("deleteRide").onclick=async()=>{if(confirm("Diese Tour dauerhaft löschen?")){await dbRequest("readwrite","delete",r.id);showToast("Tour gelöscht.");setPage("rides");}};
   }
@@ -424,6 +425,31 @@
     const xLabels='<text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text>';
     const markers='<circle class="profile-marker" cx="'+firstX+'" cy="'+firstY+'" r="4"/><text class="marker-label" x="'+(firstX+(startAnchor==="start"?6:-6))+'" y="'+Math.max(10,firstY-9)+'" text-anchor="'+startAnchor+'">Start</text><circle class="profile-marker" cx="'+lastX+'" cy="'+lastY+'" r="4"/><text class="marker-label" x="'+(lastX+(endAnchor==="start"?6:-6))+'" y="'+Math.max(10,lastY-9)+'" text-anchor="'+endAnchor+'">Ziel</text>';
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">Abstieg <strong>−'+Math.round(profile.loss)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Höhenprofil mit '+samples.length+' gültigen GPS-Höhenpunkten"><text class="axis-title" x="8" y="12">Höhe (m)</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+paths+markers+xLabels+'</svg><p class="elevation-footnote">GPS-Höhenpunkte: '+profile.validCount+' von '+profile.totalCount+'. Ein Medianfilter über bis zu fünf benachbarte Messungen dämpft Ausreißer; Höhenänderungen unter 4 m werden nicht zur Summe addiert.</p>';
+  }
+  function renderSpeedProfile(points){
+    const box=$("speedChart"),samples=[];let distance=0;
+    for(let i=1;i<points.length;i++){
+      const a=points[i-1],b=points[i],dt=(b.t-a.t)/1000,d=haversine(a,b);
+      if(dt<=0||dt>30||d<=0.8||d>=150)continue;
+      const speed=d/dt*3.6;
+      if(!Number.isFinite(speed)||speed>100)continue;
+      distance+=d;samples.push({distance,speed});
+    }
+    if(samples.length<3){box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Punkte für ein Geschwindigkeitsprofil vorhanden.</div>';return;}
+    const filtered=samples.map((sample,index)=>{
+      const values=samples.slice(Math.max(0,index-2),Math.min(samples.length,index+3)).map(x=>x.speed).sort((a,b)=>a-b);
+      return {...sample,speed:values[Math.floor(values.length/2)]};
+    });
+    const maxSpeed=Math.max(10,Math.ceil(Math.max(...filtered.map(x=>x.speed))/5)*5);
+    const left=48,top=14,width=576,height=132,bottom=top+height,xMax=Math.max(1,distance);
+    const x=v=>left+v/xMax*width,y=v=>top+(maxSpeed-v)/maxSpeed*height;
+    const stride=Math.max(1,Math.ceil(filtered.length/280)),plot=[];
+    for(let i=0;i<filtered.length;i++)if(i===0||i===filtered.length-1||i%stride===0)plot.push(filtered[i]);
+    const grid=[];
+    for(let i=0;i<=4;i++){const value=maxSpeed*(1-i/4),yy=top+height*i/4;grid.push('<line class="grid-line" x1="'+left+'" y1="'+yy+'" x2="'+(left+width)+'" y2="'+yy+'"/><text class="axis-label" x="'+(left-8)+'" y="'+(yy+4)+'" text-anchor="end">'+Math.round(value)+'</text>');}
+    const line=plot.map(p=>x(p.distance)+','+y(p.speed)).join(' ');
+    const avg=filtered.reduce((sum,p)=>sum+p.speed,0)/filtered.length,peak=Math.max(...filtered.map(p=>p.speed));
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø GPS-Tempo <strong>'+fmt(avg)+' km/h</strong></span><span class="elevation-stat">Spitze <strong>'+fmt(peak)+' km/h</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Geschwindigkeitsprofil über die Distanz"><text class="axis-title" x="8" y="12">km/h</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/><polyline class="profile-line" points="'+line+'"/><text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text></svg><p class="elevation-footnote">'+filtered.length+' geglättete Messpunkte aus '+samples.length+' gültigen GPS-Abschnitten.</p>';
   }
   function exportGPX(r){
     const pts=r.points||[];if(!pts.length){showToast("Keine GPS-Punkte zum Export vorhanden.");return;}
