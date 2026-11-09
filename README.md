@@ -3,7 +3,7 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.6.0
+## Aktueller Stand – Version 0.6.1
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
 - Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
@@ -13,9 +13,10 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Tourenanalyse: Distanz, Fahrzeit, Standzeit, Durchschnitts- und Maximaltempo, Auf- und Abstieg, höchster/tiefster Punkt, durchschnittliche Steigung, steilste Steigung und steilste Abfahrt
 - Geglättetes Geschwindigkeitsprofil über die Streckendistanz in jeder Tour-Detailansicht
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken
-- Höhenprofil mit Distanzachse, Start-/Zielmarkierung und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte
+- Höhenprofil mit Distanzachse, tatsächlichen Start-/Zielmarkierungen und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte; fehlende Höhenwerte an den Tourgrenzen werden nicht interpoliert
 - Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter 4 m werden nicht zur kumulierten Höhenmeter-Summe addiert
-- Qualitätskennzeichnung der Höhenmessung anhand der verfügbaren GPS-Höhendaten
+- Qualitätskennzeichnung der Höhenmessung anhand der verfügbaren GPS-Höhendaten; fehlende Genauigkeitsangaben werden nicht als gute Messqualität eingestuft
+- Steigungswerte werden aus demselben geglätteten Höhenprofil abgeleitet; große Zeit-/Distanzlücken werden ausgelassen
 - Persönliche VELOX MAP mit mehreren gespeicherten Touren, individuellen Streckenfarben, Ein-/Ausblenden einzelner Touren, Zeitfiltern und lokaler Streckendichte-Ansicht
 - Separate Tourenliste mit Detailansicht und Streckenkarte
 - GPX-Export einzelner Touren
