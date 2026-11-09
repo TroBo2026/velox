@@ -102,8 +102,9 @@
     const accurate=smoothed.filter(sample=>sample.accuracy!==null);
     const medianAccuracy=accurate.length?median(accurate.map(sample=>sample.accuracy)):null;
     const quality=smoothed.length<5?"low":medianAccuracy===null?"medium":medianAccuracy<=12?"high":medianAccuracy<=25?"medium":"low";
-    const altitudes=smoothed.map(sample=>sample.elevationM);
-    return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length,minimum:altitudes.length?Math.min(...altitudes):null,maximum:altitudes.length?Math.max(...altitudes):null,medianAccuracy,quality};
+    let minimum=null,maximum=null;
+    for(const sample of smoothed){minimum=minimum===null?sample.elevationM:Math.min(minimum,sample.elevationM);maximum=maximum===null?sample.elevationM:Math.max(maximum,sample.elevationM);}
+    return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length,minimum,maximum,medianAccuracy,quality};
   }
   const movingSeconds=(ride)=>{
     const p=ride.points||[];let total=0;
@@ -359,7 +360,7 @@
     $("rideDetail").innerHTML='<div class="detail-header"><span class="eyebrow">TOURENDETAIL</span><h1>'+escapeHtml(r.name||"Fahrradtour")+'</h1><p class="muted">'+date+'</p></div>'+
       '<div class="metric-grid detail-metrics">'+
       metric("Distanz",fmt(c.distanceM/1000)+" km")+metric("Fahrzeit",fmtTime(c.movingSeconds))+metric("Ø Geschwindigkeit",fmt(c.averageSpeed)+" km/h")+metric("Max. Geschwindigkeit",fmt(c.maxSpeed)+" km/h")+
-      metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+metric("Höchster Punkt",c.elevationMax===null?"–":Math.round(c.elevationMax)+" m")+metric("Tiefster Punkt",c.elevationMin===null?"–":Math.round(c.elevationMin)+" m")+metric("Ø Steigung",c.gradeSamples?fmt(c.gradeAverage)+" %":"–")+metric("Max. Steigung",c.gradeSamples?fmt(c.gradeMax)+" %":"–")+metric("Fahrzeitanteil",fmt(c.movingRatio,0)+" %")+metric("Standzeit",fmtTime(c.stoppedSeconds))+metric("GPS-Punkte",r.points.length)+metric("Aufzeichnungsdauer",fmtTime(c.elapsedSeconds))+'</div>'+
+      metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+metric("Höchster Punkt",c.elevationMax===null?"–":Math.round(c.elevationMax)+" m")+metric("Tiefster Punkt",c.elevationMin===null?"–":Math.round(c.elevationMin)+" m")+metric("Ø Steigung",c.gradeSamples?fmt(c.gradeAverage)+" %":"–")+metric("Max. Steigung",c.gradeSamples?fmt(c.gradeMax)+" %":"–")+metric("Steilste Abfahrt",c.gradeSamples?fmt(Math.abs(c.gradeMin))+" %":"–")+metric("Fahrzeitanteil",fmt(c.movingRatio,0)+" %")+metric("Standzeit",fmtTime(c.stoppedSeconds))+metric("GPS-Punkte",r.points.length)+metric("Aufzeichnungsdauer",fmtTime(c.elapsedSeconds))+'</div>'+
       '<div class="detail-map" id="detailMap"></div>'+
       '<div class="panel"><span class="eyebrow">HÖHENPROFIL</span><h3>Höhenverlauf</h3><div class="chart-box" id="elevationChart"></div><p>Quelle: GPS-Höhenwerte des Geräts. Die Genauigkeit hängt vom Empfang und Sensor ab.</p></div>'+
       '<div class="panel"><span class="eyebrow">DATENQUELLE</span><h3>Messwerte & Berechnungen</h3><p>Distanz, Geschwindigkeit und Steigung aus GPS-Positionen und Zeitstempeln. Höhenmeter aus geglätteten GPS-Höhenwerten mit Qualitätsprüfung und Ausreißerfilter. Herzfrequenz, Leistung und Trittfrequenz werden erst angezeigt, wenn eine spätere kompatible Sensor-Anbindung echte Messwerte liefert. Das iOS-Web kann den internen Barometer-Druckwert derzeit nicht direkt auslesen.</p></div>'+
