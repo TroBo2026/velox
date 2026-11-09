@@ -304,6 +304,11 @@
     $("liveDuration").textContent=fmtTime(c.elapsedSeconds);
     $("liveElevation").innerHTML=Math.round(c.elevationGain)+' <small>m</small>';
     $("liveAverage").innerHTML=fmt(c.averageSpeed)+' <small>km/h</small>';
+    const last=activeRide.points[activeRide.points.length-1],elevation=buildElevationProfile(activeRide.points),grades=gradeStats(activeRide.points);
+    $("liveAltitude").innerHTML=last&&Number.isFinite(last.alt)?Math.round(last.alt)+' <small>m</small>':'– <small>m</small>';
+    $("liveGrade").innerHTML=grades.samples?fmt(grades.average)+' <small>%</small>':'– <small>%</small>';
+    $("liveMovingRatio").innerHTML=fmt(c.movingRatio,0)+' <small>%</small>';
+    $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":"Begrenzt";
   }
   async function pauseRide(){
     if(!activeRide)return;
