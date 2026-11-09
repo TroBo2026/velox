@@ -141,9 +141,9 @@
     const nav=e.target.closest("[data-page]");
     if(nav){e.preventDefault();setPage(nav.dataset.page);}
   });
-  function initMap(elementId,center=[51.05,13.74]){
+  function initMap(elementId,center=[51.05,13.74],options={}){
     if(!window.L)return null;
-    const map=L.map(elementId,{zoomControl:true,attributionControl:true}).setView(center,13);
+    const map=L.map(elementId,{zoomControl:true,attributionControl:true,...options}).setView(center,13);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
     return map;
   }
@@ -175,9 +175,9 @@
     const host=$("personalRideFilters");if(!host)return;
     if(!rides.length){host.innerHTML='<p class="map-filter-empty">Keine Touren im gewählten Zeitraum.</p>';return;}
     host.innerHTML=rides.map((ride,index)=>{
-      const id=String(ride.id),checked=personalVisibility.get(id)!==false;
+      const id=String(ride.id),checked=personalVisibility.get(id)!==false,color=mapColors[personalRidesCache.indexOf(ride)%mapColors.length];
       const date=new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"});
-      return '<label class="map-ride-toggle"><input type="checkbox" data-map-ride="'+escapeHtml(id)+'" '+(checked?'checked':'')+'><span class="map-ride-swatch" style="--ride-color:'+mapColors[index%mapColors.length]+'"></span><span class="map-ride-name">'+escapeHtml(ride.name||"Fahrradtour")+'</span><small>'+date+'</small></label>';
+      return '<label class="map-ride-toggle"><input type="checkbox" data-map-ride="'+escapeHtml(id)+'" '+(checked?'checked':'')+'><span class="map-ride-swatch" style="--ride-color:'+color+'"></span><span class="map-ride-name">'+escapeHtml(ride.name||"Fahrradtour")+'</span><small>'+date+'</small></label>';
     }).join("");
     host.querySelectorAll("[data-map-ride]").forEach(input=>input.addEventListener("change",()=>{
       personalVisibility.set(input.dataset.mapRide,input.checked);
@@ -226,9 +226,14 @@
     personalRidesCache=await allRides();
     const points=personalRidesCache.flatMap(ride=>ride.points||[]);
     const box=$("personalMap");
-    if(!points.length){box.innerHTML='<div class="empty-state">Noch keine GPS-Strecken vorhanden.</div>';return;}
+    if(!points.length){
+      if(personalMap){personalMap.remove();personalMap=null;}
+      personalLines.clear();personalHeatLayer=null;
+      box.innerHTML='<div class="empty-state">Noch keine GPS-Strecken vorhanden.</div>';
+      return;
+    }
     if(!window.L){box.innerHTML='<div class="empty-state">Kartenbibliothek nicht geladen. Bitte Internetverbindung prüfen.</div>';return;}
-    if(!personalMap){box.innerHTML="";personalMap=initMap("personalMap",[points[0].lat,points[0].lon]);}
+    if(!personalMap){box.innerHTML="";personalMap=initMap("personalMap",[points[0].lat,points[0].lon],{preferCanvas:true});}
     if(!personalMap)return;
     renderMapRideFilters(selectedMapRides());
     updatePersonalMapLayers();
