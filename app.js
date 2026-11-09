@@ -1,4 +1,4 @@
-/* VELOX 0.2.0 — local-first cycling tracker */
+/* VELOX 0.3.0 — local-first cycling tracker */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -199,16 +199,21 @@
     });
     if(personalHeatVisible&&rides.length){
       const cells=new Map();
-      rides.forEach(ride=>(ride.points||[]).forEach(point=>{
-        const key=Math.round(point.lat/0.0005)+":"+Math.round(point.lon/0.0005);
-        let cell=cells.get(key);
-        if(!cell){cell={lat:0,lon:0,count:0};cells.set(key,cell);}
-        cell.lat+=point.lat;cell.lon+=point.lon;cell.count++;
-      }));
+      rides.forEach(ride=>{
+        const touched=new Set();
+        (ride.points||[]).forEach(point=>{
+          const key=Math.round(point.lat/0.0005)+":"+Math.round(point.lon/0.0005);
+          if(touched.has(key))return;
+          touched.add(key);
+          let cell=cells.get(key);
+          if(!cell){cell={lat:0,lon:0,count:0};cells.set(key,cell);}
+          cell.lat+=point.lat;cell.lon+=point.lon;cell.count++;
+        });
+      });
       personalHeatLayer=L.layerGroup();
       cells.forEach(cell=>{
         if(cell.count<2)return;
-        const strength=Math.min(1,cell.count/12),color=cell.count>=12?"#ff775f":cell.count>=6?"#f4bd65":"#5bd6c5";
+        const strength=Math.min(1,cell.count/8),color=cell.count>=8?"#ff775f":cell.count>=4?"#f4bd65":"#5bd6c5";
         L.circleMarker([cell.lat/cell.count,cell.lon/cell.count],{radius:5+strength*10,stroke:false,fillColor:color,fillOpacity:.12+strength*.38,interactive:false}).addTo(personalHeatLayer);
       });
       personalHeatLayer.addTo(personalMap);
@@ -223,7 +228,7 @@
     const box=$("personalMap");
     if(!points.length){box.innerHTML='<div class="empty-state">Noch keine GPS-Strecken vorhanden.</div>';return;}
     if(!window.L){box.innerHTML='<div class="empty-state">Kartenbibliothek nicht geladen. Bitte Internetverbindung prüfen.</div>';return;}
-    if(!personalMap)personalMap=initMap("personalMap",[points[0].lat,points[0].lon]);
+    if(!personalMap){box.innerHTML="";personalMap=initMap("personalMap",[points[0].lat,points[0].lon]);}
     if(!personalMap)return;
     renderMapRideFilters(selectedMapRides());
     updatePersonalMapLayers();
