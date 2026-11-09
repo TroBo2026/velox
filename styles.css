@@ -20,3 +20,17 @@
 .elevation-chart .profile-marker{fill:var(--teal);stroke:#08131f;stroke-width:2;vector-effect:non-scaling-stroke}
 .elevation-chart .marker-label{fill:var(--text);font:10px 'DM Sans',sans-serif;font-weight:700}
 .elevation-footnote{margin-top:6px;color:var(--muted);font-size:10px;line-height:1.55}
+
+/* VELOX MAP: Filter, Einzelauswahl und lokale Streckendichte */
+.map-toolbar{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin:12px 0}
+.map-select-label{display:flex;flex:1;min-width:145px;flex-direction:column;gap:6px;color:var(--muted);font-size:9px;letter-spacing:.12em;font-weight:700}
+.map-select-label select{width:100%;min-height:39px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#0b1925;color:var(--text);font:inherit;font-size:12px;letter-spacing:normal}
+.map-tool-button{min-height:39px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#182b3b;color:var(--text);font-size:11px;font-weight:700}
+.map-tool-button.active{border-color:var(--teal);color:var(--teal);background:#12312f}
+.map-ride-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;margin:12px 0}
+.map-ride-toggle{display:flex;align-items:center;gap:8px;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#0c1a27;font-size:11px}
+.map-ride-toggle input{width:16px;height:16px;accent-color:var(--teal);flex:none}
+.map-ride-swatch{width:9px;height:9px;flex:none;border-radius:50%;background:var(--ride-color)}
+.map-ride-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.map-ride-toggle small{color:var(--muted);font-size:9px;white-space:nowrap}
+.map-filter-empty{color:var(--muted);font-size:11px;margin:4px 0}
