@@ -81,26 +81,29 @@
         if(Number.isFinite(d)&&d>0.8&&d<150&&dt>0&&dt<=30)distance+=d;
         if(!Number.isFinite(dt)||dt<=0||dt>30||d>=150)segment++;
       }
-      const altitudeAccuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
-      if(Number.isFinite(point.alt)&&(altitudeAccuracy===null||altitudeAccuracy<=50)){
-        samples.push({distanceM:distance,altitude:point.alt,time:point.t,segment});
-      }
+      const accuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
+      if(Number.isFinite(point.alt)&&point.alt!==null&&(accuracy===null||accuracy<=35))samples.push({distanceM:distance,altitude:point.alt,time:point.t,segment,accuracy});
       previous=point;
     }
     const smoothed=samples.map((sample,index)=>{
-      const values=[sample.altitude],before=samples[index-1],after=samples[index+1];
-      if(before&&before.segment===sample.segment&&sample.distanceM-before.distanceM<=60&&sample.time-before.time<=45000)values.push(before.altitude);
-      if(after&&after.segment===sample.segment&&after.distanceM-sample.distanceM<=60&&after.time-sample.time<=45000)values.push(after.altitude);
-      return {...sample,elevationM:median(values)};
+      const nearby=[];
+      for(let offset=-2;offset<=2;offset++){
+        const candidate=samples[index+offset];
+        if(candidate&&candidate.segment===sample.segment&&Math.abs(candidate.distanceM-sample.distanceM)<=100&&Math.abs(candidate.time-sample.time)<=60000)nearby.push(candidate.altitude);
+      }
+      return {...sample,elevationM:median(nearby.length>=3?nearby:[sample.altitude])};
     });
     let gain=0,loss=0,lastSegment=null,anchor=null;
     for(const sample of smoothed){
       if(sample.segment!==lastSegment){lastSegment=sample.segment;anchor=sample.elevationM;continue;}
       const delta=sample.elevationM-anchor;
-      if(delta>=3){gain+=delta;anchor=sample.elevationM;}
-      else if(delta<=-3){loss+=-delta;anchor=sample.elevationM;}
+      if(delta>=4){gain+=delta;anchor=sample.elevationM;}else if(delta<=-4){loss+=-delta;anchor=sample.elevationM;}
     }
-    return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length};
+    const accurate=smoothed.filter(sample=>sample.accuracy!==null);
+    const medianAccuracy=accurate.length?median(accurate.map(sample=>sample.accuracy)):null;
+    const quality=smoothed.length<5?"low":medianAccuracy===null?"medium":medianAccuracy<=12?"high":medianAccuracy<=25?"medium":"low";
+    const altitudes=smoothed.map(sample=>sample.elevationM);
+    return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length,minimum:altitudes.length?Math.min(...altitudes):null,maximum:altitudes.length?Math.max(...altitudes):null,medianAccuracy,quality};
   }
   const movingSeconds=(ride)=>{
     const p=ride.points||[];let total=0;
@@ -111,22 +114,26 @@
     }
     return total;
   };
+  function gradeStats(points){
+    const grades=[];let weightedSum=0,weightedDistance=0;
+    for(let i=1;i<points.length;i++){
+      const a=points[i-1],b=points[i],d=haversine(a,b),dt=(b.t-a.t)/1000;
+      if(d<8||d>100||dt<=0||dt>30||!Number.isFinite(a.alt)||!Number.isFinite(b.alt))continue;
+      const accuracy=Math.max(a.altAccuracy||0,b.altAccuracy||0);if(accuracy>35)continue;
+      const grade=(b.alt-a.alt)/d*100;if(!Number.isFinite(grade)||Math.abs(grade)>35)continue;
+      grades.push({grade,distance:d});weightedSum+=grade*d;weightedDistance+=d;
+    }
+    return {average:weightedDistance?weightedSum/weightedDistance:0,maximum:grades.reduce((max,x)=>Math.max(max,x.grade),0),minimum:grades.reduce((min,x)=>Math.min(min,x.grade),0),samples:grades.length};
+  }
   function calcRide(ride){
     const p=ride.points||[];let distance=0;
-    for(let i=1;i<p.length;i++){
-      const d=haversine(p[i-1],p[i]);
-      const dt=(p[i].t-p[i-1].t)/1000;
-      if(dt>0&&dt<=30&&d<150&&d>0.8)distance+=d;
-    }
-    const elevation=buildElevationProfile(p);
-    const elapsed=activeSeconds(ride),moving=movingSeconds(ride);
-    const avg=moving>0?distance/moving*3.6:0;
+    for(let i=1;i<p.length;i++){const d=haversine(p[i-1],p[i]),dt=(p[i].t-p[i-1].t)/1000;if(dt>0&&dt<=30&&d<150&&d>0.8)distance+=d;}
+    const elevation=buildElevationProfile(p),grades=gradeStats(p);
+    const elapsed=activeSeconds(ride),moving=movingSeconds(ride),avg=moving>0?distance/moving*3.6:0;
     const speeds=[];
-    for(let i=1;i<p.length;i++){
-      const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]),speed=d/dt*3.6;
-      if(dt>0&&dt<=30&&d>0.8&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);
-    }
-    return {distanceM:distance,elevationGain:elevation.gain,elevationLoss:elevation.loss,elapsedSeconds:elapsed,movingSeconds:moving,averageSpeed:avg,maxSpeed:speeds.reduce((maximum,speed)=>Math.max(maximum,speed),0)};
+    for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]),speed=d/dt*3.6;if(dt>0&&dt<=30&&d>0.8&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);}
+    const stopped=Math.max(0,elapsed-moving);
+    return {distanceM:distance,elevationGain:elevation.gain,elevationLoss:elevation.loss,elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationQuality:elevation.quality,elevationAccuracy:elevation.medianAccuracy,gradeAverage:grades.average,gradeMax:grades.maximum,gradeMin:grades.minimum,gradeSamples:grades.samples,elapsedSeconds:elapsed,movingSeconds:moving,stoppedSeconds:stopped,movingRatio:elapsed?moving/elapsed*100:0,averageSpeed:avg,maxSpeed:speeds.reduce((maximum,speed)=>Math.max(maximum,speed),0)};
   }
   function setPage(page){
     currentPage=page;
