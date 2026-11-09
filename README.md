@@ -1,19 +1,20 @@
 # VELOX
 **YOUR RIDE. YOUR WORLD.**
 
-VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält den ersten testbaren Web-App-Prototyp für iPhone und iPad.
+VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.2.0
+## Aktueller Stand – Version 0.4.0
 
-- GPS-Aufzeichnung über die Browser-Standortfunktion
-- Tour pausieren, fortsetzen und beenden
-- Distanz, Dauer, aktuelle und durchschnittliche Geschwindigkeit
-- Distanzbezogenes GPS-Höhenprofil mit Achsen, Start-/Zielmarkierung und lokaler Median-Glättung
-- Auf- und Abstieg aus geglätteten GPS-Höhenwerten; Höhenpunkte mit gemeldeter vertikaler Ungenauigkeit über 50 m werden ausgelassen
+- GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
+- Live-Daten: Distanz, Geschwindigkeit, Fahrzeit, Aufstieg, Durchschnittstempo, aktuelle GPS-Höhe, aktuelle Steigung, Fahrzeitanteil und Höhen-Datenqualität
+- Tourenanalyse: Distanz, Fahrzeit, Standzeit, Durchschnitts- und Maximaltempo, Auf- und Abstieg, höchster/tiefster Punkt, durchschnittliche Steigung, steilste Steigung und steilste Abfahrt
+- Höhenprofil mit Distanzachse, Start-/Zielmarkierung und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte
+- Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter 4 m werden nicht zur kumulierten Höhenmeter-Summe addiert
+- Qualitätskennzeichnung der Höhenmessung anhand der verfügbaren GPS-Höhendaten
+- Persönliche VELOX MAP mit mehreren gespeicherten Touren, individuellen Streckenfarben, Ein-/Ausblenden einzelner Touren, Zeitfiltern und lokaler Streckendichte-Ansicht
 - Separate Tourenliste mit Detailansicht und Streckenkarte
-- Persönliche Karte mit allen gespeicherten GPS-Routen
 - GPX-Export einzelner Touren
-- JSON-Export und -Import aller Tourdaten; beim Import werden vorhandene Touren nie überschrieben, doppelte IDs erhalten eine neue Import-ID
+- JSON-Export und -Import aller Tourdaten; vorhandene Touren werden beim Import nie überschrieben, doppelte IDs erhalten eine neue Import-ID
 - Lokale Speicherung im Browser über IndexedDB
 - Installierbare PWA-Grundstruktur und Offline-App-Shell-Cache
 
@@ -24,18 +25,22 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält den ersten
 - Es gibt keinen VELOX-Server, der Tourdaten entgegennimmt.
 - Vor dem Löschen von Browserdaten oder einer Neuinstallation eine JSON-Sicherung exportieren.
 - Die Kartenansicht lädt Kartenausschnitte von OpenStreetMap. Dafür werden beim Anzeigen der Karte Netzwerkanfragen an den Kartendienst gesendet; die aufgezeichnete GPX-Tour wird nicht an VELOX-Server hochgeladen.
-- Die App lädt derzeit Leaflet und Schrift-/Darstellungsressourcen extern. Offline sind deshalb nicht alle Karten- und Designressourcen verfügbar. Das App-Symbol und die lokale App-Shell werden zusätzlich im Service Worker zwischengespeichert; Karten bleiben onlineabhängig.
+- Die App lädt derzeit Leaflet und Schrift-/Darstellungsressourcen extern. Offline sind deshalb nicht alle Karten- und Designressourcen verfügbar. Karten bleiben onlineabhängig.
+
+## Sensoren und Messgenauigkeit
+
+- Die aktuelle Web-App verwendet GPS-Höhenwerte des Geräts. Ein Medianfilter dämpft einzelne Ausreißer; die Qualitätsanzeige macht sichtbar, wenn nur wenige oder ungenaue Höhenmessungen vorhanden sind.
+- Das iPhone kann über seine Hardware einen barometrischen Drucksensor besitzen. Safari auf iOS bietet Webseiten aber keine verlässliche standardisierte Schnittstelle, um diesen Rohdruck direkt auszulesen. VELOX behauptet deshalb nicht, aktuell barometrische Höhenwerte zu messen.
+- Für eine spätere native iOS-App ist eine Barometer-Anbindung über Core Motion vorgesehen. Damit kann die GPS-Höhe ergänzt und über Druckänderungen stabilisiert werden; eine Kalibrierung gegen bekannte Höhen/GPS bleibt sinnvoll.
+- Herzfrequenz, Leistung und Trittfrequenz werden erst eingebunden, wenn echte kompatible Sensordaten verfügbar sind. Diese Werte werden nicht erfunden oder simuliert.
+- Apple Watch, HealthKit und Bluetooth-Sensoren sind in diesem Web-Prototyp noch nicht implementiert. Safari auf iOS unterstützt Web Bluetooth nicht wie Chromium-Browser auf unterstützten Plattformen.
 
 ## Grenzen des Web-Prototyps
 
-Diese Version 0.2.0 ist ein testbarer Funktionsstand, noch keine vollständige native Fahrrad-App.
-
 - iOS kann Browser-Tabs und Web-Apps im Hintergrund anhalten. GPS-Aufzeichnung bei gesperrtem Bildschirm ist daher nicht zuverlässig garantiert. Während eines Tests VELOX geöffnet und den Bildschirm aktiv lassen.
-- Apple-Watch-, HealthKit- und Bluetooth-Sensor-Anbindung sind noch nicht implementiert.
-- Herzfrequenz, Watt, Trittfrequenz und Kalorien werden nicht erfunden oder simuliert.
-- GPS-Höhenwerte sind ungenau und können schwanken. Ein lokaler Medianfilter dämpft einzelne Ausreißer; Änderungen unter 3 m werden nicht zur kumulierten Summe addiert. Das bleibt eine Näherungsberechnung, keine barometrische Messung.
 - Offline-Karten sind noch nicht enthalten.
 - Für GPS wird eine sichere HTTPS-Adresse und eine erteilte Standortberechtigung benötigt.
+- Die aktuelle Höhenmeter-Summe ist eine gefilterte GPS-Näherung, keine zertifizierte barometrische Messung.
 
 ## Dateien
 
@@ -46,13 +51,13 @@ Diese Version 0.2.0 ist ein testbarer Funktionsstand, noch keine vollständige n
 | `app.js` | GPS, Berechnungen, IndexedDB, Touren, Export/Import |
 | `manifest.webmanifest` | PWA-Metadaten und SVG-App-Icon |
 | `icon.svg` | VELOX-App-/Browser-Icon |
-| `sw.js` | Cache für den App-Shell |
+| `sw.js` | Cache für die App-Shell |
 
 ## Kostenlos testen und bereitstellen
 
-Das Repository ist derzeit öffentlich. GitHub Pages ist bei GitHub Free auf öffentliche Repositories beschränkt. Cloudflare Pages kann dagegen mit einem privaten GitHub-Repository verbunden werden und bei Änderungen am Branch `main` automatisch neu bereitstellen.
+Die App ist als statische Web-App angelegt. Es werden keine kostenpflichtigen APIs, Abonnements oder Cloud-Datenbanken benötigt.
 
-Empfohlene Cloudflare-Pages-Einstellungen für diese statische App:
+Empfohlene Cloudflare-Pages-Einstellungen:
 
 - Framework preset: **None**
 - Production branch: **main**
@@ -64,10 +69,10 @@ Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen
 
 ## Geplante Entwicklung
 
-1. Stabilität und GPS-Qualität testen
-2. Datenmodell und Höhenprofil verbessern
-3. GPX-Import und Tourenverwaltung erweitern
-4. Sensorintegration prüfen
-5. Native iOS-/watchOS-Version evaluieren
+1. Reale iPhone-Tests für GPS-Qualität, Höhenprofil, Tourenspeicherung und iOS-Verhalten
+2. Native iOS-Sensoranbindung für Barometer/Core Motion prüfen und umsetzen, sobald ein nativer App-Unterbau vorhanden ist
+3. Echte Herzfrequenz-, Trittfrequenz- und Leistungssensoren anbinden
+4. Tourenvergleich, detaillierte Geschwindigkeits-/Steigungsprofile und Rekorde
+5. Native iOS-/watchOS-Version und Offline-Karten evaluieren
 
 **Grundprinzipien:** echte Messwerte statt erfundener Daten, jede Tour einzeln zugänglich, Gesamtstatistiken getrennt, lokale Speicherung zuerst und keine verpflichtenden Abos.
