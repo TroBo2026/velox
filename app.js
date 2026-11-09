@@ -291,14 +291,23 @@
   }
   async function onPosition(pos){
     if(!activeRide||activeRide.status!=="recording")return;
-    const c=pos.coords,point={lat:c.latitude,lon:c.longitude,t:pos.timestamp||Date.now(),alt:Number.isFinite(c.altitude)?c.altitude:null,altAccuracy:Number.isFinite(c.altitudeAccuracy)?c.altitudeAccuracy:null,accuracy:c.accuracy};
+    const c=pos.coords,timestamp=pos.timestamp||Date.now();
+    const sensor=window.VELOXSensors?window.VELOXSensors.fuseAltitude(c.altitude,c.altitudeAccuracy,timestamp):{altitudeM:Number.isFinite(c.altitude)?c.altitude:null,accuracyM:Number.isFinite(c.altitudeAccuracy)?c.altitudeAccuracy:null,source:"gps"};
+    const point={lat:c.latitude,lon:c.longitude,t:timestamp,alt:sensor.altitudeM,altAccuracy:sensor.accuracyM,altSource:sensor.source,pressureKPa:sensor.pressureKPa,accuracy:c.accuracy};
     const prev=activeRide.points[activeRide.points.length-1];
     if(prev){const d=haversine(prev,point);const dt=(point.t-prev.t)/1000;if(d>150||dt<=0)return;if(d<1.5&&dt<3)return;}
     activeRide.points.push(point);
     await dbRequest("readwrite","put",activeRide);
     $("trackingStatus").textContent="Aufzeichnung läuft";$("trackingDot").style.background="var(--teal)";
     $("gpsAccuracy").textContent="GPS ±"+Math.round(c.accuracy)+" m";
-    drawLive(activeRide.points);updateLive();
+    updateSensorStatus(point);drawLive(activeRide.points);updateLive();
+  }
+  function updateSensorStatus(point){
+    const source=point&&point.altSource||"gps";
+    const gps=$("sensorGpsStatus"),barometer=$("sensorBarometerStatus"),sourceLabel=$("sensorAltitudeSource");
+    if(gps)gps.textContent=Number.isFinite(point&&point.alt)?"GPS-Höhe verfügbar":"GPS-Höhe nicht verfügbar";
+    if(barometer)barometer.textContent=source.includes("barometer")?"Barometer verbunden":"In dieser Web-App nicht verfügbar";
+    if(sourceLabel)sourceLabel.textContent=source==="gps+barometer"?"GPS + Barometer":source==="barometer"?"Barometer":"GPS";
   }
   function onGeoError(err){
     const messages={1:"Standortzugriff verweigert. Bitte in den iOS-Einstellungen erlauben.",2:"GPS-Position nicht verfügbar.",3:"GPS-Zeitüberschreitung. Suche läuft weiter."};
@@ -326,6 +335,7 @@
     $("liveGrade").innerHTML=liveGrade===null?'– <small>%</small>':fmt(liveGrade)+' <small>%</small>';
     $("liveMovingRatio").innerHTML=fmt(c.movingRatio,0)+' <small>%</small>';
     $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":"Begrenzt";
+    const latest=activeRide.points[activeRide.points.length-1];updateSensorStatus(latest);
   }
   async function pauseRide(){
     if(!activeRide)return;
@@ -480,6 +490,8 @@
     catch(e){showToast("Lokale Datenbank konnte nicht geöffnet werden.");console.error(e);}
     if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
     if(window.L)liveMap=initMap("liveMap");
+    updateSensorStatus(null);
+    if(window.VELOXSensors)window.VELOXSensors.subscribe(sample=>{if(activeRide&&activeRide.status==="recording")$("trackingStatus").textContent="Barometerdaten empfangen";});
   }
   init();
 })();
