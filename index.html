@@ -87,7 +87,7 @@
           <div class="map-toolbar"><label class="map-select-label">ZEITRAUM<select id="mapDateFilter" aria-label="Zeitraum der Routenkarte"><option value="all">Alle Touren</option><option value="30">Letzte 30 Tage</option><option value="90">Letzte 90 Tage</option><option value="year">Letztes Jahr</option></select></label><button class="map-tool-button" id="mapHeatToggle" type="button" aria-pressed="false">Dichte</button><button class="map-tool-button" id="mapFit" type="button">Alles zeigen</button></div>
           <div id="personalMap" class="detail-map"></div><div id="personalRideFilters" class="map-ride-filters" aria-label="Einzelne Touren ein- oder ausblenden"></div>
           <p>Alle Strecken bleiben lokal auf deinem Gerät. Die Dichteansicht zählt wiederholt erfasste GPS-Bereiche; Kartenkacheln werden bei Internetverbindung von OpenStreetMap geladen.</p></div>
-        <div class="panel"><span class="eyebrow">HINWEIS ZUR DATENQUALITÄT</span><h3>Messung statt Schätzung</h3><p>Distanz und Geschwindigkeit werden aus GPS-Positionen und Zeitstempeln berechnet. Höhenmeter werden aus einem lokal geglätteten Verlauf der GPS-Höhenwerte berechnet; Änderungen unter 3 m werden nicht zur Summe addiert. Ohne kompatible Sensoren zeigt VELOX keine Herzfrequenz-, Trittfrequenz- oder Leistungsmessungen an.</p></div>
+        <div class="panel"><span class="eyebrow">HINWEIS ZUR DATENQUALITÄT</span><h3>Messung statt Schätzung</h3><p>Distanz und Geschwindigkeit werden aus GPS-Positionen und Zeitstempeln berechnet. Höhenmeter werden aus einem lokal geglätteten Verlauf der GPS-Höhenwerte berechnet; Änderungen unter 4 m werden nicht zur Summe addiert. Ohne kompatible Sensoren zeigt VELOX keine Herzfrequenz-, Trittfrequenz- oder Leistungsmessungen an.</p></div>
       </section>
 
       <section class="page" id="page-settings">
@@ -95,7 +95,7 @@
         <div class="panel setting-row"><div><h3>Daten exportieren</h3><p>Alle Touren als JSON-Sicherung speichern.</p></div><button class="secondary-button compact" id="exportBackup">Export</button></div>
         <div class="panel setting-row"><div><h3>Daten importieren</h3><p>Eine zuvor exportierte VELOX-Sicherung einlesen.</p></div><button class="secondary-button compact" id="importBackup">Import</button><input id="backupFile" type="file" accept="application/json,.json" hidden></div>
         <div class="panel setting-row"><div><h3>Alle Daten löschen</h3><p>Entfernt alle lokal gespeicherten Touren unwiderruflich.</p></div><button class="danger-outline compact" id="deleteAll">Löschen</button></div>
-        <div class="panel"><span class="eyebrow">VERSION 0.6.0</span><h3>VELOX – Your ride. Your world.</h3><p>Testversion 0.6.0. Noch keine Apple-Watch-Anbindung, keine automatische Herzfrequenz-/Leistungsmessung und keine garantierte Hintergrundaufzeichnung.</p></div>
+        <div class="panel"><span class="eyebrow">VERSION 0.6.1</span><h3>VELOX – Your ride. Your world.</h3><p>Testversion 0.6.1. Noch keine Apple-Watch-Anbindung, keine automatische Herzfrequenz-/Leistungsmessung und keine garantierte Hintergrundaufzeichnung.</p></div>
       </section>
     </main>
 
