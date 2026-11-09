@@ -38,3 +38,10 @@
 /* Erweiterte Live-Fahrdaten */
 .live-grid>div{min-width:0}
 .live-grid>div strong{font-variant-numeric:tabular-nums}
+
+.sensor-panel{margin-top:14px}
+.sensor-status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:12px 0}
+.sensor-status-grid>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.sensor-status-grid span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.sensor-status-grid strong{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.sensor-panel p{margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
