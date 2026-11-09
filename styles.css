@@ -53,3 +53,8 @@
 .comparison-table thead th{color:var(--teal);font-size:10px}
 .comparison-table th:first-child{text-align:left;color:var(--muted)}
 .comparison-table tbody td{color:var(--text)}
+
+
+/* Tourgrenzen im Höhenprofil: tatsächlicher Start/Zielpunkt, nicht erster/letzter Höhenwert */
+.elevation-chart .route-endpoint{stroke:var(--amber);stroke-width:1.2;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
+.elevation-chart .endpoint-label{fill:var(--amber);font:10px 'DM Sans',sans-serif;font-weight:700}
