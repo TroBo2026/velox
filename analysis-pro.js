@@ -298,7 +298,11 @@
   }
   function readRides() {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME);
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains(STORE)) database.createObjectStore(STORE, { keyPath: "id" });
+      };
       request.onerror = () => reject(request.error || new Error("Lokale Tourdatenbank nicht erreichbar."));
       request.onsuccess = () => {
         const database = request.result;
