@@ -430,7 +430,13 @@
       ".vx-pro-controls{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}",
       ".vx-pro-controls label{display:flex;flex:1;min-width:170px;flex-direction:column;gap:6px;color:var(--muted);font-size:10px;font-weight:700}",
       ".vx-pro-controls select,.vx-pro-refresh{min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:11px;background:#0b1925;color:var(--text);font:inherit;font-size:12px}",
-      ".vx-pro-refresh{font-weight:700;cursor:pointer}",
+      ".vx-pro-refresh{font-weight:700;cursor:pointer;min-height:44px;touch-action:manipulation}",
+      ".vx-pro-controls select{min-height:44px;touch-action:manipulation}",
+      ".vx-pro-controls select:focus-visible,.vx-pro-refresh:focus-visible{outline:3px solid var(--teal);outline-offset:3px}",
+      ".vx-pro-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
+      ".vx-pro-table{width:100%;min-width:390px;border-collapse:collapse;font-variant-numeric:tabular-nums}",
+      ".vx-pro-table th,.vx-pro-table td{padding:9px 7px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}",
+      "@media(prefers-reduced-motion:reduce){.vx-pro-panel *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}"
       ".vx-pro-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:13px 0}",
       ".vx-pro-card{min-width:0;padding:13px;border:1px solid var(--line);border-radius:14px;background:#0b1925}",
       ".vx-pro-card>span,.vx-pro-card>small{display:block;color:var(--muted);font-size:10px;line-height:1.45}",
@@ -466,13 +472,13 @@
     ].join("");
     document.head.appendChild(style);
     page.insertAdjacentHTML("beforeend",
-      '<section class="panel vx-pro-panel" id="veloxProAnalysis">' +
-      '<span class="eyebrow">VELOX PRO ANALYSE</span><h3>Touren im Detail</h3>' +
+      '<section class="panel vx-pro-panel" id="veloxProAnalysis" aria-labelledby="vxProHeading">' +
+      '<span class="eyebrow">VELOX PRO ANALYSE</span><h3 id="vxProHeading">Touren im Detail</h3>' +
       '<p>Zusätzliche Auswertung aus deinen lokal gespeicherten GPS-Daten. Die Analyse verändert keine Tour.</p>' +
-      '<div class="vx-pro-controls"><label>TOUR AUSWÄHLEN<select id="vxProRide"><option value="all">Alle Touren · Archiv</option></select></label>' +
-      '<label>SPLIT-LÄNGE<select id="vxProSplit"><option value="1">1 Kilometer</option><option value="5" selected>5 Kilometer</option><option value="10">10 Kilometer</option></select></label>' +
-      '<button class="vx-pro-refresh" id="vxProRefresh" type="button">Neu berechnen</button></div>' +
-      '<div id="vxProResult" aria-live="polite"><div class="vx-pro-empty">Tourdaten werden lokal eingelesen …</div></div>' +
+      '<div class="vx-pro-controls"><label>TOUR AUSWÄHLEN<select id="vxProRide" aria-label="Tour für die Analyse auswählen"><option value="all">Alle Touren · Archiv</option></select></label>' +
+      '<label>SPLIT-LÄNGE<select id="vxProSplit" aria-label="Länge der Streckenabschnitte"><option value="1">1 Kilometer</option><option value="5" selected>5 Kilometer</option><option value="10">10 Kilometer</option></select></label>' +
+      '<button class="vx-pro-refresh" id="vxProRefresh" type="button" aria-label="Tourenanalyse neu berechnen">Neu berechnen</button></div>' +
+      '<div id="vxProResult" role="status" aria-live="polite" aria-atomic="true"><div class="vx-pro-empty">Tourdaten werden lokal eingelesen …</div></div>' +
       '<p class="vx-pro-note">Messgrenzen: GPS-Lücken über 30 s, Positionssprünge über 150 m, Genauigkeit schlechter als 80 m und Geschwindigkeiten über 100 km/h werden nicht für die Distanz gewertet. Bewegungszeit zählt gültige Abschnitte ab 1,5 km/h. Das sind nachvollziehbare Filter, keine Garantie für perfekte GPS-Messungen.</p>' +
       '</section>'
     );
