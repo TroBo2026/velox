@@ -516,6 +516,7 @@
     }
     host.innerHTML = renderSingle(analysesCache[index], splitKm);
   }
+  window.VELOXProAnalysis = Object.freeze({ version: "0.7.0", analyzeRide });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
   else init();
 })();
