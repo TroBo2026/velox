@@ -436,7 +436,7 @@
       ".vx-pro-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
       ".vx-pro-table{width:100%;min-width:390px;border-collapse:collapse;font-variant-numeric:tabular-nums}",
       ".vx-pro-table th,.vx-pro-table td{padding:9px 7px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}",
-      "@media(prefers-reduced-motion:reduce){.vx-pro-panel *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}"
+      "@media(prefers-reduced-motion:reduce){.vx-pro-panel *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}",
       ".vx-pro-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:13px 0}",
       ".vx-pro-card{min-width:0;padding:13px;border:1px solid var(--line);border-radius:14px;background:#0b1925}",
       ".vx-pro-card>span,.vx-pro-card>small{display:block;color:var(--muted);font-size:10px;line-height:1.45}",
