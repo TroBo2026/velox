@@ -57,7 +57,7 @@
       const point = points[index];
       const metadata = pointMeta[index];
       const accuracy = Number.isFinite(point.altAccuracy) ? point.altAccuracy : null;
-      if (!metadata || !Number.isFinite(point.alt) || point.alt < -1000 || point.alt > 10000) continue;
+      if (!metadata || metadata.useAltitude === false || !Number.isFinite(point.alt) || point.alt < -1000 || point.alt > 10000) continue;
       if (accuracy !== null && (accuracy < 0 || accuracy > 35)) continue;
       raw.push({
         distanceM: metadata.distanceM,
@@ -167,7 +167,7 @@
     const points = Array.isArray(ride.points) ? ride.points : [];
     const segments = [], pointMeta = new Array(points.length).fill(null);
     const rejected = { invalid: 0, clock: 0, gap: 0, jump: 0, speed: 0, accuracy: 0 };
-    let distanceM = 0, movingSeconds = 0, stoppedGpsSeconds = 0, gapSeconds = 0;
+    let distanceM = 0, movingSeconds = 0, stoppedGpsSeconds = 0, gapSeconds = 0, acceptedIntervalCount = 0;
     const speedValues = [], speedZones = [
       { label: "0–10 km/h", min: 0, max: 10, seconds: 0 },
       { label: "10–20 km/h", min: 10, max: 20, seconds: 0 },
@@ -183,7 +183,7 @@
         continue;
       }
       if (index === 0 || !validCoordinate(points[index - 1])) {
-        pointMeta[index] = { distanceM, segment: segmentNumber };
+        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: true };
         continue;
       }
       const previous = points[index - 1];
@@ -216,37 +216,39 @@
         continue;
       }
       if (segmentDistance < MIN_SEGMENT_M) {
+        acceptedIntervalCount++;
         stoppedGpsSeconds += durationS;
-        pointMeta[index] = { distanceM, segment: segmentNumber };
+        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: false };
         continue;
       }
       const speed = segmentDistance / durationS * 3.6;
       if (!Number.isFinite(speed) || speed > MAX_SPEED_KMH) {
         rejected.speed++;
         segmentNumber++;
-        pointMeta[index] = { distanceM, segment: segmentNumber };
+        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: true };
         continue;
       }
+      acceptedIntervalCount++;
       const moving = speed >= MIN_MOVING_KMH;
-      const segment = {
+      if (!moving) {
+        stoppedGpsSeconds += durationS;
+        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: false };
+        continue;
+      }
+      segments.push({
         distanceM: segmentDistance,
         durationS,
         speedKmh: speed,
-        moving,
+        moving: true,
         fromIndex: index - 1,
         toIndex: index
-      };
-      segments.push(segment);
+      });
       distanceM += segmentDistance;
-      if (moving) {
-        movingSeconds += durationS;
-        speedValues.push(speed);
-        const zone = speedZones.find((item) => speed >= item.min && speed < item.max);
-        if (zone) zone.seconds += durationS;
-      } else {
-        stoppedGpsSeconds += durationS;
-      }
-      pointMeta[index] = { distanceM, segment: segmentNumber };
+      movingSeconds += durationS;
+      speedValues.push(speed);
+      const zone = speedZones.find((item) => speed >= item.min && speed < item.max);
+      if (zone) zone.seconds += durationS;
+      pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: true };
     }
     const start = Number.isFinite(ride.startedAt) ? ride.startedAt : (points[0] && points[0].t) || Date.now();
     const end = Number.isFinite(ride.endedAt) ? ride.endedAt : (points[points.length - 1] && points[points.length - 1].t) || start;
@@ -258,7 +260,7 @@
     const splits = splitSegments(segments.filter((segment) => segment.moving), splitLengthM);
     const acceptedSegments = segments.length;
     const intervalCount = Math.max(0, points.length - 1);
-    const acceptedRatio = intervalCount ? acceptedSegments / intervalCount : 0;
+    const acceptedRatio = intervalCount ? acceptedIntervalCount / intervalCount : 0;
     const accuracyValues = points.map((point) => point && point.accuracy).filter((value) => Number.isFinite(value) && value >= 0);
     const goodAccuracyRatio = accuracyValues.length
       ? accuracyValues.filter((value) => value <= 20).length / accuracyValues.length
@@ -289,6 +291,7 @@
       splits,
       quality,
       acceptedSegments,
+      acceptedIntervalCount,
       intervalCount,
       acceptedRatio,
       rejected,
@@ -341,7 +344,7 @@
       ? "GPS-Genauigkeit wurde vom Gerät nicht für alle Punkte gemeldet."
       : fmt(result.goodAccuracyRatio * 100, 0) + " % der gemeldeten Positionsgenauigkeiten liegen bei höchstens 20 m.";
     const cards = [
-      card("Strecke", fmt(result.distanceM / 1000) + " km", result.acceptedSegments + " akzeptierte GPS-Abschnitte"),
+      card("Strecke", fmt(result.distanceM / 1000) + " km", result.acceptedSegments + " Bewegungsabschnitte"),
       card("Bewegungszeit", fmtTime(result.movingSeconds), "Nur gültige Fahrintervalle"),
       card("Gesamtzeit", fmtTime(result.elapsedSeconds), "Aufzeichnungszeit abzüglich Pausen"),
       card("Stand- / Lückenzeit", fmtTime(result.stoppedSeconds), "Nicht als Fahrzeit gewertet"),
@@ -386,7 +389,7 @@
       '<section class="vx-pro-subpanel"><h4>GPS-Datenprüfung</h4><div class="vx-pro-quality"><strong>' + result.quality +
       '</strong><span>' + fmt(result.acceptedRatio * 100, 0) + ' % der Zeit-/Punktintervalle akzeptiert · ' + qualityNote +
       '</span></div><div class="vx-pro-audit-grid">' + rejectionRows + '</div><p class="vx-pro-note">' +
-      result.acceptedSegments + ' akzeptierte Abschnitte von ' + result.intervalCount + '. GPS-Lücken: ' +
+      result.acceptedIntervalCount + ' gültige Intervalle von ' + result.intervalCount + '. GPS-Lücken: ' +
       fmt(result.gapSeconds / 60, 1) + ' min. Erkannte Standzeit aus kurzen GPS-Schritten: ' +
       fmt(result.stoppedGpsSeconds / 60, 1) + ' min.</p></section>';
   }
