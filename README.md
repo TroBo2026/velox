@@ -3,7 +3,7 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.8.0
+## Aktueller Stand – Version 0.9.1
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
 - Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
@@ -110,3 +110,8 @@ Die Detailansicht zeigt jetzt zuerst die aufgezeichnete Route mit Start-/Endmark
 ## VELOX 0.9.1 – Fahrtzeit und Wetter pro Tour
 
 Jede Tour zeigt Datum sowie Start- und Enduhrzeit getrennt. Beim Beenden fragt VELOX zunächst nach Zustimmung, ob historische Wetterdaten von Open-Meteo mit Fahrtdatum und einer repräsentativen GPS-Position abgefragt werden dürfen. Wird die Abfrage abgelehnt, ist offline oder liefert keine Daten, kann der Fahrer Wetterlage und ungefähre Temperatur manuell für genau diese Tour eintragen. Wetterdaten werden als optionales Feld am jeweiligen Tourobjekt gespeichert; bestehende IndexedDB-Datensätze und das Datenbankschema bleiben unverändert. Historische Wetterwerte sind stündliche Näherungswerte, keine Messung am Fahrrad.
+
+
+## iPhone-Testhinweis 0.9.1
+
+Der Wrapped-Einstieg befindet sich unter „Mehr“ und besitzt auf schmalen Displays eine mindestens 44 px hohe Touch-Ziel-Fläche. Wrapped liest das lokale Archiv beim Öffnen erneut; nach Tourabschluss und erfolgreichem JSON-Import wird die Archivansicht aktualisiert. Vor dem ersten Test bitte eine JSON-Sicherung exportieren. Die native Swift-Datei `BarometerService.swift` verwendet den Core-Motion-Sample-Zeitstempel (monotone Geräte-Uptime, auf Unix-Zeit abgebildet) statt der verzögerten Callback-Empfangszeit. Swift/Xcode-Build und iPhone-Gerätetest sind weiterhin offen.
