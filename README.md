@@ -3,7 +3,7 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.7.0
+## Aktueller Stand – Version 0.7.1
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
 - Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
@@ -14,6 +14,7 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Geglättetes Geschwindigkeitsprofil über die Streckendistanz in jeder Tour-Detailansicht
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken
 - VELOX Pro Analyse: optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Ausreißerzählung und Archiv-Rekorden; ausschließlich lesender Zugriff auf vorhandene IndexedDB-Daten
+- Einheitliche Bewegungsfilter in Tourendetails, Live-Kennzahlen und Pro-Analyse: gültige GPS-Koordinaten, Zeitabstand bis 30 s, Distanz von 0,8 bis 150 m, gemeldete horizontale Genauigkeit höchstens 80 m und Tempo von 1,5 bis 100 km/h. Distanz, Bewegungszeit, Durchschnitts- und Maximaltempo stammen aus denselben akzeptierten Fahrintervallen.
 - Höhenprofil mit Distanzachse, tatsächlichen Start-/Zielmarkierungen und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte; fehlende Höhenwerte an den Tourgrenzen werden nicht interpoliert
 - Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter 4 m werden nicht zur kumulierten Höhenmeter-Summe addiert
 - Qualitätskennzeichnung der Höhenmessung anhand der verfügbaren GPS-Höhendaten; fehlende Genauigkeitsangaben werden nicht als gute Messqualität eingestuft
