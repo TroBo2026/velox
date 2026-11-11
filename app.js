@@ -540,7 +540,7 @@
   }
   function localDateTimeParts(timestamp){
     const d=new Date(timestamp),pad=n=>String(n).padStart(2,"0");
-    return {date:d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()),hour:pad(d.getHours())+":00"};
+    return {date:d.toISOString().slice(0,10),hour:pad(d.getUTCHours())+":00"};
   }
   async function fetchRideWeather(ride){
     const points=Array.isArray(ride.points)?ride.points.filter(validRidePoint):[];
