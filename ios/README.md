@@ -223,3 +223,15 @@ Die native Tour kann optionale `barometerSamples` enthalten. Die bestehende Web-
 - exportiert wieder den Container mit `app`, `version`, `exportedAt` und `rides`.
 
 Der Codec schreibt noch nicht selbst in SwiftData. Die aufrufende Speicherschicht muss alle zurückgegebenen Touren in **einer Datenbanktransaktion** speichern, damit ein fehlgeschlagener Import keine Teildaten hinterlässt. Außerdem ist der Swift-Code noch nicht mit Xcode kompiliert und es liegen noch keine Unit-Test- oder iPhone-Ergebnisse vor. Vor einem produktiven Export/Import muss ein vollständiger echter VELOX-Backup-Datensatz gegen alle Modellfelder geprüft werden.
+
+## 13. Barometer-Kalibrierung — GPS-Referenz statt erfundener Meereshöhe
+
+`ios/VELOX/Services/BarometerElevationCalibrator.swift` ergänzt den Sensor-Service um eine reine, testbare Kalibrierungsfunktion:
+
+- Eine GPS-Höhe wird nur als Referenz akzeptiert, wenn ihre vertikale Genauigkeit innerhalb der konfigurierten Grenze liegt (Standard: höchstens 10 m).
+- GPS-Referenz und erste Barometer-Baseline müssen zeitlich nahe beieinander liegen (Standard: höchstens 10 Sekunden).
+- Die relative Höhenänderung wird gegenüber der Baseline berechnet und auf die GPS-Referenz aufgesetzt.
+- Eine spätere gute GPS-Höhe kann als Driftvergleich dienen. Die Funktion meldet die Abweichung, korrigiert sie aber nicht automatisch.
+- Fehlende oder ungenaue Referenzen führen zu einem klaren Fehler statt zu einer scheinbar absoluten Höhe.
+
+Das ist zunächst ein Kalibrierungsbaustein, noch keine vollständige Höhenprofil-Pipeline. Segmentierung bei Pausen/Sensorneustarts, Driftbehandlung, Glättung und die Integration in die laufende Aufzeichnung müssen folgen. Die Grenzwerte sind Startwerte und müssen anhand echter XR-Touren validiert werden.
