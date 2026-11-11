@@ -90,10 +90,10 @@ ios/
     Models/
       Ride.swift
       RidePoint.swift
-      SensorSample.swift
+      BarometerSample.swift
     Services/
       LocationRecorder.swift
-      AltimeterService.swift
+      BarometerService.swift
       RideStore.swift
       RideImporter.swift
       RideExporter.swift
@@ -199,3 +199,15 @@ Das ist ein Vorschlag für die native Erweiterung, keine Änderung am bestehende
 - Der Barometerwert ist wetter- und druckabhängig. Ohne Referenz kann er über längere Zeit driften.
 - Die native Barometerintegration ist erst nach Build und Test auf einem unterstützten iPhone als funktionsfähig bestätigt.
 - Vorher wird kein Barometer-Sensorstatus als „verbunden“ ausgegeben und es werden keine künstlichen Druck- oder Höhenwerte erzeugt.
+
+
+## 11. Erste native Swift-Bausteine im Repository
+
+Vorbereitet (Quellcode, noch nicht mit Xcode kompiliert):
+
+- `ios/VELOX/Models/Ride.swift`: Grundmodell einer VELOX-Tour mit optionaler `barometerSamples`-Messreihe.
+- `ios/VELOX/Models/RidePoint.swift`: GPS-Punkt mit den bestehenden VELOX-v1-Schlüsseln.
+- `ios/VELOX/Models/BarometerSample.swift`: typisierter, zeitgestempelter Druck-/Relativhöhenmesspunkt.
+- `ios/VELOX/Services/BarometerService.swift`: Core-Motion-Service mit Laufzeitprüfung der Sensorverfügbarkeit, Start/Stop, Fehlerstatus und ausschließlich echten Hardwaremesswerten.
+
+Die native Tour kann optionale `barometerSamples` enthalten. Die bestehende Web-v1-Datei bleibt unverändert; ein alter Export ohne dieses Feld muss weiterhin dekodierbar sein. Vor produktiver Nutzung müssen JSON-Rundlauf, Swift-Compiler, unterstützte iPhone-Hardware und reale Sensoraufzeichnung getestet werden. Der aktuelle Stand ist ein Code-Gerüst und noch keine bestätigte Geräteintegration.
