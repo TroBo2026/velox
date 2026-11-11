@@ -102,3 +102,12 @@
 .detail-panel .detail-metrics{margin:12px 0}
 @media(max-width:420px){.detail-route-legend{font-size:9px}.detail-source-list>div{align-items:flex-start}.detail-source-list strong{max-width:55%}}
 @media(prefers-reduced-motion:reduce){.page{animation:none}}
+
+/* VELOX 0.9.1 — Fahrtzeit und Wetter */
+.ride-time-strip{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.ride-time-strip>div{display:flex;flex-direction:column;gap:5px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.025)}
+.ride-time-strip span{font-size:9px;letter-spacing:.13em;color:var(--muted)}
+.ride-time-strip strong{font-size:17px;font-variant-numeric:tabular-nums}
+.weather-panel h3{margin:8px 0}
+.weather-panel p{font-size:11px;line-height:1.55;color:var(--muted)}
+@media(max-width:380px){.ride-time-strip strong{font-size:15px}}
