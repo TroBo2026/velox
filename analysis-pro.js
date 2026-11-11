@@ -529,7 +529,7 @@
     }
     host.innerHTML = renderSingle(analysesCache[index], splitKm);
   }
-  window.VELOXProAnalysis = Object.freeze({ version: "0.7.0", analyzeRide });
+  window.VELOXProAnalysis = Object.freeze({ version: "0.7.1", analyzeRide });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
   else init();
 })();
