@@ -668,29 +668,45 @@
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">Abstieg <strong>−'+Math.round(profile.loss)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Höhenprofil mit '+samples.length+' gültigen GPS-Höhenpunkten"><text class="axis-title" x="8" y="12">Höhe (m)</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+endpoints+paths+sampleMarkers+xLabels+'</svg><p class="elevation-footnote">GPS-Höhenpunkte: '+profile.validCount+' von '+profile.totalCount+'. Die gestrichelten Linien markieren Tourstart und -ende; die Höhenlinie beginnt bzw. endet erst am ersten bzw. letzten verlässlichen Höhenmesspunkt. Ein Medianfilter über bis zu fünf benachbarte Messungen dämpft Ausreißer; Änderungen unter 4 m werden nicht zur Summe addiert.</p>';
   }
   function renderSpeedProfile(points){
-    const box=$("speedChart"),samples=[];let distance=0;
-    for(let i=1;i<points.length;i++){
-      const a=points[i-1],b=points[i],dt=(b.t-a.t)/1000,d=haversine(a,b);
-      if(dt<=0||dt>30||d<=0.8||d>=150)continue;
-      const speed=d/dt*3.6;
-      if(!Number.isFinite(speed)||speed>100)continue;
-      distance+=d;samples.push({distance,speed});
-    }
-    if(samples.length<3){box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Punkte für ein Geschwindigkeitsprofil vorhanden.</div>';return;}
-    const filtered=samples.map((sample,index)=>{
-      const values=samples.slice(Math.max(0,index-2),Math.min(samples.length,index+3)).map(x=>x.speed).sort((a,b)=>a-b);
-      return {...sample,speed:values[Math.floor(values.length/2)]};
+    const box=$("speedChart"),intervals=getMovingIntervals({points}),groups=[];
+    let distance=0,current=[],previousTo=null,gapCount=0;
+    intervals.forEach(item=>{
+      const startDistance=distance;
+      distance+=item.distanceM;
+      const sample={distance:startDistance+item.distanceM,speed:item.speedKmh};
+      if(previousTo!==item.from){
+        if(current.length)groups.push(current);
+        if(previousTo)gapCount++;
+        current=[];
+      }
+      current.push(sample);
+      previousTo=item.to;
     });
-    const maxSpeed=Math.max(10,Math.ceil(Math.max(...filtered.map(x=>x.speed))/5)*5);
+    if(current.length)groups.push(current);
+    const count=groups.reduce((sum,group)=>sum+group.length,0);
+    if(count<3){
+      box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Punkte für ein Geschwindigkeitsprofil vorhanden.</div>';
+      return;
+    }
+    const filteredGroups=groups.map(group=>group.map((sample,index)=>{
+      const values=group.slice(Math.max(0,index-2),Math.min(group.length,index+3)).map(x=>x.speed).sort((a,b)=>a-b);
+      return {...sample,speed:values[Math.floor(values.length/2)]};
+    }));
+    const all=filteredGroups.flat(),maxSpeed=Math.max(10,Math.ceil(Math.max(...all.map(x=>x.speed))/5)*5);
     const left=48,top=14,width=576,height=132,bottom=top+height,xMax=Math.max(1,distance);
     const x=v=>left+v/xMax*width,y=v=>top+(maxSpeed-v)/maxSpeed*height;
-    const stride=Math.max(1,Math.ceil(filtered.length/280)),plot=[];
-    for(let i=0;i<filtered.length;i++)if(i===0||i===filtered.length-1||i%stride===0)plot.push(filtered[i]);
     const grid=[];
-    for(let i=0;i<=4;i++){const value=maxSpeed*(1-i/4),yy=top+height*i/4;grid.push('<line class="grid-line" x1="'+left+'" y1="'+yy+'" x2="'+(left+width)+'" y2="'+yy+'"/><text class="axis-label" x="'+(left-8)+'" y="'+(yy+4)+'" text-anchor="end">'+Math.round(value)+'</text>');}
-    const line=plot.map(p=>x(p.distance)+','+y(p.speed)).join(' ');
-    const avg=filtered.reduce((sum,p)=>sum+p.speed,0)/filtered.length,peak=Math.max(...filtered.map(p=>p.speed));
-    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø GPS-Tempo <strong>'+fmt(avg)+' km/h</strong></span><span class="elevation-stat">Spitze <strong>'+fmt(peak)+' km/h</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Geschwindigkeitsprofil über die Distanz"><text class="axis-title" x="8" y="12">km/h</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/><polyline class="profile-line" points="'+line+'"/><text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text></svg><p class="elevation-footnote">'+filtered.length+' geglättete Messpunkte aus '+samples.length+' gültigen GPS-Abschnitten.</p>';
+    for(let i=0;i<=4;i++){
+      const value=maxSpeed*(1-i/4),yy=top+height*i/4;
+      grid.push('<line class="grid-line" x1="'+left+'" y1="'+yy+'" x2="'+(left+width)+'" y2="'+yy+'"/><text class="axis-label" x="'+(left-8)+'" y="'+(yy+4)+'" text-anchor="end">'+Math.round(value)+'</text>');
+    }
+    const paths=filteredGroups.filter(group=>group.length>1).map(group=>{
+      const stride=Math.max(1,Math.ceil(group.length/280)),plot=group.filter((sample,index)=>index===0||index===group.length-1||index%stride===0);
+      return '<polyline class="profile-line" points="'+plot.map(p=>x(p.distance)+','+y(p.speed)).join(' ')+'"/>';
+    }).join('');
+    const avg=intervals.reduce((sum,item)=>sum+item.speedKmh*item.durationS,0)/Math.max(1,intervals.reduce((sum,item)=>sum+item.durationS,0));
+    const peak=Math.max(...all.map(p=>p.speed));
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø GPS-Tempo <strong>'+fmt(avg)+' km/h</strong></span><span class="elevation-stat">Spitze <strong>'+fmt(peak)+' km/h</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Geschwindigkeitsprofil über die Strecke, GPS-Lücken getrennt dargestellt"><text class="axis-title" x="8" y="12">km/h</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+paths+'<text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text></svg><p class="elevation-footnote">'+count+' gültige GPS-Bewegungsintervalle in '+groups.length+' zusammenhängenden Abschnitt(en). '+gapCount+' GPS-Lücke(n) werden nicht mit Linien überbrückt.</p>';
   }
   function exportGPX(r){
     const pts=r.points||[];if(!pts.length){showToast("Keine GPS-Punkte zum Export vorhanden.");return;}
