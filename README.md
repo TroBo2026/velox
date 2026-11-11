@@ -88,3 +88,7 @@ Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen
 5. Native iOS-/watchOS-Version und Offline-Karten evaluieren
 
 **Grundprinzipien:** echte Messwerte statt erfundener Daten, jede Tour einzeln zugänglich, Gesamtstatistiken getrennt, lokale Speicherung zuerst und keine verpflichtenden Abos.
+
+## Native iOS App
+
+Die technische Grundlage und der Migrationsplan für die eigenständige SwiftUI-App stehen unter [`ios/README.md`](ios/README.md). Die native App wird getrennt von der bestehenden Web-/PWA-Version entwickelt; vorhandene Touren werden über das bestehende VELOX-JSON-Backup übernommen.
