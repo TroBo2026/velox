@@ -25,28 +25,32 @@ final class BarometerService: ObservableObject {
         guard !isRecording else { return }
 
         errorMessage = nil
+        isRecording = true
         altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, error in
+            let errorText = error?.localizedDescription
+            let pressure = data?.pressure.doubleValue
+            let relativeAltitude = data?.relativeAltitude.doubleValue
+            let timestamp = Int64(Date().timeIntervalSince1970 * 1_000)
+
             Task { @MainActor in
                 guard let self else { return }
-                if let error {
-                    self.errorMessage = "Barometerdaten nicht verfügbar: \(error.localizedDescription)"
+                if let errorText {
+                    self.errorMessage = "Barometerdaten nicht verfügbar: \(errorText)"
+                    self.altimeter.stopRelativeAltitudeUpdates()
                     self.isRecording = false
                     return
                 }
-                guard let data else { return }
-
-                let pressure = data.pressure.doubleValue
-                let relativeAltitude = data.relativeAltitude.doubleValue
-                guard pressure.isFinite, pressure > 0, relativeAltitude.isFinite else {
+                guard let pressure, let relativeAltitude,
+                      pressure.isFinite, pressure > 0,
+                      relativeAltitude.isFinite else {
                     return
                 }
 
                 self.latestSample = BarometerSample(
                     pressureKPa: pressure,
                     relativeAltitudeM: relativeAltitude,
-                    timestampMs: Int64(Date().timeIntervalSince1970 * 1_000)
+                    timestampMs: timestamp
                 )
-                self.isRecording = true
             }
         }
     }
