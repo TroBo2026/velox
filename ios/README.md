@@ -153,3 +153,49 @@ Die endgültige Ordnerstruktur wird mit dem Xcode-Projekt angelegt. Diese Datei 
 - Keine erfundenen Sensorwerte.
 - Kernfunktionen ohne Internet nutzbar; Online-Kartenabhängigkeit wird klar angezeigt.
 - Build, Unit-Tests und reale iPhone-Tests sind dokumentiert.
+
+## 9. iPad-only Entwicklungsweg (ohne Mac)
+
+Da aktuell kein Mac mit Xcode verfügbar ist, wird die native Umsetzung in zwei Phasen geplant:
+
+- **Phase A — Vorbereitung auf iPad:** Swift-Quellcode, Datenmodelle, Sensor-Service-Schnittstellen, Berechnungslogik und Tests im Repository entwickeln. Diese Arbeit kann vorbereitet und geprüft werden, aber ein iPad führt keinen vollständigen Xcode-iOS-Build aus.
+- **Phase B — Build und Installation:** Für eine echte native iOS-App wird später ein Mac mit Xcode benötigt (z. B. eigener, geliehener oder zugänglicher Mac). Ein Cloud-Build wäre nur nach gesonderter Prüfung zulässig und darf keine kostenpflichtigen Dienste oder Abos voraussetzen.
+- Keine Umstellung auf eine bloße WebView-Hülle als Ersatz für native Funktionen. Bis ein iOS-Build möglich ist, bleibt die bestehende PWA als nutzbare Version bestehen.
+
+## 10. Barometer als Kernfunktion der Höhenmessung
+
+Der barometrische Höhenmesser ist ein priorisiertes VELOX-Modul.
+
+### Technische Umsetzung
+
+- `CMAltimeter.isRelativeAltitudeAvailable()` prüfen, bevor der Dienst gestartet wird.
+- Messwerte über `CMAltimeter.startRelativeAltitudeUpdates(to:withHandler:)` erfassen.
+- Druck (`pressure`, kPa) und relative Höhenänderung (`relativeAltitude`, Meter) mit Zeitstempel protokollieren.
+- Sensorverfügbarkeit, Berechtigung bzw. Systemfehler und Messqualität in der Oberfläche verständlich anzeigen.
+- Druck-/Höhenänderungen während einer Tour mit GPS-Höhe und GPS-Qualität fusionieren. Der Barometerwert ist eine relative Änderung und wird nicht ungeprüft als absolute Meereshöhe ausgegeben.
+- Startreferenz zu Tourbeginn erfassen; bei längeren Touren Drift überwachen und GPS-Höhe nur dann als Korrektur verwenden, wenn ihre Genauigkeit ausreichend ist.
+- Sensorwerte mit GPS-Zeitachse synchronisieren. Pausen, App-Unterbrechungen, fehlende Messwerte und starke Drucksprünge als getrennte Segmente behandeln.
+- Glättung und Ausreißerfilter dürfen echte kurze Anstiege nicht entfernen. Höhengewinn und -verlust werden mit Hysterese/Qualitätsschwellen berechnet und in Tests gegen bekannte Profile geprüft.
+
+### Datenmodell-Erweiterung
+
+Neue Barometer-Samples werden als eigene optionale Messreihe je Tour gespeichert, beispielsweise:
+
+```json
+{
+  "pressureKPa": 98.7,
+  "relativeAltitudeM": 12.4,
+  "timestampMs": 1790000000000,
+  "source": "coreMotionBarometer",
+  "accuracy": null
+}
+```
+
+Das ist ein Vorschlag für die native Erweiterung, keine Änderung am bestehenden Web-v1-Format. Beim Export/Import werden optionale Felder rückwärtskompatibel behandelt. Alte Touren ohne Barometerdaten bleiben vollständig lesbar.
+
+### Grenzen und Testpflicht
+
+- Nicht jedes iPhone-Modell besitzt einen zugänglichen Barometersensor; Verfügbarkeit wird zur Laufzeit geprüft.
+- Der Barometerwert ist wetter- und druckabhängig. Ohne Referenz kann er über längere Zeit driften.
+- Die native Barometerintegration ist erst nach Build und Test auf einem unterstützten iPhone als funktionsfähig bestätigt.
+- Vorher wird kein Barometer-Sensorstatus als „verbunden“ ausgegeben und es werden keine künstlichen Druck- oder Höhenwerte erzeugt.
