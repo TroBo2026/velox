@@ -58,3 +58,27 @@
 /* Tourgrenzen im Höhenprofil: tatsächlicher Start/Zielpunkt, nicht erster/letzter Höhenwert */
 .elevation-chart .route-endpoint{stroke:var(--amber);stroke-width:1.2;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
 .elevation-chart .endpoint-label{fill:var(--amber);font:10px 'DM Sans',sans-serif;font-weight:700}
+
+
+/* VELOX 0.8.0 — Wrapped und GPS-basierte Verteilungen */
+.nav-item{width:min(16.6667%,100px);min-height:44px}
+.wrapped-hero{padding:22px;border:1px solid var(--line);border-radius:20px;background:radial-gradient(ellipse at 90% 0%,#24504b 0,transparent 55%),linear-gradient(145deg,#142d3b,#0d1c28);margin-bottom:14px}
+.wrapped-hero h2{font-size:clamp(22px,5vw,30px);line-height:1.18;margin:10px 0 12px}
+.wrapped-hero p{color:var(--muted);font-size:13px;line-height:1.75;margin:0}
+.wrapped-hero p strong{color:var(--text);font-variant-numeric:tabular-nums}
+.wrapped-kpis{margin:12px 0}.wrapped-panel h3{margin:9px 0 14px}
+.wrapped-record-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.wrapped-record{display:flex;flex-direction:column;gap:5px;min-width:0;padding:13px;border:1px solid var(--line);border-radius:13px;background:#0d1c28}
+.wrapped-record>span{color:var(--muted);font-size:10px;line-height:1.4}
+.wrapped-record>strong{font:800 20px Manrope,sans-serif;letter-spacing:-.03em;overflow-wrap:anywhere}
+.wrapped-record>small{color:var(--muted);font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+.wrapped-breakdown{margin:14px 0}.wrapped-breakdown h3{margin:8px 0 12px}
+.wrapped-bar-row{margin:11px 0}
+.wrapped-bar-row>div:first-child{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px;color:var(--muted);font-size:11px}
+.wrapped-bar-row strong{color:var(--text);font-variant-numeric:tabular-nums;font-size:11px;white-space:nowrap}
+.wrapped-bar-track{height:8px;background:#233542;border-radius:99px;overflow:hidden}
+.wrapped-bar-track i{display:block;height:100%;min-width:0;border-radius:99px}
+.wrapped-bar-uphill{background:#e17878}.wrapped-bar-flat{background:#93a0aa}.wrapped-bar-downhill{background:#5799e6}
+.wrapped-bar-slow{background:#e17878}.wrapped-bar-medium{background:#d86e91}.wrapped-bar-fast{background:#5799e6}
+@media(max-width:420px){.wrapped-record-grid{grid-template-columns:1fr}.wrapped-hero{padding:18px}.nav-item small{font-size:8px}}
+@media(prefers-reduced-motion:reduce){.wrapped-hero *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}

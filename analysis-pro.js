@@ -1,4 +1,4 @@
-/* VELOX Pro Analysis 0.7.0 — read-only ride analytics */
+/* VELOX Pro Analysis 0.8.0 — read-only ride analytics */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";

@@ -3,7 +3,7 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.7.1
+## Aktueller Stand – Version 0.8.0
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
 - Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
@@ -13,6 +13,8 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Tourenanalyse: Distanz, Fahrzeit, Standzeit, Durchschnitts- und Maximaltempo, Auf- und Abstieg, höchster/tiefster Punkt, durchschnittliche Steigung, steilste Steigung und steilste Abfahrt
 - Geglättetes Geschwindigkeitsprofil über die Streckendistanz in jeder Tour-Detailansicht
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken
+- Neuer Wrapped-Reiter mit automatisch aktualisiertem Archiv-Rückblick: Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM sowie aggregierte Gelände- und Tempo-Zonen
+- Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start und Strecken-Geradlinigkeit; alle Berechnungen nutzen vorhandene GPS-Punkte
 - VELOX Pro Analyse: optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Ausreißerzählung und Archiv-Rekorden; ausschließlich lesender Zugriff auf vorhandene IndexedDB-Daten
 - Einheitliche Bewegungsfilter in Tourendetails, Live-Kennzahlen und Pro-Analyse: gültige GPS-Koordinaten, Zeitabstand bis 30 s, Distanz von 0,8 bis 150 m, gemeldete horizontale Genauigkeit höchstens 80 m und Tempo von 1,5 bis 100 km/h. Distanz, Bewegungszeit, Durchschnitts- und Maximaltempo stammen aus denselben akzeptierten Fahrintervallen.
 - Höhenprofil mit Distanzachse, tatsächlichen Start-/Zielmarkierungen und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte; fehlende Höhenwerte an den Tourgrenzen werden nicht interpoliert
@@ -59,7 +61,7 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 |---|---|
 | `index.html` | App-Struktur und Ansichten |
 | `styles.css` | Responsive VELOX-Oberfläche |
-| `app.js` | GPS, Berechnungen, IndexedDB, Touren, Export/Import |
+| `app.js` | GPS, Berechnungen, IndexedDB, Touren, Wrapped, Export/Import |
 | `analysis-pro.js` | Zusätzliche lesende Tourenanalyse, Splits, Tempo-/Steigungszonen und GPS-Datenqualität |\n| `sensor-core.js` | Validierung und Fusion von GPS- und nativen Barometerdaten |
 | `manifest.webmanifest` | PWA-Metadaten und SVG-App-Icon |
 | `icon.svg` | VELOX-App-/Browser-Icon |
@@ -78,6 +80,12 @@ Empfohlene Cloudflare-Pages-Einstellungen:
 - Root directory: **/**
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
+
+## Wrapped und abgeleitete Kennzahlen
+
+Der Wrapped-Reiter liest das vorhandene Tourenarchiv und berechnet Summen und Rekorde bei jedem Öffnen neu. Es wird kein neues IndexedDB-Feld benötigt und keine Tour verändert. Die Steigungsverteilung nutzt auswertbare geglättete GPS-Höhenabschnitte (Anstieg über +1,5 %, Gefälle unter −1,5 %). Tempo-Zonen verwenden akzeptierte Bewegungsintervalle (<15, 15–25 und >25 km/h). Der längste Anstieg wird aus zusammenhängenden Höhenabschnitten ab +1,5 % ermittelt. VAM ist Höhengewinn geteilt durch Bewegungszeit. Strecken-Geradlinigkeit ist Luftlinie Start–Ziel geteilt durch die gefilterte GPS-Strecke und wird bei GPS-Unterbrechungen nicht angegeben.
+
+Schräglage, Beschleunigung/Bremsung, Herzfrequenz, Leistung, Trittfrequenz und Kalorien werden nicht angezeigt, solange dafür keine geeignete echte Sensor- oder Leistungsdatenquelle vorhanden ist.
 
 ## Geplante Entwicklung
 
