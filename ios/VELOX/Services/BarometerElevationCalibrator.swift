@@ -35,13 +35,14 @@ enum BarometerElevationCalibrator {
 
     static func calibrate(
         sample: BarometerSample,
+        baseline: BarometerSample,
         against reference: GPSAltitudeReference,
         maximumGPSVerticalAccuracyM: Double = 10,
         maximumTimeDifferenceMs: Int64 = 10_000
     ) throws -> CalibratedBarometerReading {
         guard sample.pressureKPa.isFinite, sample.pressureKPa > 0,
-              sample.relativeAltitudeM.isFinite,
-              sample.timestampMs > 0 else {
+              sample.relativeAltitudeM.isFinite, sample.timestampMs > 0,
+              baseline.relativeAltitudeM.isFinite, baseline.timestampMs > 0 else {
             throw CalibrationError.invalidBarometerSample
         }
 
@@ -55,16 +56,16 @@ enum BarometerElevationCalibrator {
             throw CalibrationError.invalidGPSReference
         }
 
-        let difference = sample.timestampMs >= reference.timestampMs
-            ? sample.timestampMs - reference.timestampMs
-            : reference.timestampMs - sample.timestampMs
+        let difference = baseline.timestampMs >= reference.timestampMs
+            ? baseline.timestampMs - reference.timestampMs
+            : reference.timestampMs - baseline.timestampMs
         guard difference <= maximumTimeDifferenceMs else {
             throw CalibrationError.timestampsTooFarApart
         }
 
-        // The GPS fix defines the absolute anchor; Core Motion contributes only
-        // the relative change from its own session origin.
-        let altitude = reference.altitudeM + sample.relativeAltitudeM
+        // The GPS fix anchors the baseline sample. Subtracting that baseline is
+        // essential because Core Motion altitude is relative to session start.
+        let altitude = reference.altitudeM + (sample.relativeAltitudeM - baseline.relativeAltitudeM)
         guard altitude.isFinite else {
             throw CalibrationError.invalidBarometerSample
         }
