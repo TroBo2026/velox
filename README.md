@@ -100,3 +100,8 @@ Schräglage, Beschleunigung/Bremsung, Herzfrequenz, Leistung, Trittfrequenz und 
 ## Native iOS App
 
 Die technische Grundlage und der Migrationsplan für die eigenständige SwiftUI-App stehen unter [`ios/README.md`](ios/README.md). Die native App wird getrennt von der bestehenden Web-/PWA-Version entwickelt; vorhandene Touren werden über das bestehende VELOX-JSON-Backup übernommen.
+
+
+## Tourendetails 0.9
+
+Die Detailansicht zeigt jetzt zuerst die aufgezeichnete Route mit Start-/Endmarkierung und danach in getrennten, mobilfreundlichen Abschnitten Übersicht, Höhenprofil, Tempo, Gelände, Route, Zeit und Datenquellen. GPS-Lücken werden auf der Karte nicht mit künstlichen Verbindungslinien überbrückt. Die Höhenanalyse verwirft ungültige Koordinaten, unplausible Zeit-/Distanzintervalle sowie negative oder unplausible Höhen-Genauigkeitswerte. Sensoren, die in der PWA-Tour nicht tatsächlich gespeichert wurden, werden als nicht aufgezeichnet ausgewiesen.
