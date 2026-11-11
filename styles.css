@@ -82,3 +82,23 @@
 .wrapped-bar-slow{background:#e17878}.wrapped-bar-medium{background:#d86e91}.wrapped-bar-fast{background:#5799e6}
 @media(max-width:420px){.wrapped-record-grid{grid-template-columns:1fr}.wrapped-hero{padding:18px}.nav-item small{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.wrapped-hero *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* VELOX 0.9 — Tourendetail: Karte zuerst, danach klar getrennte Scroll-Abschnitte */
+.detail-route-section{margin:0 0 22px}
+.detail-section{margin:22px 0}
+.detail-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.detail-map-primary{height:clamp(250px,52vh,410px);margin:0;border-radius:18px}
+.detail-map-distance{font:800 18px Manrope,sans-serif;color:var(--teal);font-variant-numeric:tabular-nums}
+.detail-route-legend{display:flex;justify-content:space-between;gap:10px;padding:9px 3px;color:var(--muted);font-size:10px}
+.detail-route-legend span:first-child{color:var(--teal)}
+.detail-route-legend span:nth-child(2){color:var(--amber)}
+.detail-panel{margin:0}
+.detail-source-list{display:grid;gap:0;margin:12px 0}
+.detail-source-list>div{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:11px}
+.detail-source-list>div:last-child{border-bottom:0}
+.detail-source-list span{color:var(--muted)}
+.detail-source-list strong{text-align:right;font-size:11px;max-width:58%;line-height:1.4}
+.detail-panel .wrapped-breakdown{padding:0;border:0;background:transparent}
+.detail-panel .detail-metrics{margin:12px 0}
+@media(max-width:420px){.detail-route-legend{font-size:9px}.detail-source-list>div{align-items:flex-start}.detail-source-list strong{max-width:55%}}
+@media(prefers-reduced-motion:reduce){.page{animation:none}}
