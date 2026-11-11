@@ -105,7 +105,7 @@
         const candidate=samples[index+offset];
         if(candidate&&candidate.segment===sample.segment&&Math.abs(candidate.distanceM-sample.distanceM)<=100&&Math.abs(candidate.time-sample.time)<=60000)nearby.push(candidate.altitude);
       }
-      return {...sample,elevationM:median(nearby.length>=3?nearby:[sample.altitude])};
+      return {...sample,elevationM:median(nearby.length===5?nearby:[sample.altitude])};
     });
     let gain=0,loss=0,lastSegment=null,anchor=null;
     for(const sample of smoothed){
