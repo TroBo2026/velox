@@ -111,3 +111,13 @@
 .weather-panel h3{margin:8px 0}
 .weather-panel p{font-size:11px;line-height:1.55;color:var(--muted)}
 @media(max-width:380px){.ride-time-strip strong{font-size:15px}}
+
+/* VELOX 0.9.1 final iPhone touch-target pass */
+.wrapped-shortcut .compact{min-height:44px;touch-action:manipulation}
+.wrapped-shortcut{gap:14px}
+@media(max-width:430px){
+  .wrapped-shortcut{align-items:center}
+  .wrapped-shortcut>div{min-width:0;flex:1}
+  .wrapped-shortcut h3{font-size:15px}
+  .wrapped-shortcut p{font-size:11px;line-height:1.5}
+}
