@@ -56,7 +56,7 @@ Jeder Messpunkt enthält:
 1. Die native App muss den JSON-Backup-Container mit `app = VELOX` und `version = 1` lesen können.
 2. Vorhandene Touren werden niemals still überschrieben oder gelöscht.
 3. Bei ID-Kollisionen erhält der importierte Datensatz eine neue ID; die ursprüngliche ID wird als Herkunftsinformation bewahrt.
-4. Unbekannte zusätzliche Felder werden beim Import möglichst erhalten oder zumindest nicht durch voreilige Normalisierung verworfen.
+4. Der aktuelle Swift-Codec übernimmt die bekannten VELOX-v1-Felder sowie die dokumentierten nativen Erweiterungen. Beliebige unbekannte Zusatzfelder werden derzeit nicht verlustfrei konserviert; vor einem produktiven Rundlauf muss das Datenmodell mit dem vollständigen realen Export abgeglichen werden.
 5. Import erfolgt transaktional: Bei Fehlern bleibt der bisherige Datenbestand unverändert.
 6. Export aus der nativen App bleibt mit dem Web-Prototyp kompatibel.
 7. Vor dem ersten Import wird eine Sicherung des bestehenden Datenbestands empfohlen. Die Web-App bietet dafür „JSON-Sicherung exportieren“.
@@ -211,3 +211,15 @@ Vorbereitet (Quellcode, noch nicht mit Xcode kompiliert):
 - `ios/VELOX/Services/BarometerService.swift`: Core-Motion-Service mit Laufzeitprüfung der Sensorverfügbarkeit, Start/Stop, Fehlerstatus und ausschließlich echten Hardwaremesswerten.
 
 Die native Tour kann optionale `barometerSamples` enthalten. Die bestehende Web-v1-Datei bleibt unverändert; ein alter Export ohne dieses Feld muss weiterhin dekodierbar sein. Vor produktiver Nutzung müssen JSON-Rundlauf, Swift-Compiler, unterstützte iPhone-Hardware und reale Sensoraufzeichnung getestet werden. Der aktuelle Stand ist ein Code-Gerüst und noch keine bestätigte Geräteintegration.
+
+## 12. JSON-v1-Codec — erster Import-/Export-Baustein
+
+`ios/VELOX/Services/RideBackupCodec.swift` enthält jetzt einen isolierten Codec für den vorhandenen Backup-Container:
+
+- prüft `app == "VELOX"` und `version == 1`;
+- validiert Tour-IDs, Zeitwerte, GPS-Koordinaten und vorhandene Barometerwerte;
+- bricht bei ungültigen Datensätzen vollständig ab, statt teilweise zu importieren;
+- remappt IDs, die bereits lokal oder früher in derselben Datei vorkommen, und speichert die ursprüngliche ID in `importedFromId`;
+- exportiert wieder den Container mit `app`, `version`, `exportedAt` und `rides`.
+
+Der Codec schreibt noch nicht selbst in SwiftData. Die aufrufende Speicherschicht muss alle zurückgegebenen Touren in **einer Datenbanktransaktion** speichern, damit ein fehlgeschlagener Import keine Teildaten hinterlässt. Außerdem ist der Swift-Code noch nicht mit Xcode kompiliert und es liegen noch keine Unit-Test- oder iPhone-Ergebnisse vor. Vor einem produktiven Export/Import muss ein vollständiger echter VELOX-Backup-Datensatz gegen alle Modellfelder geprüft werden.
