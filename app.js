@@ -447,8 +447,8 @@
   function renderRideList(container,rides){
     if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Touren gespeichert.</div>';return;}
     container.innerHTML=rides.map(r=>{
-      const c=calcRide(r),date=new Date(r.startedAt).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"});
-      return '<button class="ride-card" data-ride="'+escapeHtml(r.id)+'"><div><h3>'+escapeHtml(r.name||"Fahrradtour")+'</h3><p>'+date+' · '+fmt(c.movingSeconds/60,0)+' min · '+fmt(c.averageSpeed)+' km/h Ø</p></div><div class="ride-distance">'+fmt(c.distanceM/1000)+' <small>km</small></div></button>';
+      const c=calcRide(r),date=new Date(r.startedAt).toLocaleDateString("de-DE",{dateStyle:"medium"}),start=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}),end=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"–";
+      return '<button class="ride-card" data-ride="'+escapeHtml(r.id)+'"><div><h3>'+escapeHtml(r.name||"Fahrradtour")+'</h3><p>'+date+' · '+start+'–'+end+' Uhr · '+fmt(c.movingSeconds/60,0)+' min · '+fmt(c.averageSpeed)+' km/h Ø</p></div><div class="ride-distance">'+fmt(c.distanceM/1000)+' <small>km</small></div></button>';
     }).join("");
     container.querySelectorAll("[data-ride]").forEach(el=>el.addEventListener("click",()=>openDetail(el.dataset.ride)));
   }
@@ -527,6 +527,61 @@
     }
     await dbRequest("readwrite","put",activeRide);updateLive();
   }
+  function weatherDescription(code){
+    if([0].includes(code))return "Sonnig / klar";
+    if([1,2].includes(code))return "Leicht bewölkt";
+    if([3].includes(code))return "Bewölkt";
+    if([45,48].includes(code))return "Nebel";
+    if([51,53,55,56,57].includes(code))return "Nieselregen";
+    if([61,63,65,66,67,80,81,82].includes(code))return "Regen";
+    if([71,73,75,77,85,86].includes(code))return "Schnee";
+    if([95,96,99].includes(code))return "Gewitter";
+    return "Wetterlage nicht eindeutig";
+  }
+  function localDateTimeParts(timestamp){
+    const d=new Date(timestamp),pad=n=>String(n).padStart(2,"0");
+    return {date:d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()),hour:pad(d.getHours())+":00"};
+  }
+  async function fetchRideWeather(ride){
+    const points=Array.isArray(ride.points)?ride.points.filter(validRidePoint):[];
+    if(!points.length||!navigator.onLine||!window.fetch)return null;
+    const middle=ride.startedAt+((ride.endedAt||Date.now())-ride.startedAt)/2;
+    const target=points.reduce((best,p)=>Math.abs(p.t-middle)<Math.abs(best.t-middle)?p:best,points[0]);
+    const parts=localDateTimeParts(middle),params=new URLSearchParams({
+      latitude:String(target.lat),longitude:String(target.lon),start_date:parts.date,end_date:parts.date,
+      hourly:"temperature_2m,precipitation,weather_code,cloud_cover",timezone:"auto"
+    });
+    const response=await fetch("https://archive-api.open-meteo.com/v1/archive?"+params.toString(),{signal:AbortSignal.timeout(6500)});
+    if(!response.ok)throw new Error("Wetterdienst antwortet nicht");
+    const data=await response.json(),times=data.hourly&&data.hourly.time;
+    if(!Array.isArray(times)||!times.length)return null;
+    const targetTime=new Date(middle).getTime();
+    let index=0,bestDelta=Infinity;
+    times.forEach((time,i)=>{const delta=Math.abs(new Date(time).getTime()-targetTime);if(delta<bestDelta){bestDelta=delta;index=i;}});
+    const temp=data.hourly.temperature_2m?.[index],code=data.hourly.weather_code?.[index];
+    if(!Number.isFinite(temp)||!Number.isFinite(code))return null;
+    return {condition:weatherDescription(code),weatherCode:code,temperatureC:temp,precipitationMm:Number.isFinite(data.hourly.precipitation?.[index])?data.hourly.precipitation[index]:null,cloudCoverPct:Number.isFinite(data.hourly.cloud_cover?.[index])?data.hourly.cloud_cover[index]:null,source:"open-meteo-archive",sourceLabel:"Open-Meteo (historische Wetterdaten)",sampledAt:times[index],fetchedAt:Date.now()};
+  }
+  async function collectManualWeather(){
+    const condition=prompt("Wetter während dieser Fahrt? Bitte eingeben: sonnig, leicht bewölkt, bewölkt, Regen, Schnee, Nebel oder Gewitter. Bei wechselndem Wetter kannst du mehrere Begriffe nennen.");
+    if(condition===null)return {condition:"Nicht angegeben",source:"user-skipped",sourceLabel:"Keine Wetterangabe"};
+    let temperature=null;
+    for(let attempt=0;attempt<2;attempt++){
+      const raw=prompt("Welche Temperatur herrschte ungefähr während der Fahrt? Bitte °C eingeben (z. B. 18).");
+      if(raw===null)break;
+      const value=Number(raw.replace(",","."));
+      if(Number.isFinite(value)&&value>=-30&&value<=55){temperature=value;break;}
+      alert("Bitte eine Temperatur zwischen −30 und 55 °C eingeben.");
+    }
+    return {condition:condition.trim().slice(0,100)||"Nicht angegeben",temperatureC:temperature,source:"user-estimate",sourceLabel:"Manuell vom Fahrer angegeben",fetchedAt:Date.now()};
+  }
+  async function collectRideWeather(ride){
+    const consent=confirm("Wetter automatisch ermitteln? VELOX sendet dafür das Fahrtdatum und eine ungefähre GPS-Position dieser Fahrt an Open-Meteo. Der kostenlose Wetterdienst benötigt diese Angaben. Mit „Abbrechen“ kannst du Wetter und Temperatur selbst eintragen.");
+    if(consent){
+      try{const weather=await fetchRideWeather(ride);if(weather)return weather;}catch(error){console.warn("Wetterabfrage nicht verfügbar:",error);}
+    }
+    return await collectManualWeather();
+  }
   async function stopRide(){
     if(!activeRide)return;
     if(activeRide.status==="paused"){activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));delete activeRide.pauseStarted;}
@@ -534,8 +589,17 @@
     clearInterval(timerId);timerId=null;
     activeRide.status="completed";activeRide.endedAt=Date.now();
     const c=calcRide(activeRide);
-    await dbRequest("readwrite","put",activeRide);
-    activeRide=null;$("pauseRide").disabled=true;$("stopRide").disabled=true;
+    $( "stopRide" ).disabled=true;$( "pauseRide" ).disabled=true;
+    $( "trackingStatus" ).textContent="Wetterdaten werden ergänzt …";
+    try{
+      activeRide.weather=await collectRideWeather(activeRide);
+      await dbRequest("readwrite","put",activeRide);
+    }catch(error){
+      console.error(error);
+      activeRide.status="completed";
+      try{await dbRequest("readwrite","put",activeRide);}catch(saveError){showToast("Speichern fehlgeschlagen. Bitte VELOX geöffnet lassen und erneut versuchen.");console.error(saveError);return;}
+    }
+    activeRide=null;
     $("trackingStatus").textContent="Tour gespeichert";$("trackingDot").style.background="var(--teal)";
     showToast(c.distanceM>0?"Tour lokal gespeichert.":"Tour ohne ausreichende GPS-Daten gespeichert.");
     await refresh();setPage("rides");
@@ -560,7 +624,7 @@
   }
   async function openDetail(id){
     const r=(await allRides()).find(x=>x.id===id);if(!r)return;
-    const c=calcRide(r),date=new Date(r.startedAt).toLocaleString("de-DE",{dateStyle:"full",timeStyle:"short"});
+    const c=calcRide(r),date=new Date(r.startedAt).toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),startTime=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),endTime=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"–",weather=r.weather||null;
     const elevationCards=
       metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+
       metric("Höchster Punkt",c.elevationMax===null?"–":Math.round(c.elevationMax)+" m")+
@@ -588,9 +652,9 @@
       metric("Tempo-Median",fmt(c.medianSpeed)+" km/h");
     const gpsQuality=c.elevationQuality==="high"?"Gut":c.elevationQuality==="medium"?"Mittel":"Eingeschränkt";
     $("rideDetail").innerHTML=
-      '<div class="detail-header"><span class="eyebrow">TOURENDETAIL</span><h1>'+escapeHtml(r.name||"Fahrradtour")+'</h1><p class="muted">'+date+'</p></div>'+
+      '<div class="detail-header"><span class="eyebrow">TOURENDETAIL</span><h1>'+escapeHtml(r.name||"Fahrradtour")+'</h1><p class="muted">'+date+'</p><div class="ride-time-strip"><div><span>START</span><strong>'+startTime+' Uhr</strong></div><div><span>ENDE</span><strong>'+endTime+' Uhr</strong></div></div></div>'+
       '<section class="detail-route-section"><div class="detail-section-heading"><span class="eyebrow">DEINE STRECKE</span><span class="detail-map-distance">'+fmt(c.distanceM/1000,2)+' km</span></div><div class="detail-map detail-map-primary" id="detailMap" role="img" aria-label="Karte der aufgezeichneten Fahrradroute"></div><div class="detail-route-legend"><span>● Start</span><span>● Ziel</span><span>'+validRouteSegments(r.points).length+' GPS-Abschnitte</span></div></section>'+
-      '<section class="detail-section"><span class="eyebrow">AUF EINEN BLICK</span><div class="metric-grid detail-metrics">'+
+      '<section class="detail-section"><div class="panel detail-panel weather-panel"><span class="eyebrow">WETTER WÄHREND DIESER FAHRT</span><h3>'+ (weather?escapeHtml(weather.condition||"Wetter erfasst"):"Keine Wetterangabe") +'</h3><div class="metric-grid detail-metrics">'+metric("Temperatur",weather&&Number.isFinite(weather.temperatureC)?fmt(weather.temperatureC,1)+" °C":"–")+metric("Niederschlag",weather&&Number.isFinite(weather.precipitationMm)?fmt(weather.precipitationMm,1)+" mm":"Nicht verfügbar")+metric("Bewölkung",weather&&Number.isFinite(weather.cloudCoverPct)?fmt(weather.cloudCoverPct,0)+" %":"Nicht verfügbar")+metric("Quelle",weather?escapeHtml(weather.sourceLabel||"Fahrerangabe"):"Keine Angabe")+'</div><p>'+ (weather&&weather.source==="open-meteo-archive"?"Historische Wetterdaten am nächstgelegenen Stundenwert und an einer repräsentativen GPS-Position der Fahrt.":"Wetterangabe für diese einzelne Fahrt; Temperatur ist eine ungefähre Fahrerangabe.") +'</p></div></section>'+'<section class="detail-section"><span class="eyebrow">AUF EINEN BLICK</span><div class="metric-grid detail-metrics">'+
       metric("Distanz",fmt(c.distanceM/1000,2)+" km")+metric("Zeit im Sattel",fmtTime(c.movingSeconds))+
       metric("Ø Tempo",fmt(c.averageSpeed)+" km/h")+metric("Max. Tempo",fmt(c.maxSpeed)+" km/h")+
       '</div></section>'+
