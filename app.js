@@ -549,7 +549,7 @@
     const target=points.reduce((best,p)=>Math.abs(p.t-middle)<Math.abs(best.t-middle)?p:best,points[0]);
     const parts=localDateTimeParts(middle),params=new URLSearchParams({
       latitude:String(target.lat),longitude:String(target.lon),start_date:parts.date,end_date:parts.date,
-      hourly:"temperature_2m,precipitation,weather_code,cloud_cover",timezone:"auto"
+      hourly:"temperature_2m,precipitation,weather_code,cloud_cover",timezone:"UTC"
     });
     const response=await fetch("https://archive-api.open-meteo.com/v1/archive?"+params.toString(),{signal:AbortSignal.timeout(6500)});
     if(!response.ok)throw new Error("Wetterdienst antwortet nicht");
