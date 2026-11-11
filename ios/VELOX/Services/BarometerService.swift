@@ -30,7 +30,15 @@ final class BarometerService: ObservableObject {
             let errorText = error?.localizedDescription
             let pressure = data?.pressure.doubleValue
             let relativeAltitude = data?.relativeAltitude.doubleValue
-            let timestamp = Int64(Date().timeIntervalSince1970 * 1_000)
+            // Core Motion timestamps samples on the device's monotonic uptime clock.
+            // Convert that sample time to Unix milliseconds instead of stamping
+            // callback delivery time, which may be delayed by the main queue.
+            let sampleTimestamp = data.map {
+                Date().timeIntervalSince1970
+                    - ProcessInfo.processInfo.systemUptime
+                    + $0.timestamp
+            }
+            let timestamp = sampleTimestamp.map { Int64(($0 * 1_000).rounded()) } ?? 0
 
             Task { @MainActor in
                 guard let self else { return }
