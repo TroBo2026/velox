@@ -1,4 +1,4 @@
-/* VELOX 0.6.1 — local-first cycling tracker */
+/* VELOX 0.7.1 — local-first cycling tracker */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -111,15 +111,33 @@
     for(const sample of smoothed){minimum=minimum===null?sample.elevationM:Math.min(minimum,sample.elevationM);maximum=maximum===null?sample.elevationM:Math.max(maximum,sample.elevationM);}
     return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length,minimum,maximum,medianAccuracy,quality};
   }
-  const movingSeconds=(ride)=>{
-    const p=ride.points||[];let total=0;
-    for(let i=1;i<p.length;i++){
-      const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]);
-      const speed=d/dt*3.6;
-      if(dt>0&&dt<=30&&d>0.8&&d<150&&speed>=1&&speed<=100)total+=dt;
+  const RIDE_INTERVAL_FILTERS=Object.freeze({
+    minDistanceM:0.8,maxDistanceM:150,maxGapSeconds:30,
+    minMovingSpeedKmh:1.5,maxSpeedKmh:100,maxHorizontalAccuracyM:80
+  });
+  function validRidePoint(point){
+    return !!point&&Number.isFinite(point.lat)&&point.lat>=-90&&point.lat<=90&&
+      Number.isFinite(point.lon)&&point.lon>=-180&&point.lon<=180&&Number.isFinite(point.t);
+  }
+  function getMovingIntervals(ride){
+    const points=Array.isArray(ride.points)?ride.points:[],intervals=[];
+    for(let i=1;i<points.length;i++){
+      const previous=points[i-1],current=points[i];
+      if(!validRidePoint(previous)||!validRidePoint(current))continue;
+      const durationS=(current.t-previous.t)/1000;
+      if(!Number.isFinite(durationS)||durationS<=0||durationS>RIDE_INTERVAL_FILTERS.maxGapSeconds)continue;
+      const accuracy=[previous.accuracy,current.accuracy].filter(Number.isFinite);
+      if(accuracy.some(value=>value<0||value>RIDE_INTERVAL_FILTERS.maxHorizontalAccuracyM))continue;
+      const distanceM=haversine(previous,current);
+      if(!Number.isFinite(distanceM)||distanceM<RIDE_INTERVAL_FILTERS.minDistanceM||
+        distanceM>RIDE_INTERVAL_FILTERS.maxDistanceM)continue;
+      const speedKmh=distanceM/durationS*3.6;
+      if(!Number.isFinite(speedKmh)||speedKmh<RIDE_INTERVAL_FILTERS.minMovingSpeedKmh||
+        speedKmh>RIDE_INTERVAL_FILTERS.maxSpeedKmh)continue;
+      intervals.push({distanceM,durationS,speedKmh});
     }
-    return total;
-  };
+    return intervals;
+  }
   function gradeStats(profile){
     const samples=profile.samples,grades=[];
     let weightedSum=0,weightedDistance=0;
@@ -150,12 +168,12 @@
     return null;
   }
   function calcRide(ride){
-    const p=ride.points||[];let distance=0;
-    for(let i=1;i<p.length;i++){const d=haversine(p[i-1],p[i]),dt=(p[i].t-p[i-1].t)/1000;if(dt>0&&dt<=30&&d<150&&d>0.8)distance+=d;}
+    const p=Array.isArray(ride.points)?ride.points:[],intervals=getMovingIntervals(ride);
+    const distance=intervals.reduce((sum,item)=>sum+item.distanceM,0);
+    const moving=intervals.reduce((sum,item)=>sum+item.durationS,0);
     const elevation=buildElevationProfile(p),grades=gradeStats(elevation);
-    const elapsed=activeSeconds(ride),moving=movingSeconds(ride),avg=moving>0?distance/moving*3.6:0;
-    const speeds=[];
-    for(let i=1;i<p.length;i++){const dt=(p[i].t-p[i-1].t)/1000,d=haversine(p[i-1],p[i]),speed=d/dt*3.6;if(dt>0&&dt<=30&&d>0.8&&d<150&&Number.isFinite(speed)&&speed<=100)speeds.push(speed);}
+    const elapsed=activeSeconds(ride),avg=moving>0?distance/moving*3.6:0;
+    const speeds=intervals.map(item=>item.speedKmh);
     const stopped=Math.max(0,elapsed-moving);
     return {distanceM:distance,elevationProfile:elevation,elevationGain:elevation.gain,elevationLoss:elevation.loss,elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationQuality:elevation.quality,elevationAccuracy:elevation.medianAccuracy,gradeAverage:grades.average,gradeMax:grades.maximum,gradeMin:grades.minimum,gradeSamples:grades.samples,elapsedSeconds:elapsed,movingSeconds:moving,stoppedSeconds:stopped,movingRatio:elapsed?moving/elapsed*100:0,averageSpeed:avg,maxSpeed:speeds.reduce((maximum,speed)=>Math.max(maximum,speed),0)};
   }
