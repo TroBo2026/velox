@@ -557,7 +557,7 @@
     if(!Array.isArray(times)||!times.length)return null;
     const targetTime=new Date(middle).getTime();
     let index=0,bestDelta=Infinity;
-    times.forEach((time,i)=>{const delta=Math.abs(new Date(time).getTime()-targetTime);if(delta<bestDelta){bestDelta=delta;index=i;}});
+    times.forEach((time,i)=>{const delta=Math.abs(new Date(time+"Z").getTime()-targetTime);if(delta<bestDelta){bestDelta=delta;index=i;}});
     const temp=data.hourly.temperature_2m?.[index],code=data.hourly.weather_code?.[index];
     if(!Number.isFinite(temp)||!Number.isFinite(code))return null;
     return {condition:weatherDescription(code),weatherCode:code,temperatureC:temp,precipitationMm:Number.isFinite(data.hourly.precipitation?.[index])?data.hourly.precipitation[index]:null,cloudCoverPct:Number.isFinite(data.hourly.cloud_cover?.[index])?data.hourly.cloud_cover[index]:null,source:"open-meteo-archive",sourceLabel:"Open-Meteo (historische Wetterdaten)",sampledAt:times[index],fetchedAt:Date.now()};
