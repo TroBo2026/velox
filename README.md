@@ -17,14 +17,14 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start und Strecken-Geradlinigkeit; alle Berechnungen nutzen vorhandene GPS-Punkte
 - VELOX Pro Analyse: optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Ausreißerzählung und Archiv-Rekorden; ausschließlich lesender Zugriff auf vorhandene IndexedDB-Daten
 - Einheitliche Bewegungsfilter in Tourendetails, Live-Kennzahlen und Pro-Analyse: gültige GPS-Koordinaten, Zeitabstand bis 30 s, Distanz von 0,8 bis 150 m, gemeldete horizontale Genauigkeit höchstens 80 m und Tempo von 1,5 bis 100 km/h. Distanz, Bewegungszeit, Durchschnitts- und Maximaltempo stammen aus denselben akzeptierten Fahrintervallen.
-- Höhenprofil mit Distanzachse, tatsächlichen Start-/Zielmarkierungen und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte; fehlende Höhenwerte an den Tourgrenzen werden nicht interpoliert
+- Höhenprofil mit Distanzachse, tatsächlichen Start-/Zielmarkierungen und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte; fehlende oder unbrauchbare Höhenwerte trennen die Auswertungssegmente und werden nicht überbrückt
 - Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter 4 m werden nicht zur kumulierten Höhenmeter-Summe addiert
 - Qualitätskennzeichnung der Höhenmessung anhand der verfügbaren GPS-Höhendaten; fehlende Genauigkeitsangaben werden nicht als gute Messqualität eingestuft
 - Steigungswerte werden aus demselben geglätteten Höhenprofil abgeleitet; große Zeit-/Distanzlücken werden ausgelassen
 - Persönliche VELOX MAP mit mehreren gespeicherten Touren, individuellen Streckenfarben, Ein-/Ausblenden einzelner Touren, Zeitfiltern und lokaler Streckendichte-Ansicht
 - Separate Tourenliste mit Detailansicht und Streckenkarte
-- GPX-Export einzelner Touren
-- JSON-Export und -Import aller Tourdaten; vorhandene Touren werden beim Import nie überschrieben, doppelte IDs erhalten eine neue Import-ID
+- GPX-Export einzelner Touren; GPS-Lücken werden als getrennte GPX-Tracksegmente exportiert
+- JSON-Export und -Import aller Tourdaten; nur JSON-v1 wird angenommen, vorhandene Touren werden nie überschrieben, doppelte IDs erhalten eine neue Import-ID
 - Lokale Speicherung im Browser über IndexedDB
 - Installierbare PWA-Grundstruktur und Offline-App-Shell-Cache
 
@@ -62,7 +62,8 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 | `index.html` | App-Struktur und Ansichten |
 | `styles.css` | Responsive VELOX-Oberfläche |
 | `app.js` | GPS, Berechnungen, IndexedDB, Touren, Wrapped, Export/Import |
-| `analysis-pro.js` | Zusätzliche lesende Tourenanalyse, Splits, Tempo-/Steigungszonen und GPS-Datenqualität |\n| `sensor-core.js` | Validierung und Fusion von GPS- und nativen Barometerdaten |
+| `analysis-pro.js` | Zusätzliche lesende Tourenanalyse, Splits, Tempo-/Steigungszonen und GPS-Datenqualität |
+| `sensor-core.js` | Validierung und Fusion von GPS- und nativen Barometerdaten |
 | `manifest.webmanifest` | PWA-Metadaten und SVG-App-Icon |
 | `icon.svg` | VELOX-App-/Browser-Icon |
 | `sw.js` | Cache für die App-Shell |
@@ -115,3 +116,26 @@ Jede Tour zeigt Datum sowie Start- und Enduhrzeit getrennt. Beim Beenden fragt V
 ## iPhone-Testhinweis 0.9.1
 
 Der Wrapped-Einstieg befindet sich unter „Mehr“ und besitzt auf schmalen Displays eine mindestens 44 px hohe Touch-Ziel-Fläche. Wrapped liest das lokale Archiv beim Öffnen erneut; nach Tourabschluss und erfolgreichem JSON-Import wird die Archivansicht aktualisiert. Vor dem ersten Test bitte eine JSON-Sicherung exportieren. Die native Swift-Datei `BarometerService.swift` verwendet den Core-Motion-Sample-Zeitstempel (monotone Geräte-Uptime, auf Unix-Zeit abgebildet) statt der verzögerten Callback-Empfangszeit. Swift/Xcode-Build und iPhone-Gerätetest sind weiterhin offen.
+
+
+## Abschlussprüfung 12.11.2026
+
+- Fehlende GPS-Höhenwerte trennen jetzt Höhen-/Steigungssegmente. Ein Anstieg wird nicht über einen fehlenden Höhenpunkt hinweg abgeleitet.
+- Bei Touren ohne gültige Bewegungs- oder Höhenabschnitte zeigen Tempo, VAM, Terrain-Verteilung und maximale Entfernung vom Start keinen scheinbar gemessenen Nullwert.
+- GPX-Exporte erhalten zusammenhängende GPS-Abschnitte als getrennte `trkseg`-Elemente; einzelne gültige Punkte bleiben als Ein-Punkt-Segmente erhalten.
+- JSON-Import akzeptiert ausdrücklich nur den bestehenden Container `app: "VELOX", version: 1`. Vorhandene IDs werden weiterhin remappt und Datensätze mit `add` statt `put` eingefügt. Optionale unbekannte Tourfelder bleiben bei einem Web-JSON-Rundlauf erhalten.
+- Wrapped wird beim Öffnen aus IndexedDB neu berechnet. Beim Öffnen von Wrapped bleibt „Mehr“ als übergeordneter Navigationspunkt markiert. Es werden keine Wrapped-Snapshots gespeichert.
+- IndexedDB-Schema bleibt Version 1; bestehende Touren werden weder migriert noch verändert.
+
+## Erster Test am iPhone XR (Web/PWA)
+
+1. Vor dem Test in VELOX unter „Mehr“ eine JSON-Sicherung exportieren und die Datei an einem sicheren Ort behalten.
+2. VELOX zuerst über eine HTTPS-Adresse in Safari öffnen. Bei der Standortabfrage „Beim Verwenden“ wählen und „Genauer Standort“ aktivieren.
+3. Optional anschließend in Safari über „Teilen“ → „Zum Home-Bildschirm“ hinzufügen. Für den ersten Funktionstest kann Safari selbst verwendet werden.
+4. Eine kurze Fahrt im Freien mit freier Sicht zum Himmel aufzeichnen. VELOX während des Tests im Vordergrund lassen und das Display möglichst nicht sperren. Energiesparmodus kann Hintergrund- und Messverhalten zusätzlich einschränken.
+5. Eine Standort- oder Bewegungs-/Ausrichtungsfreigabe nur nach einer klaren VELOX-Aktion erteilen. Die aktuelle PWA verwendet GPS; sie liest Barometer, Kompass, Gyroskop und Beschleunigungssensor nicht über native Core Motion APIs aus.
+6. Nach dem Speichern Tourdetails und GPS-Lücken prüfen. Danach Wrapped öffnen und kontrollieren, dass die neue Tour in Tourenzahl, Distanz und Rekorden auftaucht. Eine JSON-Sicherung erneut exportieren und prüfen, dass die Tour enthalten ist.
+7. Sensorstatus nur als verfügbar werten, wenn VELOX echte Messwerte in dieser Tour gespeichert hat. Fehlende Sensoren müssen als „nicht verfügbar“ bzw. „nicht aufgezeichnet“ erscheinen. Das iPhone XR besitzt zusätzliche Sensorhardware, aber Safari/PWA erhält dadurch keinen automatischen Core-Motion-Zugriff.
+8. Kompasskalibrierung und stabile, feste Telefonmontage sind erst für einen späteren nativen Sensortest relevant. Telefonbewegung ist ohne definierte Montage keine verlässliche Fahrrad-Beschleunigung oder Schräglage.
+
+**Grenze:** iOS kann Safari/PWAs im Hintergrund anhalten. VELOX verspricht keine zuverlässige GPS-Aufzeichnung bei gesperrtem Bildschirm. Der native Swift-Code ist vorbereitet, aber ohne Mac/Xcode weder als iOS-App gebaut noch auf einem iPhone installiert oder getestet.
