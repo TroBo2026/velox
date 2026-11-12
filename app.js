@@ -10,6 +10,8 @@
   let activeRide = null;
   let watchId = null;
   let timerId = null;
+  let liveMetricsCache = null;
+  let liveMetricsRideId = null;
   let liveMap = null;
   let liveLines = [];
   let liveMarker = null;
@@ -227,6 +229,46 @@
       lastEnd=item.to;
     }
     return best;
+  }
+  function getRideStopStats(ride){
+    const points=Array.isArray(ride.points)?ride.points:[];
+    const qualifiedStops=[];
+    let activeStop=null,validIntervals=0;
+    const finishStop=()=>{
+      if(activeStop&&activeStop.seconds>=10)qualifiedStops.push(activeStop.seconds);
+      activeStop=null;
+    };
+    for(let i=1;i<points.length;i++){
+      const previous=points[i-1],current=points[i];
+      if(!validRidePoint(previous)||!validRidePoint(current)){finishStop();continue;}
+      const durationS=(current.t-previous.t)/1000;
+      if(!Number.isFinite(durationS)||durationS<=0||durationS>RIDE_INTERVAL_FILTERS.maxGapSeconds){finishStop();continue;}
+      const accuracy=[previous.accuracy,current.accuracy].filter(Number.isFinite);
+      if(accuracy.some(value=>value<0||value>RIDE_INTERVAL_FILTERS.maxHorizontalAccuracyM)){finishStop();continue;}
+      const distanceM=haversine(previous,current);
+      if(!Number.isFinite(distanceM)||distanceM>RIDE_INTERVAL_FILTERS.maxDistanceM){finishStop();continue;}
+      const speedKmh=distanceM/durationS*3.6;
+      if(!Number.isFinite(speedKmh)||speedKmh>RIDE_INTERVAL_FILTERS.maxSpeedKmh){finishStop();continue;}
+      validIntervals++;
+      if(speedKmh<RIDE_INTERVAL_FILTERS.minMovingSpeedKmh){
+        if(!activeStop)activeStop={end:current.t,seconds:durationS};
+        else if(current.t-activeStop.end<=RIDE_INTERVAL_FILTERS.maxGapSeconds*1000){
+          activeStop.end=current.t;
+          activeStop.seconds+=durationS;
+        }else{
+          finishStop();
+          activeStop={end:current.t,seconds:durationS};
+        }
+      }else finishStop();
+    }
+    finishStop();
+    if(!validIntervals)return {count:null,longestSeconds:null,totalSeconds:null};
+    const totalSeconds=qualifiedStops.reduce((sum,value)=>sum+value,0);
+    return {
+      count:qualifiedStops.length,
+      longestSeconds:qualifiedStops.length?Math.max(...qualifiedStops):0,
+      totalSeconds
+    };
   }
   function calcRide(ride){
     const p=Array.isArray(ride.points)?ride.points:[],intervals=getMovingIntervals(ride);
@@ -482,13 +524,16 @@
     if(!navigator.geolocation){showToast("GPS wird von diesem Browser nicht unterstützt.");return;}
     if(!window.isSecureContext){showToast("GPS benötigt eine sichere HTTPS-Verbindung.");return;}
     activeRide={id:"ride-"+Date.now(),name:"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,points:[],status:"recording"};
-    try{await dbRequest("readwrite","put",activeRide);}catch(e){activeRide=null;showToast("Lokale Speicherung nicht verfügbar.");return;}
+    liveMetricsCache=null;liveMetricsRideId=null;
+    syncTrackStartButton();
+    try{await dbRequest("readwrite","put",activeRide);}catch(e){activeRide=null;syncTrackStartButton();showToast("Lokale Speicherung nicht verfügbar.");return;}
     $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Pause";
     $("trackingStatus").textContent="GPS wird gesucht …";$("trackingDot").style.background="#d9b879";
     liveMap=liveMap||initMap("liveMap");liveLine=null;liveMarker=null;
     setPage("track");
     watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
-    timerId=setInterval(updateLive,1000);updateLive();
+    updateLive(true);
+    scheduleLiveClock();
   }
   async function onPosition(pos){
     if(!activeRide||activeRide.status!=="recording")return;
@@ -501,7 +546,7 @@
     await dbRequest("readwrite","put",activeRide);
     $("trackingStatus").textContent="Aufzeichnung läuft";$("trackingDot").style.background="var(--teal)";
     $("gpsAccuracy").textContent="GPS ±"+Math.round(c.accuracy)+" m";
-    updateSensorStatus(point);drawLive(activeRide.points);updateLive();
+    updateSensorStatus(point);drawLive(activeRide.points);updateLive(true);
   }
   function updateSensorStatus(point){
     const source=point&&point.altSource||"gps";
@@ -522,21 +567,38 @@
     const speed=d/dt*3.6;
     return Number.isFinite(speed)&&speed<=100?speed:0;
   }
-  function updateLive(){
+  function updateLive(refreshMetrics=false){
     if(!activeRide)return;
-    const c=calcRide(activeRide);
+    if(refreshMetrics||!liveMetricsCache||liveMetricsRideId!==activeRide.id){
+      liveMetricsCache=calcRide(activeRide);
+      liveMetricsRideId=activeRide.id;
+    }
+    const c=liveMetricsCache,elapsed=activeSeconds(activeRide);
     $("liveDistance").textContent=fmt(c.distanceM/1000,2);
     $("liveSpeed").innerHTML=fmt(currentSpeed(activeRide.points))+" <small>km/h</small>";
-    $("liveDuration").textContent=fmtTime(c.elapsedSeconds);
+    $("liveDuration").textContent=fmtTime(elapsed);
     $("liveElevation").innerHTML=Math.round(c.elevationGain)+' <small>m</small>';
     $("liveAverage").innerHTML=fmt(c.averageSpeed)+' <small>km/h</small>';
     const last=activeRide.points[activeRide.points.length-1],elevation=c.elevationProfile;
     $("liveAltitude").innerHTML=last&&Number.isFinite(last.alt)?Math.round(last.alt)+' <small>m</small>':'– <small>m</small>';
     const liveGrade=currentGrade(elevation);
     $("liveGrade").innerHTML=liveGrade===null?'– <small>%</small>':fmt(liveGrade)+' <small>%</small>';
-    $("liveMovingRatio").innerHTML=fmt(c.movingRatio,0)+' <small>%</small>';
+    $("liveMovingRatio").innerHTML=fmt(elapsed?c.movingSeconds/elapsed*100:0,0)+' <small>%</small>';
     $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":"Begrenzt";
     const latest=activeRide.points[activeRide.points.length-1];updateSensorStatus(latest);
+  }
+  function scheduleLiveClock(){
+    if(timerId!==null)clearTimeout(timerId);
+    const tick=()=>{
+      if(!activeRide){timerId=null;return;}
+      updateLive(false);
+      timerId=setTimeout(tick,Math.max(25,1000-(Date.now()%1000)));
+    };
+    timerId=setTimeout(tick,Math.max(25,1000-(Date.now()%1000)));
+  }
+  function syncTrackStartButton(){
+    const button=$("trackStartRide");
+    if(button)button.hidden=!!activeRide;
   }
   async function pauseRide(){
     if(!activeRide)return;
@@ -550,7 +612,7 @@
       watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
       $("pauseRide").textContent="Pause";$("trackingStatus").textContent="Aufzeichnung läuft";
     }
-    await dbRequest("readwrite","put",activeRide);updateLive();
+    await dbRequest("readwrite","put",activeRide);updateLive(true);
   }
   function weatherDescription(code){
     if([0].includes(code))return "Sonnig / klar";
@@ -611,7 +673,7 @@
     if(!activeRide)return;
     if(activeRide.status==="paused"){activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));delete activeRide.pauseStarted;}
     if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
-    clearInterval(timerId);timerId=null;
+    if(timerId!==null)clearTimeout(timerId);timerId=null;
     activeRide.status="completed";activeRide.endedAt=Date.now();
     const c=calcRide(activeRide);
     $( "stopRide" ).disabled=true;$( "pauseRide" ).disabled=true;
@@ -625,6 +687,7 @@
       try{await dbRequest("readwrite","put",activeRide);}catch(saveError){showToast("Speichern fehlgeschlagen. Bitte VELOX geöffnet lassen und erneut versuchen.");console.error(saveError);return;}
     }
     activeRide=null;
+    liveMetricsCache=null;liveMetricsRideId=null;syncTrackStartButton();
     $("trackingStatus").textContent="Tour gespeichert";$("trackingDot").style.background="var(--teal)";
     showToast(c.distanceM>0?"Tour lokal gespeichert.":"Tour ohne ausreichende GPS-Daten gespeichert.");
     await refresh();setPage("rides");
@@ -649,7 +712,7 @@
   }
   async function openDetail(id){
     const r=(await allRides()).find(x=>x.id===id);if(!r)return;
-    const c=calcRide(r),date=new Date(r.startedAt).toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),startTime=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),endTime=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"–",weather=r.weather||null;
+    const c=calcRide(r),stops=getRideStopStats(r),date=new Date(r.startedAt).toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),startTime=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),endTime=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"–",weather=r.weather||null;
     const elevationCards=
       metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+
       metric("Höchster Punkt",c.elevationMax===null?"–":Math.round(c.elevationMax)+" m")+
@@ -670,7 +733,9 @@
       metric("Aufzeichnungsdauer",fmtTime(c.elapsedSeconds))+
       metric("Standzeit",fmtTime(c.stoppedSeconds))+
       metric("Fahrzeitanteil",fmt(c.movingRatio,0)+" %")+
-      metric("Schnellster voller km",c.fastestKilometerSeconds===null?"–":fmtTime(c.fastestKilometerSeconds));
+      metric("Schnellster voller km",c.fastestKilometerSeconds===null?"–":fmtTime(c.fastestKilometerSeconds))+
+      metric("Erkannte Stopps",stops.count===null?"–":String(stops.count))+
+      metric("Längster Stopp",stops.longestSeconds===null?"–":fmtTime(stops.longestSeconds));
     const speedCards=
       metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–")+
       metric("Max. GPS-Tempo",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–")+
@@ -687,7 +752,7 @@
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">TEMPO & PACE</span><h3>Geschwindigkeit über die Strecke</h3><div class="chart-box" id="speedChart"></div><div class="metric-grid detail-metrics">'+speedCards+'</div></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">GELÄNDE</span><h3>Steigung und Gefälle</h3><div class="metric-grid detail-metrics">'+elevationCards+'</div>'+renderRideBreakdowns(c)+'</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ROUTE</span><h3>Entfernung und Streckenform</h3><div class="metric-grid detail-metrics">'+routeCards+'</div><p>Geradlinigkeit wird nur angezeigt, wenn die Route ausreichend zusammenhängend aufgezeichnet wurde.</p></div></section>'+
-      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ZEIT & AUFZEICHNUNG</span><h3>Fahr- und Standzeiten</h3><div class="metric-grid detail-metrics">'+timeCards+'</div><p>Bewegungszeit wird aus akzeptierten GPS-Intervallen berechnet. Lücken und Pausen werden nicht als Fahrzeit gewertet.</p></div></section>'+
+      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ZEIT & AUFZEICHNUNG</span><h3>Fahr- und Standzeiten</h3><div class="metric-grid detail-metrics">'+timeCards+'</div><p>Bewegungszeit wird aus akzeptierten GPS-Intervallen berechnet. Ein Stopp zählt ab 10 Sekunden erkannter Bewegung unter 1,5 km/h; GPS-Lücken werden nicht als Stopp gewertet. Die Erkennung ist eine GPS-Näherung.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">DATENQUELLEN & SENSORSTATUS</span><h3>Was wurde tatsächlich gemessen?</h3><div class="detail-source-list"><div><span>GPS-Positionen</span><strong>'+r.points.length+' gespeicherte Punkte</strong></div><div><span>GPS-Höhe</span><strong>'+c.elevationProfile.validCount+' verwertbare Höhenpunkte</strong></div><div><span>Barometer</span><strong>Keine nativen Barometerdaten in dieser Tour</strong></div><div><span>Kompass / Magnetometer</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Gyroskop / Beschleunigung</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Herzfrequenz / Leistung / Kadenz</span><strong>Keine Datenquelle vorhanden</strong></div></div><p>Das iPhone XR besitzt zusätzliche Sensorhardware. Safari/PWA kann sie jedoch nicht wie eine native iOS-App vollständig über Core Motion auslesen. VELOX zeigt daher nur Daten, die wirklich in dieser Tour gespeichert wurden.</p></div></section>'+
       '<div class="tracking-actions"><button class="secondary-button" id="exportGpx">GPX exportieren</button><button class="danger-outline" id="deleteRide">Tour löschen</button></div>';
     setPage("detail");
@@ -857,6 +922,13 @@
     personalHeatVisible=!personalHeatVisible;updatePersonalMapLayers();
   });
   $("startRide").addEventListener("click",startRide);
+  $("trackStartRide")?.addEventListener("click",startRide);
+  document.addEventListener("visibilitychange",()=>{
+    if(activeRide){
+      updateLive(false);
+      if(document.visibilityState==="visible")scheduleLiveClock();
+    }
+  });
   $("pauseRide").addEventListener("click",pauseRide);
   $("stopRide").addEventListener("click",stopRide);
   $("exportBackup").addEventListener("click",exportBackup);
@@ -870,6 +942,7 @@
     if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
     if(window.L)liveMap=initMap("liveMap");
     updateSensorStatus(null);
+    syncTrackStartButton();
     if(window.VELOXSensors)window.VELOXSensors.subscribe(sample=>{if(activeRide&&activeRide.status==="recording")$("trackingStatus").textContent="Barometerdaten empfangen";});
   }
   init();
