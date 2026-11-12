@@ -243,6 +243,11 @@
       if(!validRidePoint(previous)||!validRidePoint(current)){finishStop();continue;}
       const durationS=(current.t-previous.t)/1000;
       if(!Number.isFinite(durationS)||durationS<=0||durationS>RIDE_INTERVAL_FILTERS.maxGapSeconds){finishStop();continue;}
+      const pauseOverlap=(Array.isArray(ride.pauseIntervals)?ride.pauseIntervals:[]).some(pause=>{
+        const start=pause&&pause.startedAt,end=pause&&Number.isFinite(pause.endedAt)?pause.endedAt:Infinity;
+        return Number.isFinite(start)&&end>previous.t&&start<current.t;
+      });
+      if(pauseOverlap){finishStop();continue;}
       const accuracy=[previous.accuracy,current.accuracy].filter(Number.isFinite);
       if(accuracy.some(value=>value<0||value>RIDE_INTERVAL_FILTERS.maxHorizontalAccuracyM)){finishStop();continue;}
       const distanceM=haversine(previous,current);
@@ -523,7 +528,7 @@
   async function startRide(){
     if(!navigator.geolocation){showToast("GPS wird von diesem Browser nicht unterstützt.");return;}
     if(!window.isSecureContext){showToast("GPS benötigt eine sichere HTTPS-Verbindung.");return;}
-    activeRide={id:"ride-"+Date.now(),name:"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,points:[],status:"recording"};
+    activeRide={id:"ride-"+Date.now(),name:"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,pauseIntervals:[],points:[],status:"recording"};
     liveMetricsCache=null;liveMetricsRideId=null;
     syncTrackStartButton();
     try{await dbRequest("readwrite","put",activeRide);}catch(e){activeRide=null;syncTrackStartButton();showToast("Lokale Speicherung nicht verfügbar.");return;}
@@ -603,11 +608,16 @@
   async function pauseRide(){
     if(!activeRide)return;
     if(activeRide.status==="recording"){
-      activeRide.status="paused";activeRide.pauseStarted=Date.now();
+      const pauseAt=Date.now();
+      if(!Array.isArray(activeRide.pauseIntervals))activeRide.pauseIntervals=[];
+      activeRide.pauseIntervals.push({startedAt:pauseAt,endedAt:null});
+      activeRide.status="paused";activeRide.pauseStarted=pauseAt;
       if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
       $("pauseRide").textContent="Fortsetzen";$("trackingStatus").textContent="Pausiert";
     }else{
-      activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));
+      const resumedAt=Date.now(),lastPause=Array.isArray(activeRide.pauseIntervals)?activeRide.pauseIntervals[activeRide.pauseIntervals.length-1]:null;
+      if(lastPause&&lastPause.endedAt===null)lastPause.endedAt=resumedAt;
+      activeRide.pausedMs=(activeRide.pausedMs||0)+(resumedAt-(activeRide.pauseStarted||resumedAt));
       delete activeRide.pauseStarted;activeRide.status="recording";
       watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
       $("pauseRide").textContent="Pause";$("trackingStatus").textContent="Aufzeichnung läuft";
@@ -671,7 +681,12 @@
   }
   async function stopRide(){
     if(!activeRide)return;
-    if(activeRide.status==="paused"){activeRide.pausedMs=(activeRide.pausedMs||0)+(Date.now()-(activeRide.pauseStarted||Date.now()));delete activeRide.pauseStarted;}
+    if(activeRide.status==="paused"){
+      const resumedAt=Date.now(),lastPause=Array.isArray(activeRide.pauseIntervals)?activeRide.pauseIntervals[activeRide.pauseIntervals.length-1]:null;
+      if(lastPause&&lastPause.endedAt===null)lastPause.endedAt=resumedAt;
+      activeRide.pausedMs=(activeRide.pausedMs||0)+(resumedAt-(activeRide.pauseStarted||resumedAt));
+      delete activeRide.pauseStarted;
+    }
     if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
     if(timerId!==null)clearTimeout(timerId);timerId=null;
     activeRide.status="completed";activeRide.endedAt=Date.now();
