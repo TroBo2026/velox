@@ -266,7 +266,7 @@
     const totalSeconds=qualifiedStops.reduce((sum,value)=>sum+value,0);
     return {
       count:qualifiedStops.length,
-      longestSeconds:qualifiedStops.length?Math.max(...qualifiedStops):0,
+      longestSeconds:qualifiedStops.length?Math.max(...qualifiedStops):null,
       totalSeconds
     };
   }
