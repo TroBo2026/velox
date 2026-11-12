@@ -5,16 +5,16 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 
 ## Aktueller Stand – Version 0.9.1
 
-- GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss
+- GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start direkt auf der Track-Seite oder auf der Startseite
 - Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
 - Sensorstatus in der Live-Ansicht: GPS-Höhe, Barometerverfügbarkeit und tatsächlich verwendete Höhenquelle
 - Native Bridge-Vertrag: `velox:native-altimeter` mit `altitudeM`, `accuracyM`, `pressureKPa` und optionalem Zeitstempel; ohne native Quelle bleibt VELOX bei GPS
-- Live-Daten: Distanz, Geschwindigkeit, Fahrzeit, Aufstieg, Durchschnittstempo, aktuelle GPS-Höhe, aktuelle Steigung, Fahrzeitanteil und Höhen-Datenqualität
+- Live-Daten: Distanz, Geschwindigkeit, sekundengenau an der Systemuhr ausgerichtete Fahrzeit, Aufstieg, Durchschnittstempo, aktuelle GPS-Höhe, aktuelle Steigung, Fahrzeitanteil und Höhen-Datenqualität; die aufwendige GPS-Auswertung wird nicht mehr bei jedem Sekundentick vollständig neu berechnet
 - Tourenanalyse: Distanz, Fahrzeit, Standzeit, Durchschnitts- und Maximaltempo, Auf- und Abstieg, höchster/tiefster Punkt, durchschnittliche Steigung, steilste Steigung und steilste Abfahrt
 - Geglättetes Geschwindigkeitsprofil über die Streckendistanz in jeder Tour-Detailansicht
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken
 - Neuer Wrapped-Reiter mit automatisch aktualisiertem Archiv-Rückblick: Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM sowie aggregierte Gelände- und Tempo-Zonen
-- Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start und Strecken-Geradlinigkeit; alle Berechnungen nutzen vorhandene GPS-Punkte
+- Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start und Strecken-Geradlinigkeit; zusätzlich pro einzelner Fahrt GPS-erkanntes Stopps-Count und längster Stopp (ab 10 s, unter 1,5 km/h); alle Berechnungen nutzen vorhandene GPS-Punkte
 - VELOX Pro Analyse: optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Ausreißerzählung und Archiv-Rekorden; ausschließlich lesender Zugriff auf vorhandene IndexedDB-Daten
 - Einheitliche Bewegungsfilter in Tourendetails, Live-Kennzahlen und Pro-Analyse: gültige GPS-Koordinaten, Zeitabstand bis 30 s, Distanz von 0,8 bis 150 m, gemeldete horizontale Genauigkeit höchstens 80 m und Tempo von 1,5 bis 100 km/h. Distanz, Bewegungszeit, Durchschnitts- und Maximaltempo stammen aus denselben akzeptierten Fahrintervallen.
 - Höhenprofil mit Distanzachse, tatsächlichen Start-/Zielmarkierungen und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte; fehlende oder unbrauchbare Höhenwerte trennen die Auswertungssegmente und werden nicht überbrückt
