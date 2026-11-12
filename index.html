@@ -40,12 +40,12 @@
         </div>
         <div class="section-heading recent-heading"><div><span class="eyebrow">ARCHIV</span><h2>Letzte Touren</h2></div><button class="text-button" data-page="rides">Alle anzeigen <svg class="ui-icon inline-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></button></div>
         <div id="recentRides" class="ride-list"><div class="empty-state">Noch keine Touren vorhanden.<br>Starte deine erste VELOX-Aufzeichnung.</div></div>
-        <div class="notice"><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><p>Messqualität und Sensorgrenzen findest du unter „Mehr“.</p></div>
       </section>
 
       <section class="page" id="page-track">
         <div class="page-title"><span class="eyebrow">LIVE-AUFZEICHNUNG</span><h1>Deine Tour</h1></div>
         <div class="tracking-status"><span class="status-dot" id="trackingDot"></span><span id="trackingStatus">Bereit</span><span id="gpsAccuracy" class="accuracy">GPS nicht aktiv</span></div>
+        <button class="primary-button start-button track-start-button" id="trackStartRide" type="button"><span class="button-play">▶</span><span>Route starten</span><span class="button-arrow">↗</span></button>
         <div class="live-distance"><strong id="liveDistance">0,00</strong><span>KM</span></div>
         <div class="live-grid">
           <div><span>Geschwindigkeit</span><strong id="liveSpeed">0,0 <small>km/h</small></strong></div>
@@ -60,7 +60,6 @@
         <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption">GPS-STRECKENVERLAUF</div></div>
         <div class="tracking-actions"><button class="secondary-button" id="pauseRide" disabled>Pause</button><button class="danger-button" id="stopRide" disabled>Tour beenden</button></div>
         <div class="panel sensor-panel"><span class="eyebrow">SENSORSTATUS</span><div class="sensor-status-grid"><div><span>GPS-Höhe</span><strong id="sensorGpsStatus">Wird geprüft …</strong></div><div><span>Barometer</span><strong id="sensorBarometerStatus">In dieser Web-App nicht verfügbar</strong></div><div><span>Höhenquelle</span><strong id="sensorAltitudeSource">Noch keine Messung</strong></div></div></div>
-        <p class="small-note">Für die Aufzeichnung Standortzugriff erlauben und VELOX während der Fahrt geöffnet lassen.</p>
       </section>
 
       <section class="page" id="page-rides">
