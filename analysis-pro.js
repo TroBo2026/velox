@@ -76,7 +76,7 @@
             Math.abs(candidate.time - sample.time) <= 60000) nearby.push(candidate.altitude);
       }
       return Object.assign({}, sample, {
-        elevationM: median(nearby.length >= 3 ? nearby : [sample.altitude])
+        elevationM: median(nearby.length === 5 ? nearby : [sample.altitude])
       });
     });
     let gain = 0, loss = 0, anchor = null, lastSegment = null;
@@ -102,7 +102,7 @@
       const first = smooth[index - 1], last = smooth[index];
       const distance = last.distanceM - first.distanceM;
       const elapsed = (last.time - first.time) / 1000;
-      if (first.segment !== last.segment || distance < 8 || distance > 120 || elapsed <= 0 || elapsed > 90) continue;
+      if (first.segment !== last.segment || distance < 8 || distance > 100 || elapsed <= 0 || elapsed > 60) continue;
       const grade = (last.elevationM - first.elevationM) / distance * 100;
       if (Number.isFinite(grade) && Math.abs(grade) <= 35) grades.push({ grade, distance });
     }
@@ -136,30 +136,47 @@
     };
   }
   function splitSegments(segments, splitLengthM) {
-    const splits = new Map();
-    let distanceCursor = 0;
+    const runs = [];
+    let currentRun = [];
+    let previousToIndex = null;
     segments.forEach((segment) => {
-      let remainingDistance = segment.distanceM;
-      let remainingTime = segment.moving ? segment.durationS : 0;
-      while (remainingDistance > 0.0001) {
-        const splitIndex = Math.floor((distanceCursor + 0.000001) / splitLengthM);
-        const offset = distanceCursor - splitIndex * splitLengthM;
-        const portion = Math.min(remainingDistance, splitLengthM - offset);
-        const timePortion = segment.distanceM ? remainingTime * portion / remainingDistance : 0;
-        let split = splits.get(splitIndex);
-        if (!split) {
-          split = { number: splitIndex + 1, distanceM: 0, movingSeconds: 0, speeds: [] };
-          splits.set(splitIndex, split);
-        }
-        split.distanceM += portion;
-        split.movingSeconds += timePortion;
-        if (segment.moving) split.speeds.push(segment.speedKmh);
-        distanceCursor += portion;
-        remainingDistance -= portion;
-        remainingTime -= timePortion;
+      if (currentRun.length && previousToIndex !== segment.fromIndex) {
+        runs.push(currentRun);
+        currentRun = [];
       }
+      currentRun.push(segment);
+      previousToIndex = segment.toIndex;
     });
-    return Array.from(splits.values()).map((split) => Object.assign({}, split, {
+    if (currentRun.length) runs.push(currentRun);
+
+    const result = [];
+    runs.forEach((run, runIndex) => {
+      const splits = new Map();
+      let distanceCursor = 0;
+      run.forEach((segment) => {
+        let remainingDistance = segment.distanceM;
+        let remainingTime = segment.moving ? segment.durationS : 0;
+        while (remainingDistance > 0.0001) {
+          const splitIndex = Math.floor((distanceCursor + 0.000001) / splitLengthM);
+          const offset = distanceCursor - splitIndex * splitLengthM;
+          const portion = Math.min(remainingDistance, splitLengthM - offset);
+          const timePortion = segment.distanceM ? remainingTime * portion / remainingDistance : 0;
+          let split = splits.get(splitIndex);
+          if (!split) {
+            split = { segment: runIndex + 1, number: splitIndex + 1, distanceM: 0, movingSeconds: 0, speeds: [] };
+            splits.set(splitIndex, split);
+          }
+          split.distanceM += portion;
+          split.movingSeconds += timePortion;
+          if (segment.moving) split.speeds.push(segment.speedKmh);
+          distanceCursor += portion;
+          remainingDistance -= portion;
+          remainingTime -= timePortion;
+        }
+      });
+      result.push(...Array.from(splits.values()));
+    });
+    return result.map((split) => Object.assign({}, split, {
       averageSpeed: split.movingSeconds > 0 ? split.distanceM / split.movingSeconds * 3.6 : 0
     }));
   }
@@ -366,7 +383,7 @@
     ).join("");
     const splitRows = result.splits.length
       ? result.splits.map((split) =>
-        '<tr><td>' + split.number + '</td><td>' + fmt(split.distanceM / 1000, 2) + ' km</td><td>' +
+        '<tr><td>' + split.segment + ' / ' + split.number + '</td><td>' + fmt(split.distanceM / 1000, 2) + ' km</td><td>' +
         fmtTime(split.movingSeconds) + '</td><td>' + fmt(split.averageSpeed) + ' km/h</td></tr>'
       ).join("")
       : '<tr><td colspan="4">Nicht genügend gültige GPS-Daten für Splits.</td></tr>';
@@ -384,7 +401,7 @@
       '</section><section class="vx-pro-subpanel"><h4>Steigungsverteilung</h4>' + gradeRows +
       '<p class="vx-pro-note">Aus GPS-Höhenwerten; ohne echte Höhenmessdaten werden keine Steigungen ergänzt.</p></section></div>' +
       '<section class="vx-pro-subpanel"><div class="vx-pro-heading-row"><h4>' + fmt(splitKm, 0) + '-km-Splits</h4><span>Bewegungszeit je Abschnitt</span></div>' +
-      '<div class="vx-pro-table-wrap"><table class="vx-pro-table"><thead><tr><th>Split</th><th>Distanz</th><th>Zeit</th><th>Ø Tempo</th></tr></thead><tbody>' + splitRows +
+      '<div class="vx-pro-table-wrap"><table class="vx-pro-table"><thead><tr><th>GPS-Abschnitt / Split</th><th>Distanz</th><th>Zeit</th><th>Ø Tempo</th></tr></thead><tbody>' + splitRows +
       '</tbody></table></div></section>' +
       '<section class="vx-pro-subpanel"><h4>GPS-Datenprüfung</h4><div class="vx-pro-quality"><strong>' + result.quality +
       '</strong><span>' + fmt(result.acceptedRatio * 100, 0) + ' % der Zeit-/Punktintervalle akzeptiert · ' + qualityNote +
@@ -401,9 +418,9 @@
       gain: sum.gain + item.elevation.gain,
       loss: sum.loss + item.elevation.loss
     }), { distance: 0, moving: 0, elapsed: 0, gain: 0, loss: 0 });
-    const longest = analyses.slice().sort((a, b) => b.distanceM - a.distanceM)[0];
-    const fastest = analyses.slice().sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
-    const climbing = analyses.slice().sort((a, b) => b.elevation.gain - a.elevation.gain)[0];
+    const longest = analyses.filter(item => item.distanceM > 0).sort((a, b) => b.distanceM - a.distanceM)[0];
+    const fastest = analyses.filter(item => item.movingSeconds > 0).sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
+    const climbing = analyses.filter(item => item.elevation.validCount >= 2).sort((a, b) => b.elevation.gain - a.elevation.gain)[0];
     const records = [
       ["Längste Tour", longest, longest ? fmt(longest.distanceM / 1000) + " km" : "–"],
       ["Höchster Aufstieg", climbing, climbing ? "+" + Math.round(climbing.elevation.gain) + " m" : "–"],
@@ -416,7 +433,7 @@
       card("Gesamtdistanz", fmt(total.distance / 1000) + " km", "Nur plausible GPS-Abschnitte") +
       card("Bewegungszeit", fmtTime(total.moving), "Summe der erkannten Fahrintervalle") +
       card("Aufstieg / Abstieg", "+" + Math.round(total.gain) + " / −" + Math.round(total.loss) + " m", "Gefilterte GPS-Höhenwerte") +
-      card("Ø Fahrtempo", fmt(total.moving ? total.distance / total.moving * 3.6 : 0) + " km/h", "Gesamtdistanz ÷ Bewegungszeit") +
+      card("Ø Fahrtempo", total.moving > 0 ? fmt(total.distance / total.moving * 3.6) + " km/h" : "–", "Gesamtdistanz ÷ Bewegungszeit") +
       card("Gesamtzeit", fmtTime(total.elapsed), "Pausen abgezogen") +
       '</div><section class="vx-pro-subpanel"><h4>Deine Archiv-Rekorde</h4><div class="vx-pro-record-grid">' + records +
       '</div></section><p class="vx-pro-note">Die Archivsumme wird aus allen gespeicherten Touren neu berechnet. Fehlende oder unplausible GPS-Abschnitte werden nicht als Strecke gezählt.</p>';

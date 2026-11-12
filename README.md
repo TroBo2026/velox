@@ -100,7 +100,11 @@ Schräglage, Beschleunigung/Bremsung, Herzfrequenz, Leistung, Trittfrequenz und 
 
 ## Native iOS App
 
-Die technische Grundlage und der Migrationsplan für die eigenständige SwiftUI-App stehen unter [`ios/README.md`](ios/README.md). Die native App wird getrennt von der bestehenden Web-/PWA-Version entwickelt; vorhandene Touren werden über das bestehende VELOX-JSON-Backup übernommen.
+Das Repository enthält jetzt ein vorbereites eigenständiges SwiftUI-Xcode-Projekt unter `ios/VELOX.xcodeproj`. Die native App ist ausdrücklich keine WKWebView-Hülle. Sie nutzt lokale JSON-Sicherung, Core Location und – sofern das Gerät es unterstützt – Core Motion. Die vorhandene Web-/PWA-Version bleibt unverändert nutzbar und wird erst nach erfolgreichen Xcode-, Import-/Export- und iPhone-Tests ersetzt.
+
+Der native Quellcode ist vorbereitet, aber noch **nicht** mit Xcode gebaut oder auf einem iPhone installiert. Öffne auf dem Mac die Datei `ios/VELOX.xcodeproj`, wähle das Schema `VELOX` und baue zunächst für einen iPhone-Simulator. Für den Gerätestart muss Xcode gegebenenfalls eine kostenlose persönliche Signierung einrichten. Eine App-Store-Veröffentlichung ist nicht Teil dieses kostenlosen Vorhabens.
+
+Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punkten als JSON-Werte. Damit bleiben insbesondere bereits vorhandene optionale Web-Felder wie `weather` beim nativen Import-/Export-Rundlauf erhalten. Die vollständige Vorbereitung, bekannte Grenzen und ein 30-Minuten-Mac-Ablauf stehen unter [`ios/README.md`](ios/README.md).
 
 
 ## Tourendetails 0.9

@@ -11,7 +11,7 @@
   let watchId = null;
   let timerId = null;
   let liveMap = null;
-  let liveLine = null;
+  let liveLines = [];
   let liveMarker = null;
   let detailMap = null;
   let personalMap = null;
@@ -306,11 +306,13 @@
       wrappedBar("Über 25 km/h",speed[2]/speedTotal*100,fmtTime(speed[2]),"fast")
     ].join(""):'<p class="small-note">Keine gültigen Bewegungsintervalle.</p>';
     host.innerHTML='<section class="wrapped-hero"><span class="eyebrow">DEIN VELOX WRAPPED</span><h2>Deine Kilometer. Deine Höhenmeter. Deine Geschichte.</h2>'+
-      '<p>Du warst insgesamt <strong>'+fmtTime(totals.movingSeconds)+'</strong> im Sattel, bist <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> gefahren und hast <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' Höhenmeter</strong> gesammelt. Das sind <strong>'+entries.length+' Touren</strong> mit durchschnittlich <strong>'+avgSpeedLabel+'</strong> während der Bewegung.</p></section>'+
-      '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Zeit im Sattel",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Touren",String(entries.length))+metric("Ø Tourdistanz",fmt(totals.distanceM/1000/entries.length)+" km")+metric("Gesamt-VAM",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Geschwindigkeit",avgSpeedLabel)+'</div>'+
+      '<p>Aus <strong>'+entries.length+' gespeicherten Touren</strong> ergibt sich dein persönlicher VELOX-Rückblick: <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> ausgewertete Strecke, <strong>'+fmtTime(totals.movingSeconds)+'</strong> erkannte Bewegungszeit und <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' m</strong> kumulierter GPS-Höhengewinn. Dein durchschnittliches Tempo während gültiger Bewegungsintervalle lag bei <strong>'+avgSpeedLabel+'</strong>.</p>'+
+      '<div class="wrapped-story-grid"><div><span>Deine längste Tour</span><strong>'+(longest?fmt(longest.calc.distanceM/1000,2)+" km":"Noch keine auswertbare Strecke")+'</strong></div><div><span>Dein schnellster voller Kilometer</span><strong>'+(fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):"Noch nicht ermittelt")+'</strong></div><div><span>Dein längster Anstieg</span><strong>'+(climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m":"Noch kein zusammenhängender Anstieg")+'</strong></div></div>'+
+      '<p class="wrapped-hero-note">Jede Zahl entsteht neu aus deinem lokalen Tourenarchiv. Tempo und Distanz nutzen akzeptierte GPS-Abschnitte; fehlende oder unplausible Messpunkte werden nicht künstlich ergänzt.</p></section>'+
+      '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Zeit im Sattel",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Touren",String(entries.length))+metric("Ø Tourdistanz",fmt(totals.distanceM/1000/entries.length)+" km")+metric("VAM · Höhengewinn je Bewegungsstunde",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Geschwindigkeit",avgSpeedLabel)+'</div>'+
       '<section class="panel wrapped-panel"><span class="eyebrow">DEINE BESTLEISTUNGEN</span><h3>Persönliche Rekorde</h3><div class="wrapped-record-grid">'+(records||'<p class="small-note">Noch keine Rekorde berechenbar.</p>')+'</div></section>'+
-      '<section class="panel wrapped-panel"><span class="eyebrow">DEIN FAHRPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="small-note">Nur auswertbare GPS-Höhenabschnitte.</p><h3>Tempo-Zonen</h3>'+speedBars+'<p class="small-note">Pausen und verworfene GPS-Intervalle zählen nicht mit.</p></section>'+
-      '<p class="small-note">Wrapped wird bei jedem Öffnen aus deinem lokalen Archiv neu berechnet. Bestehende Touren werden nicht verändert. GPS-Höhenwerte sind eine gefilterte Näherung. Schräglage, Beschleunigung, Herzfrequenz, Leistung, Trittfrequenz und Kalorien benötigen echte geeignete Sensorquellen und werden hier nicht erfunden.</p>';
+      '<section class="panel wrapped-panel"><span class="eyebrow">DEIN FAHRPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="wrapped-context">'+(terrainTotal?fmt(terrainTotal/1000,2)+' km auswertbare Steigungsabschnitte bilden die Grundlage dieser Verteilung.':'Für diese Verteilung liegen keine ausreichend verlässlichen Höhenabschnitte vor.')+'</p><h3>Tempo-Zonen</h3>'+speedBars+'<p class="wrapped-context">'+(speedTotal?fmtTime(speedTotal)+' erkannte Bewegungszeit bilden die Grundlage der Tempoanteile.':'Für die Tempoverteilung liegen keine gültigen Bewegungsintervalle vor.')+'</p><p class="wrapped-context">Die VAM beschreibt den Höhengewinn pro Bewegungsstunde und wird nur aus Touren mit auswertbaren Steigungsdaten berechnet.</p></section>'+
+      '<p class="wrapped-refresh-note">Dein Rückblick wird beim Öffnen und nach jeder gespeicherten oder importierten Tour frisch aus dem lokalen Archiv berechnet.</p>';
   }
   function setPage(page){
     currentPage=page;
@@ -334,9 +336,20 @@
   }
   function drawLive(points){
     if(!liveMap)return;
-    const coords=points.map(p=>[p.lat,p.lon]);
-    if(liveLine)liveLine.setLatLngs(coords);else liveLine=L.polyline(coords,{color:"#5bd6c5",weight:5,opacity:.95}).addTo(liveMap);
-    if(coords.length){const last=coords[coords.length-1];if(liveMarker)liveMarker.setLatLng(last);else liveMarker=L.circleMarker(last,{radius:7,color:"#07131f",weight:3,fillColor:"#5bd6c5",fillOpacity:1}).addTo(liveMap);liveMap.setView(last,Math.max(liveMap.getZoom(),15));}
+    liveLines.forEach(line=>liveMap.removeLayer(line));
+    liveLines=[];
+    const segments=validRouteSegments(points);
+    segments.forEach(segment=>{
+      const coords=segment.map(point=>[point.lat,point.lon]);
+      if(coords.length>1)liveLines.push(L.polyline(coords,{color:"#5bd6c5",weight:5,opacity:.95,lineCap:"round",lineJoin:"round"}).addTo(liveMap));
+    });
+    const last=points.slice().reverse().find(validRidePoint);
+    if(last){
+      const coordinate=[last.lat,last.lon];
+      if(liveMarker)liveMarker.setLatLng(coordinate);
+      else liveMarker=L.circleMarker(coordinate,{radius:7,color:"#07131f",weight:3,fillColor:"#5bd6c5",fillOpacity:1}).addTo(liveMap);
+      liveMap.setView(coordinate,Math.max(liveMap.getZoom(),15));
+    }
   }
   async function refresh(){
     const rides=await allRides();let distance=0,time=0,elev=0;
@@ -391,22 +404,28 @@
   }
   function updatePersonalMapLayers(){
     if(!personalMap)return;
-    personalLines.forEach(layer=>personalMap.removeLayer(layer));personalLines.clear();
+    personalLines.forEach(layers=>layers.forEach(layer=>personalMap.removeLayer(layer)));
+    personalLines.clear();
     if(personalHeatLayer){personalMap.removeLayer(personalHeatLayer);personalHeatLayer=null;}
     const rides=selectedMapRides().filter(ride=>personalVisibility.get(String(ride.id))!==false);
     const bounds=[];
-    rides.forEach((ride,index)=>{
-      const points=ride.points||[];if(points.length<2)return;
+    rides.forEach(ride=>{
+      const segments=validRouteSegments(Array.isArray(ride.points)?ride.points:[]);
       const color=mapColors[personalRidesCache.indexOf(ride)%mapColors.length];
-      const line=L.polyline(points.map(point=>[point.lat,point.lon]),{color,weight:4,opacity:.82,lineCap:"round",lineJoin:"round"}).addTo(personalMap);
-      personalLines.set(String(ride.id),line);
-      line.getLatLngs().forEach(point=>bounds.push(point));
+      const layers=[];
+      segments.forEach(segment=>{
+        if(segment.length<2)return;
+        const line=L.polyline(segment.map(point=>[point.lat,point.lon]),{color,weight:4,opacity:.82,lineCap:"round",lineJoin:"round"}).addTo(personalMap);
+        layers.push(line);
+        line.getLatLngs().forEach(point=>bounds.push(point));
+      });
+      personalLines.set(String(ride.id),layers);
     });
     if(personalHeatVisible&&rides.length){
       const cells=new Map();
       rides.forEach(ride=>{
         const touched=new Set();
-        (ride.points||[]).forEach(point=>{
+        validRouteSegments(Array.isArray(ride.points)?ride.points:[]).flat().forEach(point=>{
           const key=Math.round(point.lat/0.0005)+":"+Math.round(point.lon/0.0005);
           if(touched.has(key))return;
           touched.add(key);
@@ -429,7 +448,7 @@
   }
   async function renderPersonalMap(){
     personalRidesCache=await allRides();
-    const points=personalRidesCache.flatMap(ride=>ride.points||[]);
+    const points=personalRidesCache.flatMap(ride=>validRouteSegments(Array.isArray(ride.points)?ride.points:[]).flat());
     const box=$("personalMap");
     if(!points.length){
       if(personalMap){personalMap.remove();personalMap=null;}
@@ -447,7 +466,7 @@
   function fitPersonalMap(){
     if(!personalMap)return;
     const points=[];
-    personalLines.forEach(line=>line.getLatLngs().forEach(point=>points.push(point)));
+    personalLines.forEach(layers=>layers.forEach(line=>line.getLatLngs().forEach(point=>points.push(point))));
     if(points.length)personalMap.fitBounds(L.latLngBounds(points),{padding:[24,24],maxZoom:15});
   }
   function renderRideList(container,rides){

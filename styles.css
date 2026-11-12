@@ -121,3 +121,29 @@
   .wrapped-shortcut h3{font-size:15px}
   .wrapped-shortcut p{font-size:11px;line-height:1.5}
 }
+
+
+/* VELOX Wrapped — editorial recap and readable story cards */
+.wrapped-hero{position:relative;overflow:hidden;padding:clamp(20px,5vw,30px);background:radial-gradient(ellipse at 92% 0%,rgba(91,214,197,.19),transparent 48%),linear-gradient(145deg,#172f3c,#0d1b28)}
+.wrapped-hero h2{max-width:620px;font-size:clamp(25px,6vw,36px);letter-spacing:-.045em;line-height:1.12}
+.wrapped-hero>p{max-width:660px;font-size:13px;line-height:1.85}
+.wrapped-story-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:19px 0 13px}
+.wrapped-story-grid>div{display:flex;min-width:0;flex-direction:column;gap:8px;padding:13px;border:1px solid rgba(184,207,221,.16);border-radius:14px;background:rgba(4,16,25,.36)}
+.wrapped-story-grid span{color:var(--muted);font-size:10px;line-height:1.45}
+.wrapped-story-grid strong{font:700 16px Manrope,sans-serif;line-height:1.35;overflow-wrap:anywhere}
+.wrapped-hero .wrapped-hero-note,.wrapped-context,.wrapped-refresh-note{color:var(--muted);font-size:10px;line-height:1.7}
+.wrapped-hero .wrapped-hero-note{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.wrapped-context{margin:9px 0 18px}
+.wrapped-refresh-note{margin:16px 3px 24px;text-align:center}
+.wrapped-panel h3{margin-top:11px}
+.wrapped-kpis .metric-card{min-width:0}
+.wrapped-kpis .metric-card>span{line-height:1.4}
+.more-info{margin-top:16px}
+.more-info>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;cursor:pointer;list-style:none;color:var(--text);font:700 14px Manrope,sans-serif}
+.more-info>summary::-webkit-details-marker{display:none}
+.more-info>summary:after{content:"+";color:var(--teal);font-size:20px;font-weight:400}
+.more-info[open]>summary:after{content:"−"}
+.more-info-body{padding:6px 0 4px;color:var(--muted);font-size:12px;line-height:1.75}
+.more-info-body p:last-child{margin-bottom:0}
+.more-info-body h4{margin:13px 0 5px;color:var(--text);font:700 12px Manrope,sans-serif}
+@media(max-width:520px){.wrapped-story-grid{grid-template-columns:1fr}.wrapped-story-grid>div{padding:11px}.wrapped-hero{padding:18px}}

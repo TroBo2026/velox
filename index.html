@@ -40,7 +40,7 @@
         </div>
         <div class="section-heading recent-heading"><div><span class="eyebrow">ARCHIV</span><h2>Letzte Touren</h2></div><button class="text-button" data-page="rides">Alle anzeigen <svg class="ui-icon inline-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></button></div>
         <div id="recentRides" class="ride-list"><div class="empty-state">Noch keine Touren vorhanden.<br>Starte deine erste VELOX-Aufzeichnung.</div></div>
-        <div class="notice"><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><p>GPS-Höhenwerte können schwanken. VELOX kennzeichnet berechnete Werte und speichert die Rohdaten für spätere Auswertungen.</p></div>
+        <div class="notice"><span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><p>Messqualität und Sensorgrenzen findest du unter „Mehr“.</p></div>
       </section>
 
       <section class="page" id="page-track">
@@ -59,12 +59,12 @@
         </div>
         <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption">GPS-STRECKENVERLAUF</div></div>
         <div class="tracking-actions"><button class="secondary-button" id="pauseRide" disabled>Pause</button><button class="danger-button" id="stopRide" disabled>Tour beenden</button></div>
-        <div class="panel sensor-panel"><span class="eyebrow">SENSORSTATUS</span><div class="sensor-status-grid"><div><span>GPS-Höhe</span><strong id="sensorGpsStatus">Wird geprüft …</strong></div><div><span>Barometer</span><strong id="sensorBarometerStatus">In dieser Web-App nicht verfügbar</strong></div><div><span>Höhenquelle</span><strong id="sensorAltitudeSource">Noch keine Messung</strong></div></div><p>Ein iPhone-Barometer kann VELOX erst über eine native iOS-Anbindung Messwerte liefern. Die Web-App zeigt keine erfundenen Sensordaten an.</p></div>
-        <p class="small-note">Für GPS-Aufzeichnung Standortzugriff erlauben und diese Seite geöffnet halten. Auf iOS kann eine Web-App bei gesperrtem Bildschirm unterbrochen werden.</p>
+        <div class="panel sensor-panel"><span class="eyebrow">SENSORSTATUS</span><div class="sensor-status-grid"><div><span>GPS-Höhe</span><strong id="sensorGpsStatus">Wird geprüft …</strong></div><div><span>Barometer</span><strong id="sensorBarometerStatus">In dieser Web-App nicht verfügbar</strong></div><div><span>Höhenquelle</span><strong id="sensorAltitudeSource">Noch keine Messung</strong></div></div></div>
+        <p class="small-note">Für die Aufzeichnung Standortzugriff erlauben und VELOX während der Fahrt geöffnet lassen.</p>
       </section>
 
       <section class="page" id="page-rides">
-        <div class="page-title"><span class="eyebrow">DEIN ARCHIV</span><h1>Touren</h1><p>Jede Fahrt bleibt separat abrufbar.</p></div>
+        <div class="page-title"><span class="eyebrow">DEIN ARCHIV</span><h1>Touren</h1></div>
         <div id="allRides" class="ride-list"><div class="empty-state">Noch keine gespeicherten Touren.</div></div>
       </section>
 
@@ -74,7 +74,7 @@
       </section>
 
       <section class="page" id="page-stats">
-        <div class="page-title"><span class="eyebrow">AUSWERTUNG</span><h1>Statistiken</h1><p>Zusammenfassung aller gespeicherten Fahrten.</p></div>
+        <div class="page-title"><span class="eyebrow">AUSWERTUNG</span><h1>Statistiken</h1></div>
         <div class="metric-grid stats-grid">
           <article class="metric-card"><span>Distanz gesamt</span><strong id="statsDistance">0 <small>km</small></strong></article>
           <article class="metric-card"><span>Fahrzeit gesamt</span><strong id="statsTime">0 <small>h</small></strong></article>
@@ -86,22 +86,25 @@
         <div class="panel personal-map-panel"><span class="eyebrow">DEINE STRECKEN</span><h3>Persönliche Routenkarte</h3>
           <div class="map-toolbar"><label class="map-select-label">ZEITRAUM<select id="mapDateFilter" aria-label="Zeitraum der Routenkarte"><option value="all">Alle Touren</option><option value="30">Letzte 30 Tage</option><option value="90">Letzte 90 Tage</option><option value="year">Letztes Jahr</option></select></label><button class="map-tool-button" id="mapHeatToggle" type="button" aria-pressed="false">Dichte</button><button class="map-tool-button" id="mapFit" type="button">Alles zeigen</button></div>
           <div id="personalMap" class="detail-map"></div><div id="personalRideFilters" class="map-ride-filters" aria-label="Einzelne Touren ein- oder ausblenden"></div>
-          <p>Alle Strecken bleiben lokal auf deinem Gerät. Die Dichteansicht zählt wiederholt erfasste GPS-Bereiche; Kartenkacheln werden bei Internetverbindung von OpenStreetMap geladen.</p></div>
-        <div class="panel"><span class="eyebrow">HINWEIS ZUR DATENQUALITÄT</span><h3>Messung statt Schätzung</h3><p>Distanz und Geschwindigkeit werden aus GPS-Positionen und Zeitstempeln berechnet. Höhenmeter werden aus einem lokal geglätteten Verlauf der GPS-Höhenwerte berechnet; Änderungen unter 4 m werden nicht zur Summe addiert. Ohne kompatible Sensoren zeigt VELOX keine Herzfrequenz-, Trittfrequenz- oder Leistungsmessungen an.</p></div>
+</div>
+
       </section>
 
       <section class="page" id="page-wrapped">
-        <div class="page-title"><span class="eyebrow">DEIN PERSÖNLICHER RÜCKBLICK</span><h1>Wrapped</h1><p>Deine Gesamtleistung und Bestleistungen aus allen lokal gespeicherten Touren.</p></div>
+        <div class="page-title"><span class="eyebrow">DEIN PERSÖNLICHER RÜCKBLICK</span><h1>Wrapped</h1><p>Deine Touren, Kennzahlen und persönlichen Rekorde.</p></div>
         <div id="wrappedContent" aria-live="polite"><div class="empty-state">Dein Wrapped wird aus deinen gespeicherten Touren berechnet.</div></div>
       </section>
 
       <section class="page" id="page-settings">
-        <div class="page-title"><span class="eyebrow">KONTROLLE</span><h1>Einstellungen</h1><p>Deine Daten bleiben auf diesem Gerät.</p></div>
+        <div class="page-title"><span class="eyebrow">KONTROLLE</span><h1>Mehr</h1><p>Daten, Sicherungen und Informationen.</p></div>
         <div class="panel setting-row wrapped-shortcut"><div><span class="eyebrow">PERSÖNLICHER RÜCKBLICK</span><h3>VELOX Wrapped</h3><p>Gesamtdistanz, Zeit im Sattel, Höhenmeter und persönliche Rekorde.</p></div><button class="secondary-button compact" type="button" data-page="wrapped">Öffnen</button></div>
         <div class="panel setting-row"><div><h3>Daten exportieren</h3><p>Alle Touren als JSON-Sicherung speichern.</p></div><button class="secondary-button compact" id="exportBackup">Export</button></div>
         <div class="panel setting-row"><div><h3>Daten importieren</h3><p>Eine zuvor exportierte VELOX-Sicherung einlesen.</p></div><button class="secondary-button compact" id="importBackup">Import</button><input id="backupFile" type="file" accept="application/json,.json" hidden></div>
         <div class="panel setting-row"><div><h3>Alle Daten löschen</h3><p>Entfernt alle lokal gespeicherten Touren unwiderruflich.</p></div><button class="danger-outline compact" id="deleteAll">Löschen</button></div>
-        <div class="panel"><span class="eyebrow">VERSION 0.9.1</span><h3>VELOX – Your ride. Your world.</h3><p>Testversion 0.9.1 mit erweitertem Tourenarchiv und Wrapped-Rückblick. Noch keine Apple-Watch-Anbindung, keine automatische Herzfrequenz-/Leistungsmessung und keine garantierte Hintergrundaufzeichnung.</p></div>
+        <details class="panel more-info"><summary>Messwerte und Sensoren</summary><div class="more-info-body"><h4>GPS und Höhenprofil</h4><p>Distanz und Geschwindigkeit werden aus gültigen GPS-Positionen und Zeitstempeln berechnet. VELOX verwirft unplausible Sprünge, große Messlücken und ungeeignete Genauigkeitswerte. GPS-Höhenwerte können schwanken; das Höhenprofil wird gefiltert und bleibt eine Näherung, keine vermessene Höhenreferenz.</p><h4>Barometer</h4><p>Safari stellt keinen verlässlichen Zugriff auf den iPhone-Drucksensor bereit. Die Web-App zeichnet deshalb keine nativen Barometerwerte auf. Die native iOS-Version soll Core Motion verwenden, sofern das Gerät den Sensor tatsächlich bereitstellt. Core Motion liefert zunächst relative Höhenänderung und Luftdruck, nicht automatisch die absolute Höhe über dem Meeresspiegel.</p><h4>Weitere Sensoren</h4><p>Kompass, Gyroskop, Beschleunigung, Herzfrequenz, Leistung, Trittfrequenz und Kalorien werden nur angezeigt, wenn eine passende echte Datenquelle vorhanden ist. Telefonbewegung allein ist keine verlässliche Messung der Fahrradbeschleunigung oder Schräglage.</p></div></details>
+        <details class="panel more-info"><summary>Speicherung, Export und Datenschutz</summary><div class="more-info-body"><h4>Lokale Tourdaten</h4><p>Die Web-Version speichert Fahrten lokal im Browser in IndexedDB. VELOX besitzt keinen eigenen Tourenserver und benötigt kein Konto. Vor dem Löschen von Browserdaten oder einer Neuinstallation solltest du unter „Daten exportieren“ eine JSON-Sicherung erstellen.</p><h4>Import</h4><p>Der JSON-v1-Import ergänzt Touren, ohne bestehende Datensätze zu überschreiben. Bei einer ID-Kollision wird die importierte Tour mit einer neuen ID gespeichert. GPX- und JSON-Dateien bleiben unabhängig von der späteren nativen App nutzbar.</p><h4>Karten und Wetter</h4><p>Kartenkacheln werden bei Bedarf von OpenStreetMap geladen. Historische Wetterdaten werden nur nach deiner Zustimmung mit Fahrtdatum und einer repräsentativen GPS-Position bei Open-Meteo abgefragt. Lehnst du ab, kannst du Angaben manuell ergänzen oder überspringen.</p></div></details>
+        <details class="panel more-info"><summary>App-Version, Offline-Nutzung und Grenzen</summary><div class="more-info-body"><h4>Web-/PWA-Version</h4><p>VELOX 0.9.1 bleibt bis zur getesteten Ablösung verfügbar. Die Offline-App-Shell speichert die wichtigsten App-Dateien; Karten und externe Schriftarten können weiterhin eine Internetverbindung benötigen.</p><h4>Aufzeichnung unter iOS</h4><p>iOS kann Safari oder eine installierte Web-App im Hintergrund anhalten. Eine zuverlässige GPS-Aufzeichnung bei gesperrtem Bildschirm wird für die PWA nicht zugesichert. Für einen Test VELOX im Vordergrund geöffnet lassen.</p><h4>Native Entwicklung</h4><p>Die native SwiftUI-Version wird getrennt vorbereitet und soll GPS, Barometer und lokale Sicherungen direkt über iOS-Frameworks nutzen. Ein Xcode-Build und ein echter iPhone-Test stehen noch aus. Die PWA bleibt bis dahin die nutzbare Version.</p><h4>Externe Dienste</h4><p>Es werden keine kostenpflichtigen APIs oder Abonnements vorausgesetzt. Die Karten- und optionalen Wetterdienste haben eigene Datenschutzbedingungen.</p></div></details>
+        <div class="panel"><span class="eyebrow">VERSION 0.9.1</span><h3>VELOX – Your ride. Your world.</h3><p>Lokaler Fahrrad-Tracker · Web-/PWA-Version. Die native iOS-App befindet sich in Vorbereitung und ist noch nicht als lauffähige App bestätigt.</p></div>
       </section>
     </main>
 
