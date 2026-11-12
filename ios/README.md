@@ -1,237 +1,57 @@
-# VELOX Native iOS — Entwicklungsgrundlage
+# VELOX Native iOS — Mac-Testvorbereitung
 
-Stand: 11. November 2026  
-Repository: `TroBo2026/velox` · Branch: `main`  
-Ziel: eigenständige native iPhone-App mit SwiftUI, ohne kostenpflichtige Dienste.
+Stand: 12. November 2026 · Repository `TroBo2026/velox` · Branch `main`
 
-## 1. Zielarchitektur
+## Status
 
-Die native App wird nicht als WKWebView-Hülle umgesetzt. Die bestehende Web-App bleibt vorerst als Referenz und Datenquelle erhalten; die native App erhält eine eigene SwiftUI-Oberfläche und native iOS-Dienste.
+Ein erstes eigenständiges Xcode-Projekt ist unter `ios/VELOX.xcodeproj` angelegt. Es ist eine native SwiftUI-App und keine WebView-Hülle. Das Projekt enthält die SwiftUI-Einstiegsoberfläche sowie die vorhandenen Tour-/GPS-/Barometer-Modelle und Dienste.
 
-| Bereich | Native Umsetzung |
-|---|---|
-| Oberfläche | SwiftUI, NavigationStack, adaptive Layouts |
-| GPS | Core Location (`CLLocationManager`) |
-| Höhenmesser | Core Motion (`CMAltimeter`), sofern Gerät und iOS dies unterstützen |
-| Tourenspeicherung | lokale SwiftData-Datenbank; keine VELOX-Cloud |
-| Karten | zunächst MapKit; Karteninhalte können je nach Gebiet/Cache Internet benötigen |
-| Diagramme | Swift Charts |
-| Sicherung | JSON-Export/Import und GPX-Export über systemeigene Share-/Dateiauswahl |
-| Hintergrundaufzeichnung | Core Location mit expliziter Berechtigung und passender Background-Konfiguration; iOS kann Hintergrundaktivität trotzdem systemseitig begrenzen |
-| Sensor-Zukunft | HealthKit/Bluetooth nur nach separater Planung und nur mit echten Messwerten |
+**Wichtig:** Dieses Projekt wurde hier nicht mit Xcode oder dem Apple iOS SDK kompiliert. Die Projektdatei und SwiftUI-Quellen müssen auf dem Mac erstmals von Xcode geöffnet und validiert werden. Die App ist ein technischer Startpunkt, noch kein vollständiger Touren-Tracker. Es gibt noch keine native GPS-Aufzeichnung, kein Tourenarchiv, keine produktive Datenbank und keine abgeschlossene Datenmigration.
 
-**Mindestziel:** iOS 17 als vorläufige Basis (SwiftData und moderne SwiftUI-APIs). Vor dem Anlegen des Xcode-Projekts wird die gewünschte Mindestversion noch einmal geprüft.
+## Auf dem MacBook Air M3
 
-## 2. Bestehendes Tourenformat — muss kompatibel bleiben
+1. Prüfen, dass macOS aktuell genug für die installierte Xcode-Version ist.
+2. Xcode kostenlos aus dem Mac App Store installieren: https://apps.apple.com/app/xcode/id497799835
+3. Xcode einmal starten und die Lizenz/zusätzlichen Komponenten abschließen. Dafür kann ein Administratorpasswort erforderlich sein.
+4. Dieses Repository über GitHub Desktop oder Terminal klonen, oder als ZIP von GitHub laden und entpacken.
+5. `ios/VELOX.xcodeproj` öffnen (nicht den Repository-Ordner und nicht die Web-Datei).
+6. Oben das Schema `VELOX` und zunächst einen iPhone-Simulator wählen.
+7. Unter Signing & Capabilities zunächst automatische Signierung nur konfigurieren, wenn ein echter Gerätetest durchgeführt wird. Ein Simulator-Build benötigt keine Apple-ID-Signierung.
+8. Erst `Product > Build` für den Simulator versuchen. Buildfehler vollständig notieren; nicht durch kostenpflichtige Dienste umgehen.
 
-Die Web-App speichert in IndexedDB (`velox-local`, Store `rides`). Der vorhandene JSON-Backup-Container lautet:
+## 30-Minuten-Testablauf
 
-```json
-{
-  "app": "VELOX",
-  "version": 1,
-  "exportedAt": "ISO-8601-Datum",
-  "rides": []
-}
-```
+- 0–5 min: Xcode öffnen, Projekt laden, automatische Projektkonvertierung prüfen.
+- 5–12 min: Simulator als Ziel wählen und Build starten.
+- 12–20 min: Falls der Build gelingt, App starten und Übersicht/Sensorstatus/Mehr durchklicken.
+- 20–30 min: Build-/Signing-Fehler dokumentieren. Nur bei genügend Zeit und ausdrücklicher Freigabe den iPhone-Test versuchen.
 
-Eine Tour enthält mindestens:
+Ein Gerätetest kann an der kostenlosen persönlichen Signierung, dem Apple-Account, Gerätevertrauen oder Xcode-Provisioning scheitern. Keine kostenpflichtige Developer-Mitgliedschaft aktivieren. Keine fremde Apple-ID ohne ausdrückliche Zustimmung des Kontoinhabers verwenden. Für einen Simulator-Test ist keine Apple-ID nötig.
 
-- `id`: stabile ID (String)
-- `name`: Tourname
-- `startedAt`, `endedAt`: Unix-Zeit in Millisekunden
-- `pausedMs`, optional `pauseStarted`
-- `status`: z. B. `recording`, `paused`, `completed`
-- `points`: Array der GPS-Messpunkte
+## Daten und Sicherheit
 
-Jeder Messpunkt enthält:
+- Die Web-/PWA-Version bleibt unverändert verfügbar.
+- Der vorhandene JSON-v1-Codec ist vorbereitet, aber noch nicht verlustfrei gegenüber beliebigen unbekannten Zusatzfeldern. Deshalb keine produktive Datenmigration und keine Löschung/Überschreibung vornehmen.
+- Vorhandene Touren müssen zunächst aus der Web-App als JSON gesichert werden. Der Import wird erst nach echten Rundlauf- und Kollisions-Tests freigegeben.
+- Core Motion wird nur bei gemeldeter Sensorverfügbarkeit verwendet. Relative Höhe wird nicht als absolute Meereshöhe ausgegeben.
+- Es werden keine kostenpflichtigen APIs, Build-Dienste oder Add-ons verwendet.
 
-- `lat`, `lon`: Koordinaten in Grad
-- `t`: Unix-Zeit in Millisekunden
-- `alt`, `altAccuracy`, `altSource`, `pressureKPa`: optionale Höhen-/Druckwerte
-- `accuracy`: horizontale GPS-Genauigkeit in Metern
+## Enthaltene Dateien
 
-### Migrationsregeln
+- `VELOX.xcodeproj/project.pbxproj`: minimales iOS-App-Projekt (iOS 17.0 als vorläufiges Deployment Target).
+- `VELOX/App/VELOXApp.swift`, `RootView.swift`: SwiftUI-App-Einstieg und erste native Oberfläche.
+- `VELOX/Models/*`: Tour-, GPS- und Barometer-Grundmodelle.
+- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein und JSON-v1-Codec.
 
-1. Die native App muss den JSON-Backup-Container mit `app = VELOX` und `version = 1` lesen können.
-2. Vorhandene Touren werden niemals still überschrieben oder gelöscht.
-3. Bei ID-Kollisionen erhält der importierte Datensatz eine neue ID; die ursprüngliche ID wird als Herkunftsinformation bewahrt.
-4. Der aktuelle Swift-Codec übernimmt die bekannten VELOX-v1-Felder sowie die dokumentierten nativen Erweiterungen. Beliebige unbekannte Zusatzfelder werden derzeit nicht verlustfrei konserviert; vor einem produktiven Rundlauf muss das Datenmodell mit dem vollständigen realen Export abgeglichen werden.
-5. Import erfolgt transaktional: Bei Fehlern bleibt der bisherige Datenbestand unverändert.
-6. Export aus der nativen App bleibt mit dem Web-Prototyp kompatibel.
-7. Vor dem ersten Import wird eine Sicherung des bestehenden Datenbestands empfohlen. Die Web-App bietet dafür „JSON-Sicherung exportieren“.
+## Noch offen
 
-**Wichtig:** IndexedDB-Daten werden nicht automatisch von Safari in eine native App übertragen. Der sichere erste Weg ist: Web-App öffnen → JSON-Sicherung exportieren → Datei in der nativen App importieren.
+1. Xcode-Projektdatei auf dem Mac validieren und ersten Simulator-Build erstellen.
+2. Unbekannte JSON-Felder verlustfrei erhalten; vorher keinen produktiven Import/Export-Rundlauf erlauben.
+3. JSON-Codec mit XCTest gegen echte Web-v1-Beispiele testen, insbesondere ID-Kollisionen.
+4. Native Tourenspeicherung, Core Location Recorder, Pause/Fortsetzen/Stoppen implementieren.
+5. Höhenfusion, Sensorsegmentierung und Filterung mit reproduzierbaren Tests absichern.
+6. Erst danach iPhone XR testen. Keine Veröffentlichung oder native Ablösung vor bestandenem Gerätetest.
 
-## 3. Mess- und Berechnungsregeln
+## Kosten
 
-Die nativen Messdienste liefern Rohdaten. Die fachliche Berechnung bleibt separat und testbar.
-
-- Distanz, Zeit, Bewegungszeit und Geschwindigkeit müssen dieselben akzeptierten Bewegungsintervalle verwenden.
-- GPS-Sprünge, unplausible Zeitabstände, schlechte Genauigkeit und unrealistische Geschwindigkeiten werden markiert bzw. ausgeschlossen.
-- Höhenwerte erhalten Quelle und Genauigkeit. GPS-Höhe und Barometerhöhe dürfen nicht als gleichwertig behandelt werden.
-- `CMAltimeter` liefert relative Druck-/Höhenänderungen, keine automatisch garantierte absolute Meereshöhe. Eine Referenz-/Kalibrierungsstrategie ist erforderlich.
-- Höhenmeter werden aus gefilterten, segmentierten Daten berechnet. Pausen, GPS-Lücken und Sensorwechsel dürfen keine künstlichen Anstiege erzeugen.
-- Herzfrequenz, Leistung, Kadenz und Kalorien werden nur dargestellt, wenn eine echte, autorisierte Datenquelle vorhanden ist.
-
-Die bestehenden Filter und Analysefunktionen aus `app.js` und `analysis-pro.js` dienen als Referenz, werden aber nicht ungeprüft in Swift kopiert. Sie erhalten native Unit-Tests mit synthetischen und später anonymisierten Teststrecken.
-
-## 4. Geplante App-Module
-
-Vorgesehene Struktur für das Xcode-Projekt:
-
-```text
-ios/
-  README.md
-  VELOX/
-    App/
-      VELOXApp.swift
-      AppState.swift
-    Models/
-      Ride.swift
-      RidePoint.swift
-      BarometerSample.swift
-    Services/
-      LocationRecorder.swift
-      BarometerService.swift
-      RideStore.swift
-      RideImporter.swift
-      RideExporter.swift
-      RideAnalyzer.swift
-    Features/
-      Dashboard/
-      Recording/
-      RideArchive/
-      RideDetail/
-      Statistics/
-      Settings/
-    Resources/
-      Assets.xcassets/
-    Tests/
-      RideAnalyzerTests.swift
-      RideImportExportTests.swift
-```
-
-Die endgültige Ordnerstruktur wird mit dem Xcode-Projekt angelegt. Diese Datei ist zunächst die verbindliche technische Spezifikation, kein bereits kompilierbares Xcode-Projekt.
-
-## 5. Datenschutz und Berechtigungen
-
-- Keine Anmeldung und kein VELOX-Backend.
-- Touren bleiben standardmäßig auf dem Gerät.
-- Standortberechtigung wird erst beim Start einer Aufzeichnung angefragt und verständlich erklärt.
-- Hintergrundstandort wird nur für eine ausdrücklich gestartete Tour genutzt und muss in iOS transparent beschrieben werden.
-- Keine Standortdaten an Analyse- oder Werbedienste senden.
-- Keine geheimen Schlüssel, Tokens oder privaten Daten ins Repository committen.
-- Kartenanbieter und deren Netzwerkanfragen werden in der Datenschutzerklärung offengelegt.
-
-## 6. Kostenlose Entwicklungs- und Teststrategie
-
-- Swift, SwiftUI, Core Location, Core Motion, SwiftData, MapKit und Swift Charts sind Apple-Frameworks; für ihre lokale Nutzung wird kein externer API-Schlüssel benötigt.
-- Keine kostenpflichtigen Karten-, Wetter-, KI- oder Cloud-APIs einbauen.
-- Für das Kompilieren und Installieren einer nativen iOS-App wird ein Mac mit einer passenden Xcode-Version benötigt. Ein iPad allein kann Xcode-Projekte nicht nativ kompilieren.
-- Lokale Entwicklung und Gerätetests können ohne kostenpflichtige Drittanbieter-Dienste vorbereitet werden. Eine Veröffentlichung im App Store ist ein separater Schritt und kann eine kostenpflichtige Apple-Developer-Mitgliedschaft erfordern; sie ist nicht Teil dieses kostenlosen Entwicklungsziels.
-
-## 7. Umsetzungsreihenfolge
-
-1. Xcode-Projekt und SwiftUI-App-Shell anlegen.
-2. Datenmodelle + JSON-v1-Import/Export implementieren und mit Testdateien absichern.
-3. Tourenarchiv und Detailansicht aus lokalen Daten aufbauen.
-4. Core-Location-Aufzeichnung mit Start/Pause/Fortsetzen/Stoppen ergänzen.
-5. Analyzer portieren und mit denselben Testfällen gegen die Web-Version vergleichen.
-6. Core-Motion-Höhenmesser optional ergänzen; Geräteverfügbarkeit und Kalibrierung sichtbar machen.
-7. Karten, Höhenprofil, Splits und Statistiken ergänzen.
-8. iPhone-Tests: Berechtigungen, Display aus, Hintergrund, Energiesparen, GPS-Lücken, App-Neustart und Import/Export.
-9. Erst nach erfolgreicher Datenmigration und realen Gerätetests die native App als primäre VELOX-Version festlegen.
-
-## 8. Abnahmekriterien
-
-- Kein Verlust oder Überschreiben vorhandener Touren beim Import.
-- Web-JSON-v1 kann importiert und wieder exportiert werden.
-- Touraufzeichnung funktioniert mit erteilter Berechtigung; Fehlerzustände sind sichtbar.
-- Aufzeichnung übersteht App-Neustart oder stellt einen unvollständigen Datensatz nachvollziehbar wieder her.
-- Höhenprofil kennzeichnet Datenqualität und Sensorquelle.
-- Keine erfundenen Sensorwerte.
-- Kernfunktionen ohne Internet nutzbar; Online-Kartenabhängigkeit wird klar angezeigt.
-- Build, Unit-Tests und reale iPhone-Tests sind dokumentiert.
-
-## 9. iPad-only Entwicklungsweg (ohne Mac)
-
-Da aktuell kein Mac mit Xcode verfügbar ist, wird die native Umsetzung in zwei Phasen geplant:
-
-- **Phase A — Vorbereitung auf iPad:** Swift-Quellcode, Datenmodelle, Sensor-Service-Schnittstellen, Berechnungslogik und Tests im Repository entwickeln. Diese Arbeit kann vorbereitet und geprüft werden, aber ein iPad führt keinen vollständigen Xcode-iOS-Build aus.
-- **Phase B — Build und Installation:** Für eine echte native iOS-App wird später ein Mac mit Xcode benötigt (z. B. eigener, geliehener oder zugänglicher Mac). Ein Cloud-Build wäre nur nach gesonderter Prüfung zulässig und darf keine kostenpflichtigen Dienste oder Abos voraussetzen.
-- Keine Umstellung auf eine bloße WebView-Hülle als Ersatz für native Funktionen. Bis ein iOS-Build möglich ist, bleibt die bestehende PWA als nutzbare Version bestehen.
-
-## 10. Barometer als Kernfunktion der Höhenmessung
-
-Der barometrische Höhenmesser ist ein priorisiertes VELOX-Modul.
-
-### Technische Umsetzung
-
-- `CMAltimeter.isRelativeAltitudeAvailable()` prüfen, bevor der Dienst gestartet wird.
-- Messwerte über `CMAltimeter.startRelativeAltitudeUpdates(to:withHandler:)` erfassen.
-- Druck (`pressure`, kPa) und relative Höhenänderung (`relativeAltitude`, Meter) mit Zeitstempel protokollieren.
-- Sensorverfügbarkeit, Berechtigung bzw. Systemfehler und Messqualität in der Oberfläche verständlich anzeigen.
-- Druck-/Höhenänderungen während einer Tour mit GPS-Höhe und GPS-Qualität fusionieren. Der Barometerwert ist eine relative Änderung und wird nicht ungeprüft als absolute Meereshöhe ausgegeben.
-- Startreferenz zu Tourbeginn erfassen; bei längeren Touren Drift überwachen und GPS-Höhe nur dann als Korrektur verwenden, wenn ihre Genauigkeit ausreichend ist.
-- Sensorwerte mit GPS-Zeitachse synchronisieren. Pausen, App-Unterbrechungen, fehlende Messwerte und starke Drucksprünge als getrennte Segmente behandeln.
-- Glättung und Ausreißerfilter dürfen echte kurze Anstiege nicht entfernen. Höhengewinn und -verlust werden mit Hysterese/Qualitätsschwellen berechnet und in Tests gegen bekannte Profile geprüft.
-
-### Datenmodell-Erweiterung
-
-Neue Barometer-Samples werden als eigene optionale Messreihe je Tour gespeichert, beispielsweise:
-
-```json
-{
-  "pressureKPa": 98.7,
-  "relativeAltitudeM": 12.4,
-  "timestampMs": 1790000000000,
-  "source": "coreMotionBarometer",
-  "accuracy": null
-}
-```
-
-Das ist ein Vorschlag für die native Erweiterung, keine Änderung am bestehenden Web-v1-Format. Beim Export/Import werden optionale Felder rückwärtskompatibel behandelt. Alte Touren ohne Barometerdaten bleiben vollständig lesbar.
-
-### Grenzen und Testpflicht
-
-- Nicht jedes iPhone-Modell besitzt einen zugänglichen Barometersensor; Verfügbarkeit wird zur Laufzeit geprüft.
-- Der Barometerwert ist wetter- und druckabhängig. Ohne Referenz kann er über längere Zeit driften.
-- Die native Barometerintegration ist erst nach Build und Test auf einem unterstützten iPhone als funktionsfähig bestätigt.
-- Vorher wird kein Barometer-Sensorstatus als „verbunden“ ausgegeben und es werden keine künstlichen Druck- oder Höhenwerte erzeugt.
-
-
-## 11. Erste native Swift-Bausteine im Repository
-
-Vorbereitet (Quellcode, noch nicht mit Xcode kompiliert):
-
-- `ios/VELOX/Models/Ride.swift`: Grundmodell einer VELOX-Tour mit optionaler `barometerSamples`-Messreihe.
-- `ios/VELOX/Models/RidePoint.swift`: GPS-Punkt mit den bestehenden VELOX-v1-Schlüsseln.
-- `ios/VELOX/Models/BarometerSample.swift`: typisierter, zeitgestempelter Druck-/Relativhöhenmesspunkt.
-- `ios/VELOX/Services/BarometerService.swift`: Core-Motion-Service mit Laufzeitprüfung der Sensorverfügbarkeit, Start/Stop, Fehlerstatus und ausschließlich echten Hardwaremesswerten.
-
-Die native Tour kann optionale `barometerSamples` enthalten. Die bestehende Web-v1-Datei bleibt unverändert; ein alter Export ohne dieses Feld muss weiterhin dekodierbar sein. Vor produktiver Nutzung müssen JSON-Rundlauf, Swift-Compiler, unterstützte iPhone-Hardware und reale Sensoraufzeichnung getestet werden. Der aktuelle Stand ist ein Code-Gerüst und noch keine bestätigte Geräteintegration.
-
-## 12. JSON-v1-Codec — erster Import-/Export-Baustein
-
-`ios/VELOX/Services/RideBackupCodec.swift` enthält jetzt einen isolierten Codec für den vorhandenen Backup-Container:
-
-- prüft `app == "VELOX"` und `version == 1`;
-- validiert Tour-IDs, Zeitwerte, GPS-Koordinaten und vorhandene Barometerwerte;
-- bricht bei ungültigen Datensätzen vollständig ab, statt teilweise zu importieren;
-- remappt IDs, die bereits lokal oder früher in derselben Datei vorkommen, und speichert die ursprüngliche ID in `importedFromId`;
-- exportiert wieder den Container mit `app`, `version`, `exportedAt` und `rides`.
-
-Der Codec schreibt noch nicht selbst in SwiftData. Die aufrufende Speicherschicht muss alle zurückgegebenen Touren in **einer Datenbanktransaktion** speichern, damit ein fehlgeschlagener Import keine Teildaten hinterlässt. Außerdem ist der Swift-Code noch nicht mit Xcode kompiliert und es liegen noch keine Unit-Test- oder iPhone-Ergebnisse vor. Vor einem produktiven Export/Import muss ein vollständiger echter VELOX-Backup-Datensatz gegen alle Modellfelder geprüft werden.
-
-## 13. Barometer-Kalibrierung — GPS-Referenz statt erfundener Meereshöhe
-
-`ios/VELOX/Services/BarometerElevationCalibrator.swift` ergänzt den Sensor-Service um eine reine, testbare Kalibrierungsfunktion:
-
-- Eine GPS-Höhe wird nur als Referenz akzeptiert, wenn ihre vertikale Genauigkeit innerhalb der konfigurierten Grenze liegt (Standard: höchstens 10 m).
-- GPS-Referenz und erste Barometer-Baseline müssen zeitlich nahe beieinander liegen (Standard: höchstens 10 Sekunden).
-- Die relative Höhenänderung wird gegenüber der Baseline berechnet und auf die GPS-Referenz aufgesetzt.
-- Eine spätere gute GPS-Höhe kann als Driftvergleich dienen. Die Funktion meldet die Abweichung, korrigiert sie aber nicht automatisch.
-- Fehlende oder ungenaue Referenzen führen zu einem klaren Fehler statt zu einer scheinbar absoluten Höhe.
-
-Das ist zunächst ein Kalibrierungsbaustein, noch keine vollständige Höhenprofil-Pipeline. Segmentierung bei Pausen/Sensorneustarts, Driftbehandlung, Glättung und die Integration in die laufende Aufzeichnung müssen folgen. Die Grenzwerte sind Startwerte und müssen anhand echter XR-Touren validiert werden.
+Ziel bleibt 0 €. Xcode und die lokalen Apple-Frameworks sind kostenlos. App-Store-Veröffentlichung und kostenpflichtige Apple-Developer-Mitgliedschaft sind ausdrücklich nicht Teil dieses Plans.
