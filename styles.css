@@ -147,3 +147,14 @@
 .more-info-body p:last-child{margin-bottom:0}
 .more-info-body h4{margin:13px 0 5px;color:var(--text);font:700 12px Manrope,sans-serif}
 @media(max-width:520px){.wrapped-story-grid{grid-template-columns:1fr}.wrapped-story-grid>div{padding:11px}.wrapped-hero{padding:18px}}
+
+
+/* VELOX live tracking refinement */
+.track-start-button{margin:2px 0 16px;min-height:56px;padding:16px 18px;touch-action:manipulation}
+.track-start-button[hidden]{display:none!important}
+.track-start-button .button-play{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:rgba(5,32,31,.12)}
+.track-start-button .button-arrow{font-size:18px}
+.live-grid>div{min-height:82px}
+.live-grid strong{font-variant-numeric:tabular-nums}
+.detail-section .detail-metrics{margin-top:13px}
+@media(max-width:390px){.track-start-button{min-height:54px}.live-grid>div{padding:13px}}
