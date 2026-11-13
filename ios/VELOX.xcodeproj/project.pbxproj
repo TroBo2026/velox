@@ -26,7 +26,7 @@
   B10000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarometerService.swift; sourceTree = "<group>"; };
   B10000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarometerElevationCalibrator.swift; sourceTree = "<group>"; };
   B10000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideBackupCodec.swift; sourceTree = "<group>"; };
-  B10000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "VELOX-Info.plist"; sourceTree = "<group>"; };
+  B10000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "VELOX/VELOX-Info.plist"; sourceTree = "<group>"; };
   B10000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = VELOX.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
