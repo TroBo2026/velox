@@ -6,6 +6,7 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 ## Aktueller Stand – Version 0.9.1
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start direkt auf der Track-Seite oder auf der Startseite
+- Offline-Aufzeichnung: GPS-Punkte werden lokal in IndexedDB gespeichert; ohne Verbindung zeigt VELOX eine schematische Offline-Strecke, nach Wiederverbindung können Kartendaten nachgeladen werden
 - Modulare Sensor-Schnittstelle: GPS-Höhe plus optionale, validierte native Barometerwerte; Qualitätsgewichtung anhand der gemeldeten Genauigkeit
 - Sensorstatus in der Live-Ansicht: GPS-Höhe, Barometerverfügbarkeit und tatsächlich verwendete Höhenquelle
 - Native Bridge-Vertrag: `velox:native-altimeter` mit `altitudeM`, `accuracyM`, `pressureKPa` und optionalem Zeitstempel; ohne native Quelle bleibt VELOX bei GPS
