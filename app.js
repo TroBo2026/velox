@@ -867,6 +867,7 @@
       }
       renderElevation(r.points);
       renderSpeedProfile(r.points);
+      if(navigator.onLine&&!window.L)ensureLeaflet().then(restoreOnlineMaps);
     },180);
     $("exportGpx").onclick=()=>exportGPX(r);
     $("deleteRide").onclick=async()=>{if(confirm("Diese Tour dauerhaft löschen?")){await dbRequest("readwrite","delete",r.id);showToast("Tour gelöscht.");setPage("rides");}};
