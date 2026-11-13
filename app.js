@@ -16,6 +16,8 @@
   let liveLines = [];
   let liveMarker = null;
   let detailMap = null;
+  let lastDetailRide = null;
+  let leafletLoadPromise = null;
   let personalMap = null;
   let personalLines = new Map();
   let personalRidesCache = [];
@@ -375,14 +377,45 @@
     const nav=e.target.closest("[data-page]");
     if(nav){e.preventDefault();setPage(nav.dataset.page);}
   });
+  function renderOfflineRoute(elementId,points){
+    const host=$(elementId);if(!host)return;
+    const segments=validRouteSegments(points),all=segments.flat();
+    if(!all.length){
+      host.innerHTML='<div class="offline-map-empty">GPS wird gesucht. Die Aufzeichnung kann auch ohne Internet starten.</div>';
+      return;
+    }
+    const lats=all.map(p=>p.lat),lons=all.map(p=>p.lon);
+    const minLat=Math.min(...lats),maxLat=Math.max(...lats),minLon=Math.min(...lons),maxLon=Math.max(...lons);
+    const latSpan=Math.max(0.00005,maxLat-minLat),lonSpan=Math.max(0.00005,maxLon-minLon);
+    const pad=24,width=640,height=320,innerW=width-pad*2,innerH=height-pad*2;
+    const cos=Math.max(.15,Math.cos(((minLat+maxLat)/2)*Math.PI/180));
+    const ratio=lonSpan*cos/latSpan;
+    let plotW=innerW,plotH=innerH;
+    if(ratio>innerW/innerH)plotH=innerW/ratio;else plotW=innerH*ratio;
+    const offsetX=pad+(innerW-plotW)/2,offsetY=pad+(innerH-plotH)/2;
+    const project=p=>[offsetX+((p.lon-minLon)/lonSpan)*plotW,offsetY+(1-(p.lat-minLat)/latSpan)*plotH];
+    const grid=[];
+    for(let i=1;i<5;i++){
+      const x=pad+innerW*i/5,y=pad+innerH*i/5;
+      grid.push('<line x1="'+x+'" y1="'+pad+'" x2="'+x+'" y2="'+(height-pad)+'"/><line x1="'+pad+'" y1="'+y+'" x2="'+(width-pad)+'" y2="'+y+'"/>');
+    }
+    const paths=segments.map(segment=>segment.length>1?'<polyline points="'+segment.map(p=>project(p).join(",")).join(" ")+'"/>':"").join("");
+    const first=all[0],last=all[all.length-1],a=project(first),b=project(last);
+    host.innerHTML='<div class="offline-map-wrap"><svg class="offline-route-svg" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Offline-Streckenansicht der aufgezeichneten GPS-Route">'+
+      '<g class="offline-map-grid">'+grid.join("")+'</g><g class="offline-route-lines">'+paths+'</g>'+
+      '<circle class="offline-route-start" cx="'+a[0]+'" cy="'+a[1]+'" r="7"/><circle class="offline-route-end" cx="'+b[0]+'" cy="'+b[1]+'" r="7"/></svg>'+
+      '<span class="offline-map-caption">Offline-Streckenansicht · '+all.length+' GPS-Punkte</span></div>';
+  }
   function initMap(elementId,center=[51.05,13.74],options={}){
     if(!window.L)return null;
-    const map=L.map(elementId,{zoomControl:true,attributionControl:true,...options}).setView(center,13);
+    const host=$(elementId);if(!host)return null;
+    host.innerHTML="";
+    const map=L.map(host,{zoomControl:true,attributionControl:true,...options}).setView(center,13);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
     return map;
   }
   function drawLive(points){
-    if(!liveMap)return;
+    if(!liveMap){renderOfflineRoute("liveMap",points);return;}
     liveLines.forEach(line=>liveMap.removeLayer(line));
     liveLines=[];
     const segments=validRouteSegments(points);
@@ -396,6 +429,44 @@
       if(liveMarker)liveMarker.setLatLng(coordinate);
       else liveMarker=L.circleMarker(coordinate,{radius:7,color:"#07131f",weight:3,fillColor:"#5bd6c5",fillOpacity:1}).addTo(liveMap);
       liveMap.setView(coordinate,Math.max(liveMap.getZoom(),15));
+    }
+  }
+  function ensureLeaflet(){
+    if(window.L)return Promise.resolve(true);
+    if(leafletLoadPromise)return leafletLoadPromise;
+    leafletLoadPromise=new Promise(resolve=>{
+      let css=document.querySelector('link[data-velox-leaflet]');
+      if(!css){css=document.createElement("link");css.rel="stylesheet";css.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";css.dataset.veloxLeaflet="true";document.head.appendChild(css);}
+      const script=document.createElement("script");
+      script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload=()=>resolve(!!window.L);
+      script.onerror=()=>resolve(false);
+      document.head.appendChild(script);
+    }).finally(()=>{if(!window.L)leafletLoadPromise=null;});
+    return leafletLoadPromise;
+  }
+  async function restoreOnlineMaps(){
+    if(!navigator.onLine||!await ensureLeaflet())return;
+    if(currentPage==="track"&&activeRide){
+      liveMap=liveMap||initMap("liveMap",activeRide.points.length?[activeRide.points.at(-1).lat,activeRide.points.at(-1).lon]:[51.05,13.74]);
+      if(liveMap){liveLines=[];liveMarker=null;drawLive(activeRide.points);setTimeout(()=>liveMap&&liveMap.invalidateSize(),80);}
+    }
+    if(currentPage==="detail"&&lastDetailRide){
+      const routeSegments=validRouteSegments(lastDetailRide.points);
+      const first=routeSegments[0]?.[0]||lastDetailRide.points.find(validRidePoint);
+      detailMap=initMap("detailMap",first?[first.lat,first.lon]:[51.05,13.74]);
+      if(detailMap&&routeSegments.length){
+        const bounds=[];
+        routeSegments.forEach((segment,index)=>{
+          const line=L.polyline(segment.map(p=>[p.lat,p.lon]),{color:"#5bd6c5",weight:5,opacity:.95,lineCap:"round",lineJoin:"round"}).addTo(detailMap);
+          line.getLatLngs().forEach(point=>bounds.push(point));
+          if(index===0)L.circleMarker([segment[0].lat,segment[0].lon],{radius:6,color:"#07131f",weight:2,fillColor:"#5bd6c5",fillOpacity:1}).addTo(detailMap);
+        });
+        const last=routeSegments[routeSegments.length-1].at(-1);
+        L.circleMarker([last.lat,last.lon],{radius:6,color:"#07131f",weight:2,fillColor:"#d9b879",fillOpacity:1}).addTo(detailMap);
+        if(bounds.length)detailMap.fitBounds(bounds,{padding:[20,20]});
+        setTimeout(()=>detailMap&&detailMap.invalidateSize(),80);
+      }
     }
   }
   async function refresh(){
@@ -727,6 +798,7 @@
   }
   async function openDetail(id){
     const r=(await allRides()).find(x=>x.id===id);if(!r)return;
+    lastDetailRide=r;
     const c=calcRide(r),stops=getRideStopStats(r),date=new Date(r.startedAt).toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),startTime=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),endTime=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"–",weather=r.weather||null;
     const elevationCards=
       metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+
@@ -785,6 +857,8 @@
         const last=routeSegments[routeSegments.length-1].at(-1);
         L.circleMarker([last.lat,last.lon],{radius:6,color:"#07131f",weight:2,fillColor:"#d9b879",fillOpacity:1}).addTo(detailMap).bindPopup("Ende des aufgezeichneten Abschnitts");
         if(bounds.length)detailMap.fitBounds(bounds,{padding:[20,20]});
+      }else if(!detailMap){
+        renderOfflineRoute("detailMap",r.points);
       }else{
         $("detailMap").innerHTML='<div class="empty-state">Für diese Fahrt liegen keine ausreichend zusammenhängenden GPS-Abschnitte vor.</div>';
       }
@@ -956,6 +1030,14 @@
     catch(e){showToast("Lokale Datenbank konnte nicht geöffnet werden.");console.error(e);}
     if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
     if(window.L)liveMap=initMap("liveMap");
+    else if(!navigator.onLine)renderOfflineRoute("liveMap",[]);
+    window.addEventListener("online",()=>{
+      if(activeRide&&$("trackingStatus"))$("trackingStatus").textContent="Verbindung wieder da · GPS-Aufzeichnung läuft lokal weiter";
+      restoreOnlineMaps();
+    });
+    window.addEventListener("offline",()=>{
+      if(activeRide&&$("trackingStatus"))$("trackingStatus").textContent="Offline · GPS-Aufzeichnung wird lokal gespeichert";
+    });
     updateSensorStatus(null);
     syncTrackStartButton();
     if(window.VELOXSensors)window.VELOXSensors.subscribe(sample=>{if(activeRide&&activeRide.status==="recording")$("trackingStatus").textContent="Barometerdaten empfangen";});
