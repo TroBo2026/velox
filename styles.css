@@ -158,3 +158,14 @@
 .live-grid strong{font-variant-numeric:tabular-nums}
 .detail-section .detail-metrics{margin-top:13px}
 @media(max-width:390px){.track-start-button{min-height:54px}.live-grid>div{padding:13px}}
+
+
+/* Offline route preview: GPS points remain viewable without map tiles */
+.offline-map-wrap{position:relative;width:100%;height:100%;min-height:230px;overflow:hidden;border-radius:inherit;background:linear-gradient(145deg,rgba(91,214,197,.055),rgba(217,184,121,.035)),var(--panel)}
+.offline-route-svg{display:block;width:100%;height:100%;min-height:230px}
+.offline-map-grid line{stroke:rgba(155,178,190,.14);stroke-width:1;stroke-dasharray:4 8}
+.offline-route-lines polyline{fill:none;stroke:#5bd6c5;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.offline-route-start{fill:#5bd6c5;stroke:#07131f;stroke-width:2;vector-effect:non-scaling-stroke}
+.offline-route-end{fill:#d9b879;stroke:#07131f;stroke-width:2;vector-effect:non-scaling-stroke}
+.offline-map-caption{position:absolute;left:12px;bottom:10px;padding:6px 9px;border-radius:8px;background:rgba(7,19,31,.78);color:#dce7eb;font-size:11px;letter-spacing:.02em}
+.offline-map-empty{display:grid;place-items:center;min-height:220px;padding:24px;text-align:center;color:var(--muted);font-size:13px}
