@@ -3,7 +3,7 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.9.1
+## Aktueller Stand – Version 0.9.2
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start direkt auf der Track-Seite oder auf der Startseite
 - Offline-Aufzeichnung: GPS-Punkte werden lokal in IndexedDB gespeichert; ohne Verbindung zeigt VELOX eine schematische Offline-Strecke, nach Wiederverbindung können Kartendaten nachgeladen werden
@@ -144,3 +144,14 @@ Der Wrapped-Einstieg befindet sich unter „Mehr“ und besitzt auf schmalen Dis
 8. Kompasskalibrierung und stabile, feste Telefonmontage sind erst für einen späteren nativen Sensortest relevant. Telefonbewegung ist ohne definierte Montage keine verlässliche Fahrrad-Beschleunigung oder Schräglage.
 
 **Grenze:** iOS kann Safari/PWAs im Hintergrund anhalten. VELOX verspricht keine zuverlässige GPS-Aufzeichnung bei gesperrtem Bildschirm. Der native Swift-Code ist vorbereitet, aber ohne Mac/Xcode weder als iOS-App gebaut noch auf einem iPhone installiert oder getestet.
+
+
+## VELOX 0.9.2 – Offline- und Performance-Überarbeitung
+
+- Die App-Shell wird ohne externe Schrift- oder Kartenbibliothek gestartet. Dadurch blockieren Google Fonts und Leaflet den ersten Seitenaufbau nicht mehr.
+- Leaflet wird erst bei einer tatsächlich benötigten Online-Kartenansicht nachgeladen. Ohne Netz bleibt die schematische lokale Streckenansicht verfügbar.
+- Der Service Worker verwendet einen neuen versionierten App-Shell-Cache und liefert Navigationen bei fehlender Verbindung aus dem lokalen Cache aus.
+- Bereits gecachte App-Dateien werden zuerst angezeigt und im Hintergrund aktualisiert; fehlende Netzwerkressourcen führen nicht zum Verlust der lokal gespeicherten Touren.
+- Die mobile Oberfläche wurde bei Kontrast, Touch-Zielen, Zahlenlesbarkeit, Kartenhöhe und Systemschrift-Fallback überarbeitet.
+
+**Wichtige Grenzen bleiben bestehen:** Offline-Kartenkacheln sind noch nicht enthalten. GPS-Aufzeichnung hängt weiterhin von iOS-Standortfreigabe und dem Verhalten von Safari/PWA im Vordergrund ab. Ein echter iPhone-Test ist erforderlich, bevor die Zuverlässigkeit als bestätigt gelten kann.
