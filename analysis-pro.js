@@ -52,88 +52,47 @@
       Number.isFinite(point.t);
   }
   function profileFromPoints(points, pointMeta) {
-    const raw = [];
-    for (let index = 0; index < points.length; index++) {
-      const point = points[index];
-      const metadata = pointMeta[index];
-      const accuracy = Number.isFinite(point.altAccuracy) ? point.altAccuracy : null;
-      if (!metadata || metadata.useAltitude === false || !Number.isFinite(point.alt) || point.alt < -1000 || point.alt > 10000) continue;
-      if (accuracy !== null && (accuracy < 0 || accuracy > 35)) continue;
-      raw.push({
-        distanceM: metadata.distanceM,
-        altitude: point.alt,
-        time: point.t,
-        segment: metadata.segment,
-        accuracy
-      });
+    const raw=[];
+    for(let index=0;index<points.length;index++){
+      const point=points[index],metadata=pointMeta[index];
+      const accuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
+      if(!metadata||metadata.useAltitude===false||!Number.isFinite(point.alt)||point.alt < -1000||point.alt>10000)continue;
+      if(accuracy!==null&&(accuracy<0||accuracy>35))continue;
+      raw.push({distanceM:metadata.distanceM,altitude:point.alt,time:point.t,segment:metadata.segment,
+        accuracy,source:point.altSource||"gps"});
     }
-    const smooth = raw.map((sample, index) => {
-      const nearby = [];
-      for (let offset = -2; offset <= 2; offset++) {
-        const candidate = raw[index + offset];
-        if (candidate && candidate.segment === sample.segment &&
-            Math.abs(candidate.distanceM - sample.distanceM) <= 100 &&
-            Math.abs(candidate.time - sample.time) <= 60000) nearby.push(candidate.altitude);
-      }
-      return Object.assign({}, sample, {
-        elevationM: median(nearby.length === 5 ? nearby : [sample.altitude])
-      });
-    });
-    let gain = 0, loss = 0, anchor = null, lastSegment = null;
-    for (const sample of smooth) {
-      if (sample.segment !== lastSegment) {
-        lastSegment = sample.segment;
-        anchor = sample.elevationM;
-        continue;
-      }
-      const delta = sample.elevationM - anchor;
-      if (delta >= 4) {
-        gain += delta;
-        anchor = sample.elevationM;
-      } else if (delta <= -4) {
-        loss += -delta;
-        anchor = sample.elevationM;
-      }
-    }
-    const accuracyValues = smooth.filter((sample) => sample.accuracy !== null).map((sample) => sample.accuracy);
-    const elevations = smooth.map((sample) => sample.elevationM);
-    const grades = [];
-    for (let index = 1; index < smooth.length; index++) {
-      const first = smooth[index - 1], last = smooth[index];
-      const distance = last.distanceM - first.distanceM;
-      const elapsed = (last.time - first.time) / 1000;
-      if (first.segment !== last.segment || distance < 8 || distance > 100 || elapsed <= 0 || elapsed > 60) continue;
-      const grade = (last.elevationM - first.elevationM) / distance * 100;
-      if (Number.isFinite(grade) && Math.abs(grade) <= 35) grades.push({ grade, distance });
-    }
-    let weightedGrade = 0, weightedDistance = 0;
-    const gradeBands = [
-      { label: "Starke Abfahrt (< −6 %)", min: -35, max: -6, distance: 0 },
-      { label: "Leichte Abfahrt (−6 bis −2 %)", min: -6, max: -2, distance: 0 },
-      { label: "Flach (−2 bis +2 %)", min: -2, max: 2, distance: 0 },
-      { label: "Leichter Anstieg (+2 bis +6 %)", min: 2, max: 6, distance: 0 },
-      { label: "Steiler Anstieg (> +6 %)", min: 6, max: 35, distance: 0 }
-    ];
-    grades.forEach((item) => {
-      weightedGrade += item.grade * item.distance;
-      weightedDistance += item.distance;
-      let band = gradeBands.find((candidate) => item.grade >= candidate.min &&
-        (item.grade < candidate.max || (candidate.max === 35 && item.grade <= 35)));
-      if (band) band.distance += item.distance;
-    });
-    return {
-      samples: smooth,
-      gain,
-      loss,
-      min: elevations.length ? elevations.reduce((value, current) => Math.min(value, current), Infinity) : null,
-      max: elevations.length ? elevations.reduce((value, current) => Math.max(value, current), -Infinity) : null,
-      medianAccuracy: median(accuracyValues),
-      validCount: raw.length,
-      totalPoints: points.length,
-      averageGrade: weightedDistance ? weightedGrade / weightedDistance : null,
-      gradeBands,
-      gradeDistance: weightedDistance
+    const processed=window.VELOXElevation?window.VELOXElevation.process(raw):{
+      samples:raw.map(s=>({...s,elevationM:s.altitude})),gain:0,loss:0,min:null,max:null,
+      medianAccuracy:null,validCount:raw.length,quality:"unrated",spikesRejected:0
     };
+    const smooth=processed.samples;
+    const grades=[];
+    for(let index=1;index<smooth.length;index++){
+      const first=smooth[index-1],last=smooth[index],distance=last.distanceM-first.distanceM;
+      const elapsed=(last.time-first.time)/1000;
+      if(first.segment!==last.segment||distance<8||distance>100||elapsed<=0||elapsed>60)continue;
+      const grade=(last.elevationM-first.elevationM)/distance*100;
+      if(Number.isFinite(grade)&&Math.abs(grade)<=35)grades.push({grade,distance});
+    }
+    let weightedGrade=0,weightedDistance=0;
+    const gradeBands=[
+      {label:"Starke Abfahrt (< −6 %)",min:-35,max:-6,distance:0},
+      {label:"Leichte Abfahrt (−6 bis −2 %)",min:-6,max:-2,distance:0},
+      {label:"Flach (−2 bis +2 %)",min:-2,max:2,distance:0},
+      {label:"Leichter Anstieg (+2 bis +6 %)",min:2,max:6,distance:0},
+      {label:"Steiler Anstieg (> +6 %)",min:6,max:35,distance:0}
+    ];
+    grades.forEach(item=>{
+      weightedGrade+=item.grade*item.distance;weightedDistance+=item.distance;
+      const band=gradeBands.find(candidate=>item.grade>=candidate.min&&
+        (item.grade<candidate.max||(candidate.max===35&&item.grade<=35)));
+      if(band)band.distance+=item.distance;
+    });
+    return {samples:smooth,gain:processed.gain,loss:processed.loss,min:processed.min,max:processed.max,
+      medianAccuracy:processed.medianAccuracy,validCount:processed.validCount,totalPoints:points.length,
+      averageGrade:weightedDistance?weightedGrade/weightedDistance:null,gradeBands,gradeDistance:weightedDistance,
+      quality:processed.quality,spikesRejected:processed.spikesRejected||0,
+      barometerCount:processed.barometerCount||0,climbThresholdM:processed.climbThresholdM||3};
   }
   function splitSegments(segments, splitLengthM) {
     const runs = [];
@@ -371,8 +330,10 @@
       card("95. Perzentil", result.p95Speed === null ? "–" : fmt(result.p95Speed) + " km/h", "Robuster Vergleichswert des Tempos"),
       card("Aufstieg / Abstieg", "+" + Math.round(e.gain) + " / −" + Math.round(e.loss) + " m", e.validCount + " gültige Höhenpunkte"),
       card("Höchster / tiefster Punkt", e.max === null ? "–" : Math.round(e.max) + " / " + Math.round(e.min) + " m", "Aus geglätteten GPS-Höhenwerten"),
-      card("Höhenqualität", e.medianAccuracy === null ? "Nicht bewertet" : fmt(e.medianAccuracy) + " m", "Median der gemeldeten vertikalen Ungenauigkeit"),
-      card("Ø Steigung", e.averageGrade === null ? "–" : fmt(e.averageGrade) + " %", "Nur ausreichend lange Höhenabschnitte")
+      card("Höhenqualität", e.quality==="high"?"Hoch":e.quality==="medium"?"Mittel":e.quality==="low"?"Begrenzt":"Nicht bewertet",
+        e.medianAccuracy===null?"Keine verlässliche vertikale Genauigkeit gemeldet.": "Median der gemeldeten vertikalen Ungenauigkeit: "+fmt(e.medianAccuracy)+" m"),
+      card("Ø Steigung", e.averageGrade === null ? "–" : fmt(e.averageGrade) + " %", "Nur ausreichend lange Höhenabschnitte"),
+      card("Höhen-Ausreißer", String(e.spikesRejected||0), "Robust erkannte GPS-Höhenspitzen ausgelassen")
     ].join("");
     const zoneRows = result.speedZones.map((zone) =>
       progressRow(zone.label, zone.seconds, result.movingSeconds, "Anteil an der erkannten Bewegungszeit")
