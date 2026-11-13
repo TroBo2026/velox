@@ -56,8 +56,8 @@
     const elevations=smoothed.map(s=>s.elevationM);
     return {
       samples:smoothed,gain,loss,
-      min:elevations.length?Math.min(...elevations):null,
-      max:elevations.length?Math.max(...elevations):null,
+      min:elevations.length?elevations.reduce((value,current)=>Math.min(value,current),Infinity):null,
+      max:elevations.length?elevations.reduce((value,current)=>Math.max(value,current),-Infinity):null,
       medianAccuracy,validCount:smoothed.length,totalCount:input.length,
       spikesRejected,barometerCount,quality,climbThresholdM:climbThreshold
     };
