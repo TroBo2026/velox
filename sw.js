@@ -54,18 +54,7 @@ self.addEventListener("fetch", event => {
 
   event.respondWith((async () => {
     const cached = await caches.match(request);
-    if (cached) {
-      event.waitUntil((async () => {
-        try {
-          const fresh = await fetch(request);
-          if (fresh && fresh.ok) {
-            const cache = await caches.open(CACHE);
-            await cache.put(request, fresh.clone());
-          }
-        } catch { /* Keep the valid offline copy. */ }
-      })());
-      return cached;
-    }
+    if (cached) return cached;
 
     try {
       const response = await fetch(request);
