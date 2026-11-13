@@ -756,10 +756,12 @@
     activeRide.status="completed";activeRide.endedAt=Date.now();
     const c=calcRide(activeRide);
     $( "stopRide" ).disabled=true;$( "pauseRide" ).disabled=true;
-    $( "trackingStatus" ).textContent="Wetterdaten werden ergänzt …";
+    $( "trackingStatus" ).textContent="Tour wird lokal gesichert …";
     try{
+      await persistActiveRide();
+      $("trackingStatus").textContent="Wetterdaten werden ergänzt …";
       activeRide.weather=await collectRideWeather(activeRide);
-      await dbRequest("readwrite","put",activeRide);
+      await persistActiveRide();
     }catch(error){
       console.error(error);
       activeRide.status="completed";
