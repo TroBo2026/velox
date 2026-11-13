@@ -1,40 +1,55 @@
 # VELOX Native iOS — Mac-Testvorbereitung
 
-Stand: 12. November 2026 · Repository `TroBo2026/velox` · Branch `main`
+Stand: 13. November 2026 · Repository `TroBo2026/velox` · Branch `main`
 
-## Status
+## Status vor dem ersten Xcode-Lauf
 
-Ein erstes eigenständiges Xcode-Projekt ist unter `ios/VELOX.xcodeproj` angelegt. Es ist eine native SwiftUI-App und keine WebView-Hülle. Das Projekt enthält die SwiftUI-Einstiegsoberfläche sowie die vorhandenen Tour-/GPS-/Barometer-Modelle und Dienste.
+Ein erstes eigenständiges Xcode-Projekt unter `ios/VELOX.xcodeproj` ist angelegt. Es ist eine native SwiftUI-App und keine WebView-Hülle. Enthalten sind die erste native Oberfläche, Datenmodelle, ein Core-Motion-Barometerdienst und ein JSON-v1-Grundcodec.
 
-**Wichtig:** Dieses Projekt wurde hier nicht mit Xcode oder dem Apple iOS SDK kompiliert. Die Projektdatei und SwiftUI-Quellen müssen auf dem Mac erstmals von Xcode geöffnet und validiert werden. Die App ist ein technischer Startpunkt, noch kein vollständiger Touren-Tracker. Es gibt noch keine native GPS-Aufzeichnung, kein Tourenarchiv, keine produktive Datenbank und keine abgeschlossene Datenmigration.
+**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Es gibt noch keine native GPS-Aufzeichnung, kein produktives Tourenarchiv, keine native Datenbank und keine abgeschlossene Datenmigration. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
 
-## Auf dem MacBook Air M3
+## Was auf dem Mac installiert werden muss
 
-1. Prüfen, dass macOS aktuell genug für die installierte Xcode-Version ist.
-2. Xcode kostenlos aus dem Mac App Store installieren: https://apps.apple.com/app/xcode/id497799835
-3. Xcode einmal starten und die Lizenz/zusätzlichen Komponenten abschließen. Dafür kann ein Administratorpasswort erforderlich sein.
-4. Dieses Repository über GitHub Desktop oder Terminal klonen, oder als ZIP von GitHub laden und entpacken.
-5. `ios/VELOX.xcodeproj` öffnen (nicht den Repository-Ordner und nicht die Web-Datei).
-6. Oben das Schema `VELOX` und zunächst einen iPhone-Simulator wählen.
-7. Unter Signing & Capabilities zunächst automatische Signierung nur konfigurieren, wenn ein echter Gerätetest durchgeführt wird. Ein Simulator-Build benötigt keine Apple-ID-Signierung.
-8. Erst `Product > Build` für den Simulator versuchen. Buildfehler vollständig notieren; nicht durch kostenpflichtige Dienste umgehen.
+**Erforderlich:**
+- Ein mit der gewählten Xcode-Version kompatibles macOS.
+- **Xcode** aus dem Mac App Store: https://apps.apple.com/app/xcode/id497799835
+- Eine Internetverbindung für Download, erste Komponenteninstallation und den ersten Projektabruf.
+
+**Nicht erforderlich:** GitHub Desktop, Homebrew, CocoaPods, zusätzliche SDK-Pakete, kostenpflichtige Build-Dienste oder kostenpflichtige Entwickler-Abos. Das Projekt kann als ZIP aus GitHub geladen werden; Xcode enthält die benötigten Apple-Entwicklungswerkzeuge.
+
+Xcode ist ein großer Download. Plane vorsichtshalber mindestens etwa 40–50 GB freien Speicherplatz ein, damit Download, Installation und Simulator-Dateien Platz haben. Der tatsächliche Bedarf hängt von der Xcode-Version und den installierten Simulatoren ab. Prüfe den freien Speicher vorher unter Systemeinstellungen > Allgemein > Speicher. Auf einem geliehenen Mac nichts installieren, aktualisieren oder löschen, ohne vorher die Zustimmung des Besitzers einzuholen.
+
+## Vorbereitung vor dem 30-Minuten-Termin
+
+1. Auf dem Mac über  > Über diesen Mac die macOS-Version prüfen. Kein macOS-Upgrade ohne Zustimmung des Besitzers starten.
+2. Im Mac App Store prüfen, welche Xcode-Version angeboten wird und ob sie mit diesem macOS kompatibel ist.
+3. Xcode möglichst **vor dem gemeinsamen Testtermin** herunterladen und installieren. Der Download kann deutlich länger als 30 Minuten dauern.
+4. Xcode einmal starten und die zusätzlichen Komponenten/Lizenzdialoge abschließen. Dafür kann das Administratorpasswort des Mac-Besitzers erforderlich sein.
+5. VELOX von GitHub laden: Repository `TroBo2026/velox`, Branch `main` > Code > Download ZIP. ZIP entpacken.
+6. Im entpackten Ordner die Datei `ios/VELOX.xcodeproj` öffnen.
 
 ## 30-Minuten-Testablauf
 
-- 0–5 min: Xcode öffnen, Projekt laden, automatische Projektkonvertierung prüfen.
-- 5–12 min: Simulator als Ziel wählen und Build starten.
-- 12–20 min: Falls der Build gelingt, App starten und Übersicht/Sensorstatus/Mehr durchklicken.
-- 20–30 min: Build-/Signing-Fehler dokumentieren. Nur bei genügend Zeit und ausdrücklicher Freigabe den iPhone-Test versuchen.
+- **0–5 min:** Xcode starten, `VELOX.xcodeproj` öffnen und warten, bis das Projekt geladen ist.
+- **5–10 min:** Oben das Schema `VELOX` und einen iPhone-Simulator auswählen (zunächst kein echtes iPhone).
+- **10–20 min:** Product > Build ausführen. Falls der Build scheitert, die erste rote Fehlermeldung und den gesamten betroffenen Fehlertext sichern.
+- **20–30 min:** Nur wenn der Build erfolgreich ist, Product > Run starten und Übersicht, Sensorstatus und Mehr prüfen. Im Simulator ist kein echtes Barometer/GPS des iPhones vorhanden; fehlende Sensorwerte dort sind erwartbar.
 
-Ein Gerätetest kann an der kostenlosen persönlichen Signierung, dem Apple-Account, Gerätevertrauen oder Xcode-Provisioning scheitern. Keine kostenpflichtige Developer-Mitgliedschaft aktivieren. Keine fremde Apple-ID ohne ausdrückliche Zustimmung des Kontoinhabers verwenden. Für einen Simulator-Test ist keine Apple-ID nötig.
+Ein Simulator-Build benötigt keine Apple-ID-Anmeldung und keine kostenpflichtige Mitgliedschaft. Für einen späteren Test auf dem echten iPhone XR muss die App signiert werden. Dafür kann eine kostenlose persönliche Apple-ID-Signierung verwendet werden, mit Einschränkungen (unter anderem zeitlich begrenzte Testsignierung). Keine kostenpflichtige Developer-Mitgliedschaft aktivieren. Keine fremde Apple-ID ohne ausdrückliche Zustimmung des Kontoinhabers verwenden und niemals Passwörter weitergeben.
+
+## Muss Xcode auf dem Mac bleiben?
+
+Nein, nicht damit eine bereits installierte VELOX-App auf dem iPhone läuft. Xcode wird auf dem Mac zum Entwickeln, Kompilieren, Signieren und Installieren neuer App-Versionen benötigt. Wenn VELOX auf dem iPhone installiert und getestet ist, kann Xcode vom Mac gelöscht werden, sofern der Besitzer den Speicherplatz zurückhaben möchte. Dann sind spätere Änderungen oder Neuinstallationen erst wieder möglich, wenn Xcode erneut installiert wurde. Die App auf dem iPhone wird durch das Löschen von Xcode auf dem Mac nicht entfernt.
+
+Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffentlichung. Wenn ihre Gültigkeit abläuft, kann eine erneute Signierung/Installation nötig werden. Eine App-Store-Veröffentlichung ist ein separater Schritt und nicht Teil dieses kostenlosen Tests.
 
 ## Daten und Sicherheit
 
-- Die Web-/PWA-Version bleibt unverändert verfügbar.
-- Der vorhandene JSON-v1-Codec ist vorbereitet, aber noch nicht verlustfrei gegenüber beliebigen unbekannten Zusatzfeldern. Deshalb keine produktive Datenmigration und keine Löschung/Überschreibung vornehmen.
-- Vorhandene Touren müssen zunächst aus der Web-App als JSON gesichert werden. Der Import wird erst nach echten Rundlauf- und Kollisions-Tests freigegeben.
-- Core Motion wird nur bei gemeldeter Sensorverfügbarkeit verwendet. Relative Höhe wird nicht als absolute Meereshöhe ausgegeben.
-- Es werden keine kostenpflichtigen APIs, Build-Dienste oder Add-ons verwendet.
+- Die bestehende Web-/PWA-Version bleibt bis zu erfolgreichen Xcode-, Datenmigrations- und iPhone-Tests erhalten.
+- Der JSON-v1-Codec ist nur ein Grundbaustein und erhält beliebige unbekannte Zusatzfelder noch nicht verlustfrei. Deshalb keinen produktiven Import/Export-Rundlauf durchführen.
+- Vorhandene Touren müssen zunächst in der Web-App als JSON gesichert werden. Import erst nach echten Rundlauf- und ID-Kollisionstests freigeben.
+- Core Motion wird nur bei gemeldeter Sensorverfügbarkeit verwendet. Relative Höhe ist nicht automatisch die absolute Meereshöhe.
+- Keine kostenpflichtigen APIs, Build-Dienste oder Add-ons.
 
 ## Enthaltene Dateien
 
@@ -45,7 +60,7 @@ Ein Gerätetest kann an der kostenlosen persönlichen Signierung, dem Apple-Acco
 
 ## Noch offen
 
-1. Xcode-Projektdatei auf dem Mac validieren und ersten Simulator-Build erstellen.
+1. Projektdatei auf dem Mac mit Xcode validieren und ersten Simulator-Build erstellen.
 2. Unbekannte JSON-Felder verlustfrei erhalten; vorher keinen produktiven Import/Export-Rundlauf erlauben.
 3. JSON-Codec mit XCTest gegen echte Web-v1-Beispiele testen, insbesondere ID-Kollisionen.
 4. Native Tourenspeicherung, Core Location Recorder, Pause/Fortsetzen/Stoppen implementieren.
