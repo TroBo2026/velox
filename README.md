@@ -3,7 +3,7 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren Web-App-Prototyp für iPhone und iPad.
 
-## Aktueller Stand – Version 0.9.2
+## Aktueller Stand – Version 0.9.3
 
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start direkt auf der Track-Seite oder auf der Startseite
 - Offline-Aufzeichnung: GPS-Punkte werden lokal in IndexedDB gespeichert; ohne Verbindung zeigt VELOX eine schematische Offline-Strecke, nach Wiederverbindung können Kartendaten nachgeladen werden
@@ -16,9 +16,9 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken
 - Neuer Wrapped-Reiter mit automatisch aktualisiertem Archiv-Rückblick: Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM sowie aggregierte Gelände- und Tempo-Zonen
 - Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start und Strecken-Geradlinigkeit; zusätzlich pro einzelner Fahrt GPS-erkanntes Stopps-Count und längster Stopp (ab 10 s, unter 1,5 km/h; manuelle Pausen und GPS-Lücken werden nicht als Stopps gewertet); alle Berechnungen nutzen vorhandene GPS-Punkte
-- VELOX Pro Analyse: optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Ausreißerzählung und Archiv-Rekorden; ausschließlich lesender Zugriff auf vorhandene IndexedDB-Daten
+- VELOX Pro Analyse: optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Höhen-Ausreißerbericht und Archiv-Rekorden; ausschließlich lesender Zugriff auf vorhandene IndexedDB-Daten
 - Einheitliche Bewegungsfilter in Tourendetails, Live-Kennzahlen und Pro-Analyse: gültige GPS-Koordinaten, Zeitabstand bis 30 s, Distanz von 0,8 bis 150 m, gemeldete horizontale Genauigkeit höchstens 80 m und Tempo von 1,5 bis 100 km/h. Distanz, Bewegungszeit, Durchschnitts- und Maximaltempo stammen aus denselben akzeptierten Fahrintervallen.
-- Höhenprofil mit Distanzachse, tatsächlichen Start-/Zielmarkierungen und Median-Glättung über bis zu fünf benachbarte GPS-Höhenwerte; fehlende oder unbrauchbare Höhenwerte trennen die Auswertungssegmente und werden nicht überbrückt
+- Gemeinsame Höhen-Engine für Live-Ansicht, Tourendetails und Pro-Analyse: robuste lokale Median-/Ausreißerprüfung, segmentbewusste Glättung und adaptive Mindestschwelle für kumulierte Höhenmeter; fehlende oder unbrauchbare Höhenwerte trennen Auswertungssegmente und werden nicht überbrückt
 - Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter 4 m werden nicht zur kumulierten Höhenmeter-Summe addiert
 - Qualitätskennzeichnung der Höhenmessung anhand der verfügbaren GPS-Höhendaten; fehlende Genauigkeitsangaben werden nicht als gute Messqualität eingestuft
 - Steigungswerte werden aus demselben geglätteten Höhenprofil abgeleitet; große Zeit-/Distanzlücken werden ausgelassen
@@ -155,3 +155,15 @@ Der Wrapped-Einstieg befindet sich unter „Mehr“ und besitzt auf schmalen Dis
 - Die mobile Oberfläche wurde bei Kontrast, Touch-Zielen, Zahlenlesbarkeit, Kartenhöhe und Systemschrift-Fallback überarbeitet.
 
 **Wichtige Grenzen bleiben bestehen:** Offline-Kartenkacheln sind noch nicht enthalten. GPS-Aufzeichnung hängt weiterhin von iOS-Standortfreigabe und dem Verhalten von Safari/PWA im Vordergrund ab. Ein echter iPhone-Test ist erforderlich, bevor die Zuverlässigkeit als bestätigt gelten kann.
+
+
+## VELOX 0.9.3 – Höhen-Engine und Pro-Analyse
+
+- Neue gemeinsame Datei `elevation-core.js` wird vor Live-Tracker und Pro-Analyse geladen und im Offline-App-Shell-Cache mitgeführt.
+- Lokale Höhen-Ausreißer werden nur bei ausreichender Nachbarschaft und deutlicher Abweichung verworfen; Filterfenster überschreiten keine Zeit-/Distanzgrenzen oder Segmentwechsel.
+- Robuste Median-Glättung nutzt auch brauchbare Randfenster statt bei weniger als fünf Samples vollständig auf Rohwerte zurückzufallen.
+- Die Schwelle zur Aufsummierung von Auf-/Abstieg passt sich begrenzt an die gemeldete vertikale Genauigkeit an.
+- Pro-Analyse zeigt eine abgestufte Höhenqualität und die Anzahl verworfener Höhenausreißer.
+- Ohne gemeldete vertikale Genauigkeit wird die Qualität ausdrücklich als nicht bewertet geführt; es wird keine Genauigkeit erfunden.
+
+**Hinweis:** Das iOS-Barometer liefert zunächst relative Höhenänderungen. Die vorhandene Swift-Kalibrierung kann diese mit einem zeitnahen, ausreichend genauen GPS-Höhenreferenzpunkt verankern. Diese native Messkette ist noch nicht mit der Web-App verbunden und wird daher hier nicht als aktive Sensorquelle ausgegeben.
