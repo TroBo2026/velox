@@ -1,4 +1,4 @@
-/* VELOX 0.9.1 — local-first cycling tracker */
+/* VELOX 0.9.3 — local-first cycling tracker */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -644,7 +644,7 @@
     const liveGrade=currentGrade(elevation);
     $("liveGrade").innerHTML=liveGrade===null?'– <small>%</small>':fmt(liveGrade)+' <small>%</small>';
     $("liveMovingRatio").innerHTML=fmt(elapsed?c.movingSeconds/elapsed*100:0,0)+' <small>%</small>';
-    $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":"Begrenzt";
+    $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":elevation.quality==="unrated"?"Nicht bewertet":"Begrenzt";
     const latest=activeRide.points[activeRide.points.length-1];updateSensorStatus(latest);
   }
   function scheduleLiveClock(){
