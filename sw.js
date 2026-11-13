@@ -1,10 +1,11 @@
 /* VELOX offline shell — versioned, same-origin only */
-const CACHE = "velox-shell-v19";
+const CACHE = "velox-shell-v20";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./sensor-core.js",
+  "./elevation-core.js",
   "./app.js",
   "./analysis-pro.js",
   "./manifest.webmanifest",
