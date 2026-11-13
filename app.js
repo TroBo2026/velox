@@ -415,6 +415,7 @@
     return map;
   }
   function drawLive(points){
+    if(!navigator.onLine&&liveMap){liveMap.remove();liveMap=null;liveLines=[];liveMarker=null;}
     if(!liveMap){renderOfflineRoute("liveMap",points);return;}
     liveLines.forEach(line=>liveMap.removeLayer(line));
     liveLines=[];
@@ -610,6 +611,7 @@
     watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
     updateLive(true);
     scheduleLiveClock();
+    if(navigator.onLine&&!window.L)ensureLeaflet().then(restoreOnlineMaps);
   }
   async function onPosition(pos){
     if(!activeRide||activeRide.status!=="recording")return;
@@ -846,7 +848,8 @@
     setTimeout(()=>{
       const routeSegments=validRouteSegments(r.points);
       const first=routeSegments[0]?.[0]||r.points.find(validRidePoint);
-      detailMap=initMap("detailMap",first?[first.lat,first.lon]:[51.05,13.74]);
+      if(detailMap){detailMap.remove();detailMap=null;}
+      detailMap=navigator.onLine&&window.L?initMap("detailMap",first?[first.lat,first.lon]:[51.05,13.74]):null;
       if(detailMap&&routeSegments.length){
         const bounds=[];
         routeSegments.forEach((segment,index)=>{
