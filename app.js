@@ -83,47 +83,29 @@
     return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
   }
   function buildElevationProfile(points){
-    const samples=[];let distance=0,segment=0,previous=null;
+    const raw=[];let distance=0,segment=0,previous=null;
     for(const point of points){
-      if(!validRidePoint(point)){
-        previous=null;segment++;continue;
-      }
+      if(!validRidePoint(point)){previous=null;segment++;continue;}
       if(previous){
         const d=haversine(previous,point),dt=(point.t-previous.t)/1000;
         const horizontal=[previous.accuracy,point.accuracy].filter(Number.isFinite);
         const validInterval=Number.isFinite(d)&&d>=0.8&&d<150&&Number.isFinite(dt)&&dt>0&&dt<=30&&
           !horizontal.some(value=>value<0||value>80)&&d/dt*3.6<=100;
-        if(validInterval)distance+=d;
-        else segment++;
+        if(validInterval)distance+=d;else segment++;
       }
       const accuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
       const hasAccuracy=point.altAccuracy!==undefined&&point.altAccuracy!==null;
       const altitudeValid=Number.isFinite(point.alt)&&point.alt>=-1000&&point.alt<=10000&&
         (!hasAccuracy||(accuracy!==null&&accuracy>=0&&accuracy<=35));
-      if(altitudeValid)samples.push({distanceM:distance,altitude:point.alt,time:point.t,segment,accuracy});
+      if(altitudeValid)raw.push({distanceM:distance,altitude:point.alt,time:point.t,segment,accuracy,source:point.altSource||"gps"});
       else segment++;
       previous=point;
     }
-    const smoothed=samples.map((sample,index)=>{
-      const nearby=[];
-      for(let offset=-2;offset<=2;offset++){
-        const candidate=samples[index+offset];
-        if(candidate&&candidate.segment===sample.segment&&Math.abs(candidate.distanceM-sample.distanceM)<=100&&Math.abs(candidate.time-sample.time)<=60000)nearby.push(candidate.altitude);
-      }
-      return {...sample,elevationM:median(nearby.length===5?nearby:[sample.altitude])};
-    });
-    let gain=0,loss=0,lastSegment=null,anchor=null;
-    for(const sample of smoothed){
-      if(sample.segment!==lastSegment){lastSegment=sample.segment;anchor=sample.elevationM;continue;}
-      const delta=sample.elevationM-anchor;
-      if(delta>=4){gain+=delta;anchor=sample.elevationM;}else if(delta<=-4){loss+=-delta;anchor=sample.elevationM;}
-    }
-    const accurate=smoothed.filter(sample=>sample.accuracy!==null);
-    const medianAccuracy=accurate.length?median(accurate.map(sample=>sample.accuracy)):null;
-    const quality=smoothed.length<5||medianAccuracy===null?"low":medianAccuracy<=12?"high":medianAccuracy<=25?"medium":"low";
-    let minimum=null,maximum=null;
-    for(const sample of smoothed){minimum=minimum===null?sample.elevationM:Math.min(minimum,sample.elevationM);maximum=maximum===null?sample.elevationM:Math.max(maximum,sample.elevationM);}
-    return {samples:smoothed,gain,loss,distanceM:distance,validCount:samples.length,totalCount:points.length,minimum,maximum,medianAccuracy,quality};
+    const result=window.VELOXElevation?window.VELOXElevation.process(raw):{samples:raw.map(s=>({...s,elevationM:s.altitude})),gain:0,loss:0,min:null,max:null,medianAccuracy:null,validCount:raw.length,quality:"unrated"};
+    return {samples:result.samples,gain:result.gain,loss:result.loss,distanceM:distance,
+      validCount:result.validCount,totalCount:points.length,minimum:result.min,maximum:result.max,
+      medianAccuracy:result.medianAccuracy,quality:result.quality,spikesRejected:result.spikesRejected||0,
+      climbThresholdM:result.climbThresholdM||3,barometerCount:result.barometerCount||0};
   }
   const RIDE_INTERVAL_FILTERS=Object.freeze({
     minDistanceM:0.8,maxDistanceM:150,maxGapSeconds:30,
