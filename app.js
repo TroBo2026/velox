@@ -26,6 +26,7 @@
   const personalVisibility = new Map();
   const mapColors = ["#5bd6c5","#e7bd75","#8ca8ff","#d98ce8","#ff8e80","#8fd18b","#f0a75b","#7bd1e8"];
   let toastTimer = null;
+  let saveQueue = Promise.resolve();
 
   const fmt = (n, digits=1) => Number(n || 0).toLocaleString("de-DE",{minimumFractionDigits:digits,maximumFractionDigits:digits});
   const fmtTime = (seconds) => {
@@ -75,6 +76,12 @@
       tx.onerror=()=>reject(tx.error||new Error("Import-Transaktion fehlgeschlagen."));
       tx.onabort=()=>reject(tx.error||new Error("Import-Transaktion abgebrochen."));
     });
+  }
+  function persistActiveRide(){
+    if(!db||!activeRide)return Promise.resolve();
+    const snapshot=JSON.parse(JSON.stringify(activeRide));
+    saveQueue=saveQueue.catch(()=>{}).then(()=>dbRequest("readwrite","put",snapshot));
+    return saveQueue;
   }
   const allRides=async()=>((await dbRequest("readonly","all"))||[]).sort((a,b)=>b.startedAt-a.startedAt);
   const activeSeconds=(ride)=>Math.max(0,((ride.endedAt||Date.now())-ride.startedAt-(ride.pausedMs||0)-(ride.status==="paused"?Date.now()-(ride.pauseStarted||Date.now()):0))/1000);
@@ -597,15 +604,17 @@
   }
   async function onPosition(pos){
     if(!activeRide||activeRide.status!=="recording")return;
-    const c=pos.coords,timestamp=pos.timestamp||Date.now();
-    const sensor=window.VELOXSensors?window.VELOXSensors.fuseAltitude(c.altitude,c.altitudeAccuracy,timestamp):{altitudeM:Number.isFinite(c.altitude)?c.altitude:null,accuracyM:Number.isFinite(c.altitudeAccuracy)?c.altitudeAccuracy:null,source:"gps"};
-    const point={lat:c.latitude,lon:c.longitude,t:timestamp,alt:sensor.altitudeM,altAccuracy:sensor.accuracyM,altSource:sensor.source,pressureKPa:sensor.pressureKPa,accuracy:c.accuracy};
+    const c=pos.coords,timestamp=Number.isFinite(pos.timestamp)&&pos.timestamp>0?pos.timestamp:Date.now();
+    if(!Number.isFinite(c.latitude)||!Number.isFinite(c.longitude)||c.latitude < -90||c.latitude > 90||c.longitude < -180||c.longitude > 180)return;
     const prev=activeRide.points[activeRide.points.length-1];
-    if(prev){const d=haversine(prev,point);const dt=(point.t-prev.t)/1000;if(d>150||dt<=0)return;if(d<1.5&&dt<3)return;}
+    // Recording preserves genuine fixes; quality and speed filters belong to analysis.
+    if(prev&&timestamp<=prev.t)return;
+    const sensor=window.VELOXSensors?window.VELOXSensors.fuseAltitude(c.altitude,c.altitudeAccuracy,timestamp):{altitudeM:Number.isFinite(c.altitude)?c.altitude:null,accuracyM:Number.isFinite(c.altitudeAccuracy)?c.altitudeAccuracy:null,source:"gps"};
+    const point={lat:c.latitude,lon:c.longitude,t:timestamp,alt:sensor.altitudeM,altAccuracy:sensor.accuracyM,altSource:sensor.source,pressureKPa:sensor.pressureKPa,accuracy:Number.isFinite(c.accuracy)?c.accuracy:null};
     activeRide.points.push(point);
-    await dbRequest("readwrite","put",activeRide);
+    try{await persistActiveRide();}catch(error){console.error("GPS-Punkt konnte nicht dauerhaft gespeichert werden:",error);$("trackingStatus").textContent="Speicherfehler – Tourdaten prüfen";showToast("Lokales Speichern fehlgeschlagen.");return;}
     $("trackingStatus").textContent="Aufzeichnung läuft";$("trackingDot").style.background="var(--teal)";
-    $("gpsAccuracy").textContent="GPS ±"+Math.round(c.accuracy)+" m";
+    $("gpsAccuracy").textContent=Number.isFinite(c.accuracy)?"GPS ±"+Math.round(c.accuracy)+" m":"GPS-Genauigkeit nicht gemeldet";
     updateSensorStatus(point);drawLive(activeRide.points);updateLive(true);
   }
   function updateSensorStatus(point){
@@ -770,10 +779,9 @@
       if(!current.length){current=[point];continue;}
       const previous=points[i-1],dt=(point.t-previous.t)/1000,d=haversine(previous,point);
       const accuracy=[previous.accuracy,point.accuracy].filter(Number.isFinite);
-      const valid=validRidePoint(previous)&&Number.isFinite(dt)&&dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds&&
-        Number.isFinite(d)&&d>=RIDE_INTERVAL_FILTERS.minDistanceM&&d<=RIDE_INTERVAL_FILTERS.maxDistanceM&&
-        !accuracy.some(value=>value<0||value>RIDE_INTERVAL_FILTERS.maxHorizontalAccuracyM)&&
-        d/dt*3.6<=RIDE_INTERVAL_FILTERS.maxSpeedKmh;
+      // Map display is more permissive than metric analysis; long outages remain split.
+      const valid=validRidePoint(previous)&&Number.isFinite(dt)&&dt>0&&dt<=180&&
+        Number.isFinite(d)&&d>=0.1&&d<=300&&d/dt*3.6<=180;
       if(valid)current.push(point);
       else{if(current.length>(includeSingletons?0:1))segments.push(current);current=[point];}
     }
@@ -1000,9 +1008,12 @@
   $("trackStartRide")?.addEventListener("click",startRide);
   document.addEventListener("visibilitychange",()=>{
     if(activeRide){
-      updateLive(false);
-      if(document.visibilityState==="visible")scheduleLiveClock();
+      if(document.visibilityState==="hidden")persistActiveRide().catch(error=>console.error("Checkpoint fehlgeschlagen:",error));
+      else{updateLive(false);scheduleLiveClock();}
     }
+  });
+  window.addEventListener("pagehide",()=>{
+    if(activeRide)persistActiveRide().catch(error=>console.error("Letzter Checkpoint fehlgeschlagen:",error));
   });
   $("pauseRide").addEventListener("click",pauseRide);
   $("stopRide").addEventListener("click",stopRide);
@@ -1011,8 +1022,29 @@
   $("backupFile").addEventListener("change",e=>{if(e.target.files[0])importBackup(e.target.files[0]);e.target.value="";});
   $("deleteAll").addEventListener("click",async()=>{if(confirm("Wirklich alle VELOX-Touren auf diesem Gerät löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.")){await dbRequest("readwrite","clear");await refresh();showToast("Alle lokalen Tourdaten gelöscht.");}});
   $("installHint").addEventListener("click",()=>showToast('Safari: Teilen → „Zum Home-Bildschirm“ hinzufügen.'));
+  async function recoverUnfinishedRide(){
+    const rides=await allRides();
+    const unfinished=rides.find(ride=>!ride.endedAt&&(ride.status==="recording"||ride.status==="paused"));
+    if(!unfinished)return;
+    const now=Date.now(),lastPoint=unfinished.points?.length?unfinished.points[unfinished.points.length-1].t:unfinished.startedAt;
+    if(!Array.isArray(unfinished.pauseIntervals))unfinished.pauseIntervals=[];
+    if(unfinished.status==="recording"){
+      const gapStart=Number.isFinite(lastPoint)?lastPoint:now;
+      if(now>gapStart){unfinished.pausedMs=(unfinished.pausedMs||0)+(now-gapStart);unfinished.pauseIntervals.push({startedAt:gapStart,endedAt:now});}
+    }else if(unfinished.pauseStarted&&now>unfinished.pauseStarted){
+      unfinished.pausedMs=(unfinished.pausedMs||0)+(now-unfinished.pauseStarted);
+      const openPause=unfinished.pauseIntervals[unfinished.pauseIntervals.length-1];
+      if(openPause&&openPause.endedAt===null)openPause.endedAt=now;
+    }
+    unfinished.status="paused";unfinished.pauseStarted=now;activeRide=unfinished;
+    await persistActiveRide();syncTrackStartButton();
+    $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Fortsetzen";
+    $("trackingStatus").textContent="Unterbrochene Tour wiederhergestellt · pausiert";$("trackingDot").style.background="#d9b879";
+    setPage("track");drawLive(activeRide.points);updateLive(true);
+    showToast("Eine nicht abgeschlossene Tour wurde wiederhergestellt.");
+  }
   async function init(){
-    try{db=await openDB();await refresh();}
+    try{db=await openDB();await recoverUnfinishedRide();await refresh();}
     catch(e){showToast("Lokale Datenbank konnte nicht geöffnet werden.");console.error(e);}
     if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
     if(window.L)liveMap=initMap("liveMap");
