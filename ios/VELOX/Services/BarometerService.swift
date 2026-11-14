@@ -12,6 +12,7 @@ final class BarometerService: ObservableObject {
     @Published private(set) var errorMessage: String?
 
     private let altimeter = CMAltimeter()
+    private(set) var activeSessionID: UUID?
 
     init() {
         isAvailable = CMAltimeter.isRelativeAltitudeAvailable()
@@ -26,6 +27,8 @@ final class BarometerService: ObservableObject {
 
         errorMessage = nil
         isRecording = true
+        let sessionID = UUID()
+        activeSessionID = sessionID
         altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, error in
             let errorText = error?.localizedDescription
             let pressure = data?.pressure.doubleValue
@@ -41,11 +44,12 @@ final class BarometerService: ObservableObject {
             let timestamp = sampleTimestamp.map { Int64(($0 * 1_000).rounded()) } ?? 0
 
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, self.activeSessionID == sessionID else { return }
                 if let errorText {
                     self.errorMessage = "Barometerdaten nicht verfügbar: \(errorText)"
                     self.altimeter.stopRelativeAltitudeUpdates()
                     self.isRecording = false
+                    self.activeSessionID = nil
                     return
                 }
                 guard let pressure, let relativeAltitude,
@@ -57,7 +61,8 @@ final class BarometerService: ObservableObject {
                 self.latestSample = BarometerSample(
                     pressureKPa: pressure,
                     relativeAltitudeM: relativeAltitude,
-                    timestampMs: timestamp
+                    timestampMs: timestamp,
+                    sessionID: sessionID
                 )
             }
         }
@@ -67,5 +72,6 @@ final class BarometerService: ObservableObject {
         guard isRecording else { return }
         altimeter.stopRelativeAltitudeUpdates()
         isRecording = false
+        activeSessionID = nil
     }
 }
