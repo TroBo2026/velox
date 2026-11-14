@@ -63,7 +63,9 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 1. Projektdatei auf dem Mac mit Xcode validieren und ersten Simulator-Build erstellen.
 2. Unbekannte JSON-Felder verlustfrei erhalten; vorher keinen produktiven Import/Export-Rundlauf erlauben.
 3. JSON-Codec mit XCTest gegen echte Web-v1-Beispiele testen, insbesondere ID-Kollisionen.
-4. `RideStore` mit XCTest prüfen (Neuanlage, Duplikate, Update, Löschen, beschädigte Datei, Persistenz nach Neustart).\n5. GPS-Recorder auf echten Geräten prüfen: Berechtigungen, GPS-Aussetzer, Pause/Fortsetzen, App-Wechsel, Sperrbildschirm und Persistenz.\n6. Barometerproben während einer Tour zeitlich korrekt speichern und anschließend Höhen-/Steigungsfusion testen.
+4. `RideStore` mit XCTest prüfen (Neuanlage, Duplikate, Update, Löschen, beschädigte Datei, Persistenz nach Neustart).
+5. GPS-Recorder auf echten Geräten prüfen: Berechtigungen, GPS-Aussetzer, Pause/Fortsetzen, App-Wechsel, Sperrbildschirm und Persistenz.
+6. Barometerproben während einer Tour zeitlich korrekt speichern und anschließend Höhen-/Steigungsfusion testen.
 7. Höhenfusion, Sensorsegmentierung und Filterung mit reproduzierbaren Tests absichern.
 8. Erst danach iPhone XR testen. Keine Veröffentlichung oder native Ablösung vor bestandenem Gerätetest.
 
