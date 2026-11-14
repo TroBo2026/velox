@@ -55,6 +55,10 @@ final class RideRecorder: NSObject, ObservableObject {
         RideElevationSummary(samples: currentRide?.barometerSamples ?? [])
     }
 
+    var elevationAnalysis: RideElevationAnalysis {
+        RideElevationAnalysis(ride: currentRide)
+    }
+
     func start() {
         guard state == .idle || (state == .failed && currentRide == nil) else { return }
         persistenceError = nil
