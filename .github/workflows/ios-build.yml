@@ -1,0 +1,71 @@
+name: VELOX iOS Simulator Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-build.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velox-ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build native iOS app (Simulator)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Check out VELOX
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: |
+          xcode-select -p
+          xcodebuild -version
+          xcrun simctl list devices available
+
+      - name: Validate Xcode project
+        run: |
+          plutil -lint ios/VELOX.xcodeproj/project.pbxproj
+          xcodebuild -list -project ios/VELOX.xcodeproj
+
+      - name: Build for iOS Simulator
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/VELOX.xcodeproj \
+            -scheme VELOX \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/VELOX-DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package simulator build
+        if: success()
+        run: |
+          cd "$RUNNER_TEMP/VELOX-DerivedData/Build/Products/Debug-iphonesimulator"
+          /usr/bin/zip -r "$RUNNER_TEMP/VELOX-iOS-Simulator.zip" VELOX.app
+
+      - name: Upload simulator build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velox-ios-simulator-${{ github.run_number }}
+          path: ${{ runner.temp }}/VELOX-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 7
