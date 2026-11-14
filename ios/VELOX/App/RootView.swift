@@ -242,7 +242,7 @@ private struct ElevationProfileChart: View {
                     for (index, point) in points.enumerated() {
                         let x = CGFloat(point.distanceM / max(1, points.last?.distanceM ?? 1)) * geometry.size.width
                         let y = geometry.size.height - CGFloat((point.altitudeM - minimum) / range) * geometry.size.height
-                        if index == 0 { path.move(to: CGPoint(x: x, y: y)) }
+                        if index == 0 || points[index - 1].segmentID != point.segmentID { path.move(to: CGPoint(x: x, y: y)) }
                         else { path.addLine(to: CGPoint(x: x, y: y)) }
                     }
                 }
