@@ -178,9 +178,9 @@ private struct DashboardView: View {
                             Spacer()
                             Text(String(format: "%.0f m", recorder.elevationAnalysis.descentM)).monospacedDigit()
                         }
-                        Text("Referenz: \\(recorder.elevationAnalysis.reference.rawValue)")
+                        Text("Referenz: \(recorder.elevationAnalysis.reference.rawValue)")
                             .font(.caption.weight(.semibold))
-                        Text("\\(recorder.elevationAnalysis.gpsAnchorCount) GPS-Referenzpaare · \\(recorder.elevationAnalysis.rawBarometerCount) Roh-Barometerproben · \\(recorder.elevationAnalysis.usableGPSAltitudeCount) geeignete GPS-Höhen")
+                        Text("\(recorder.elevationAnalysis.gpsAnchorCount) GPS-Referenzpaare · \(recorder.elevationAnalysis.rawBarometerCount) Roh-Barometerproben · \(recorder.elevationAnalysis.usableGPSAltitudeCount) geeignete GPS-Höhen")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                         if let offset = recorder.elevationAnalysis.calibrationOffsetM {
