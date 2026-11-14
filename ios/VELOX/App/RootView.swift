@@ -114,7 +114,7 @@ private struct DashboardView: View {
                             }
                         }
                         .tint(VELOXStyle.accent)
-                        Text("GPS-Aufzeichnung startet nur nach deinem Tastendruck. In dieser Entwicklungsstufe läuft sie nur im Vordergrund; App-Wechsel oder Display-Sperre können die Aufzeichnung unterbrechen.")
+                        Text("GPS und Barometer starten erst nach deinem Tastendruck und erfolgreicher lokaler Touranlage. Die Aufzeichnung läuft derzeit nur im Vordergrund; App-Wechsel oder Display-Sperre können sie unterbrechen.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
@@ -149,7 +149,7 @@ private struct DashboardView: View {
                             Label("Barometer", systemImage: "barometer")
                                 .font(.headline)
                             Spacer()
-                            Text(barometer.isAvailable ? "BEREIT" : "NICHT VERFÜGBAR")
+                            Text(!barometer.isAvailable ? "NICHT VERFÜGBAR" : barometer.isRecording ? "AKTIV" : "BEREIT")
                                 .font(.system(size: 10, weight: .bold))
                                 .tracking(0.8)
                                 .foregroundStyle(barometer.isAvailable ? VELOXStyle.accent : .secondary)
@@ -278,7 +278,7 @@ private struct AboutView: View {
                     LabeledContent("Build", value: "Xcode-Prüfung ausstehend")
                 }
                 Section("Daten und Sicherheit") {
-                    Text("Die native Oberfläche speichert noch keine Touren. Es werden keine bestehenden Web-/PWA-Daten verändert.")
+                    Text("Die native Grundversion speichert neue GPS-Touren und Barometerproben lokal. Bestehende Web-/PWA-Daten werden nicht verändert; eine geprüfte Migration ist noch offen.")
                     Text("Die bestehende VELOX-Web-/PWA-Version bleibt erhalten, bis Xcode-Build, Datenmigration und iPhone-Tests erfolgreich abgeschlossen sind.")
                 }
                 Section("Kosten") {
