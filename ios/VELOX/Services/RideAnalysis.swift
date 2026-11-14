@@ -34,7 +34,16 @@ struct RideElevationAnalysis: Equatable {
 
     init(ride: Ride?) {
         guard let ride else {
-            self.init(empty: ())
+            profile = []
+            ascentM = 0
+            descentM = 0
+            netChangeM = 0
+            reference = .unavailable
+            gpsAnchorCount = 0
+            calibrationOffsetM = nil
+            calibrationSpreadM = nil
+            rawBarometerCount = 0
+            usableGPSAltitudeCount = 0
             return
         }
 
