@@ -235,8 +235,8 @@ private struct ElevationProfileChart: View {
     var body: some View {
         GeometryReader { geometry in
             if points.count >= 2,
-               let minimum = points.map(\\.altitudeM).min(),
-               let maximum = points.map(\\.altitudeM).max() {
+               let minimum = points.map(\.altitudeM).min(),
+               let maximum = points.map(\.altitudeM).max() {
                 let range = max(1, maximum - minimum)
                 Path { path in
                     for (index, point) in points.enumerated() {
