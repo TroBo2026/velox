@@ -220,3 +220,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .map-wrap .leaflet-control-zoom a,.detail-map .leaflet-control-zoom a{background:#102131;color:var(--text);border-color:var(--line)}
 .map-wrap .leaflet-control-attribution,.detail-map .leaflet-control-attribution{background:rgba(7,19,31,.82);color:#a9bac4}
 .map-wrap .leaflet-control-attribution a,.detail-map .leaflet-control-attribution a{color:var(--teal)}
+
+/* Einheitliche, zurückhaltende Datenvisualisierung für Tempo und Kennzahlen */
+.speed-profile-area{fill:url(#speedAreaGradient);stroke:none}
+.speed-profile-line{stroke-width:3.1;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.metric-card,.live-grid>div{position:relative}
+.metric-card:before{content:"";position:absolute;left:16px;right:16px;top:0;height:2px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,rgba(91,214,197,.68),rgba(91,145,220,.18));opacity:.75}
+.live-grid>div{background:linear-gradient(145deg,rgba(24,44,61,.98),rgba(12,27,40,.98))}
+.live-grid>div span{letter-spacing:.015em}
+.elevation-stat strong{font-variant-numeric:tabular-nums}
