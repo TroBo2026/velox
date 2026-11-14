@@ -7,6 +7,7 @@ struct RideElevationProfilePoint: Equatable, Identifiable {
     let id: Int
     let distanceM: Double
     let altitudeM: Double
+    let segmentID: Int
 }
 
 struct RideElevationAnalysis: Equatable {
@@ -84,23 +85,25 @@ struct RideElevationAnalysis: Equatable {
 
         if !barometer.isEmpty {
             for sample in barometer {
-                guard let distance = Self.distance(at: sample.timestampMs, on: route) else { continue }
+                guard let position = Self.distance(at: sample.timestampMs, on: route) else { continue }
                 let altitude = sample.relativeAltitudeM + (calibrated ? (offset ?? 0) : 0)
                 guard altitude.isFinite else { continue }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
-                    distanceM: distance,
-                    altitudeM: altitude
+                    distanceM: position.distanceM,
+                    altitudeM: altitude,
+                    segmentID: position.segmentID
                 ))
             }
         } else {
             // Explicit GPS-only fallback; never label this as barometer fusion.
             for point in trustedGPS {
-                guard let altitude = point.alt, let distance = Self.distance(at: Int64((point.t * 1_000).rounded()), on: route) else { continue }
+                guard let altitude = point.alt, let position = Self.distance(at: Int64((point.t * 1_000).rounded()), on: route) else { continue }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
-                    distanceM: distance,
-                    altitudeM: altitude
+                    distanceM: position.distanceM,
+                    altitudeM: altitude,
+                    segmentID: position.segmentID
                 ))
             }
         }
@@ -150,15 +153,17 @@ struct RideElevationAnalysis: Equatable {
     private struct RoutePoint {
         let timestampMs: Int64
         let distanceM: Double
+        let segmentID: Int
     }
 
     private static func makeRoute(_ points: [RidePoint]) -> [RoutePoint] {
         var result: [RoutePoint] = []
         var distance = 0.0
+        var segmentID = 0
         var previous: RidePoint?
         for point in points {
             guard let previousPoint = previous else {
-                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance))
+                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
@@ -168,19 +173,20 @@ struct RideElevationAnalysis: Equatable {
             let b = CLLocation(latitude: point.lat, longitude: point.lon)
             let segment = b.distance(from: a)
             guard elapsedMs <= 30_000, segment.isFinite, segment >= 0, segment <= 120 else {
-                // Start a new valid segment without inventing distance across the gap.
-                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance))
+                // Start a new segment; never connect or total elevation across this gap.
+                segmentID += 1
+                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
             distance += segment
-            result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance))
+            result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
             previous = point
         }
         return result
     }
 
-    private static func distance(at timestamp: Int64, on route: [RoutePoint]) -> Double? {
+    private static func distance(at timestamp: Int64, on route: [RoutePoint]) -> (distanceM: Double, segmentID: Int)? {
         guard route.count >= 2 else { return nil }
         for index in 1..<route.count {
             let left = route[index - 1]
@@ -189,7 +195,7 @@ struct RideElevationAnalysis: Equatable {
             guard duration > 0, duration <= 30_000,
                   timestamp >= left.timestampMs, timestamp <= right.timestampMs else { continue }
             let fraction = Double(timestamp - left.timestampMs) / Double(duration)
-            return left.distanceM + (right.distanceM - left.distanceM) * fraction
+            return (left.distanceM + (right.distanceM - left.distanceM) * fraction, left.segmentID)
         }
         return nil
     }
@@ -213,7 +219,13 @@ struct RideElevationAnalysis: Equatable {
         var ascent = 0.0
         var descent = 0.0
         var previous = first.altitudeM
+        var previousSegment = points[0].segmentID
         for point in points.dropFirst() {
+            if point.segmentID != previousSegment {
+                previous = point.altitudeM
+                previousSegment = point.segmentID
+                continue
+            }
             let delta = point.altitudeM - previous
             // Reject isolated jumps; keep the raw observation in the ride archive.
             if delta.isFinite && abs(delta) <= 8 {
