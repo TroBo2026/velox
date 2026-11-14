@@ -10,6 +10,8 @@ struct BarometerSample: Codable, Identifiable, Equatable {
     let timestampMs: Int64
     let source: String
     let accuracyM: Double?
+    /// Identifies a Core Motion session; nil keeps older JSON records decodable.
+    let sessionID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -17,7 +19,8 @@ struct BarometerSample: Codable, Identifiable, Equatable {
         relativeAltitudeM: Double,
         timestampMs: Int64,
         source: String = "coreMotionBarometer",
-        accuracyM: Double? = nil
+        accuracyM: Double? = nil,
+        sessionID: UUID? = nil
     ) {
         self.id = id
         self.pressureKPa = pressureKPa
@@ -25,5 +28,6 @@ struct BarometerSample: Codable, Identifiable, Equatable {
         self.timestampMs = timestampMs
         self.source = source
         self.accuracyM = accuracyM
+        self.sessionID = sessionID
     }
 }
