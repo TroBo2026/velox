@@ -968,13 +968,32 @@
       const value=maxSpeed*(1-i/4),yy=top+height*i/4;
       grid.push('<line class="grid-line" x1="'+left+'" y1="'+yy+'" x2="'+(left+width)+'" y2="'+yy+'"/><text class="axis-label" x="'+(left-8)+'" y="'+(yy+4)+'" text-anchor="end">'+Math.round(value)+'</text>');
     }
-    const paths=filteredGroups.filter(group=>group.length>1).map(group=>{
-      const stride=Math.max(1,Math.ceil(group.length/280)),plot=group.filter((sample,index)=>index===0||index===group.length-1||index%stride===0);
-      return '<polyline class="profile-line" points="'+plot.map(p=>x(p.distance)+','+y(p.speed)).join(' ')+'"/>';
+    const speedSorted=all.map(p=>p.speed).sort((a,b)=>a-b);
+    const speedLow=speedSorted[Math.floor((speedSorted.length-1)*0.1)]||0;
+    const speedHigh=speedSorted[Math.floor((speedSorted.length-1)*0.9)]||maxSpeed;
+    const speedStroke=value=>{
+      const ratio=speedHigh>speedLow?Math.max(0,Math.min(1,(value-speedLow)/(speedHigh-speedLow))):0.5;
+      return 'hsl('+(8+214*ratio).toFixed(0)+' 72% 62%)';
+    };
+    const plotGroups=filteredGroups.filter(group=>group.length>1).map(group=>{
+      const stride=Math.max(1,Math.ceil(group.length/320));
+      return group.filter((sample,index)=>index===0||index===group.length-1||index%stride===0);
+    });
+    const areaPaths=plotGroups.map(group=>{
+      const coords=group.map(p=>x(p.distance)+','+y(p.speed));
+      return '<path class="speed-profile-area" d="M '+x(group[0].distance)+' '+bottom+' L '+coords.join(' L ')+' L '+x(group[group.length-1].distance)+' '+bottom+' Z"/>';
+    }).join('');
+    const paths=plotGroups.map(group=>{
+      const segments=[];
+      for(let i=1;i<group.length;i++)segments.push('<line class="speed-profile-line" x1="'+x(group[i-1].distance)+'" y1="'+y(group[i-1].speed)+'" x2="'+x(group[i].distance)+'" y2="'+y(group[i].speed)+'" stroke="'+speedStroke((group[i-1].speed+group[i].speed)/2)+'"/>');
+      return segments.join('');
     }).join('');
     const avg=intervals.reduce((sum,item)=>sum+item.speedKmh*item.durationS,0)/Math.max(1,intervals.reduce((sum,item)=>sum+item.durationS,0));
-    const peak=Math.max(...all.map(p=>p.speed));
-    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø GPS-Tempo <strong>'+fmt(avg)+' km/h</strong></span><span class="elevation-stat">Spitze <strong>'+fmt(peak)+' km/h</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Geschwindigkeitsprofil über die Strecke, GPS-Lücken getrennt dargestellt"><text class="axis-title" x="8" y="12">km/h</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+paths+'<text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text></svg><p class="elevation-footnote">'+count+' gültige GPS-Bewegungsintervalle in '+groups.length+' zusammenhängenden Abschnitt(en). '+gapCount+' GPS-Lücke(n) werden nicht mit Linien überbrückt.</p>';
+    const peak=Math.max(...all.map(p=>p.speed)),slowest=Math.min(...all.map(p=>p.speed));
+    const first=plotGroups[0]?.[0],last=plotGroups[plotGroups.length-1]?.at(-1);
+    const markers=first&&last?'<circle class="profile-marker" cx="'+x(first.distance)+'" cy="'+y(first.speed)+'" r="4"/><circle class="profile-marker profile-marker-end" cx="'+x(last.distance)+'" cy="'+y(last.speed)+'" r="4"/>':'';
+    const legend='<div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Relatives Tempo dieser Tour</span></div>';
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø GPS-Tempo <strong>'+fmt(avg)+' km/h</strong></span><span class="elevation-stat">Spitze <strong>'+fmt(peak)+' km/h</strong></span><span class="elevation-stat">Langsamster Abschnitt <strong>'+fmt(slowest)+' km/h</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Geschwindigkeitsprofil über '+fmt(xMax/1000,1)+' Kilometer, durchschnittlich '+fmt(avg)+' Kilometer pro Stunde. GPS-Lücken sind getrennt dargestellt."><defs><linearGradient id="speedAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6d91b8" stop-opacity=".3"/><stop offset="100%" stop-color="#6d91b8" stop-opacity=".02"/></linearGradient></defs><text class="axis-title" x="8" y="12">km/h</text>'+grid.join('')+areaPaths+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+paths+markers+'<text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text></svg>'+legend+'<p class="elevation-footnote">'+count+' gültige GPS-Bewegungsintervalle in '+groups.length+' zusammenhängenden Abschnitt(en). '+gapCount+' GPS-Lücke(n) werden nicht mit Linien überbrückt. Die Linienfarbe zeigt das relative Tempo; die Kurve wird nur für die Darstellung reduziert.</p>';
   }
   function exportGPX(r){
     const pts=Array.isArray(r.points)?r.points:[],segments=validRouteSegments(pts,true);
