@@ -8,8 +8,6 @@
     <string>VELOX verwendet den Barometersensor für die Höhenmessung während einer ausdrücklich gestarteten Aufzeichnung.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>VELOX benötigt deinen Standort, um eine von dir gestartete Fahrradtour aufzuzeichnen.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>VELOX benötigt Hintergrundstandort nur, wenn du eine Tour ausdrücklich gestartet hast.</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>
