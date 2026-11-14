@@ -6,7 +6,7 @@ Stand: 13. November 2026 · Repository `TroBo2026/velox` · Branch `main`
 
 Ein erstes eigenständiges Xcode-Projekt unter `ios/VELOX.xcodeproj` ist angelegt. Es ist eine native SwiftUI-App und keine WebView-Hülle. Enthalten sind die erste native Oberfläche, Datenmodelle, ein Core-Motion-Barometerdienst und ein JSON-v1-Grundcodec.
 
-**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Eine erste native GPS-Aufzeichnung im Vordergrund und ein lokales JSON-Tourenarchiv sind implementiert. Beides ist noch nicht mit Xcode kompiliert oder auf einem iPhone geprüft und daher nicht für echte Touren freigegeben. Hintergrundaufzeichnung und Datenmigration fehlen. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
+**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Eine erste native GPS-Aufzeichnung im Vordergrund, ein lokales JSON-Tourenarchiv und die zeitgestempelte Speicherung echter Core-Motion-Barometerproben während einer Tour sind implementiert. Eine konservative erste Auf-/Abstiegsberechnung filtert kleine Drucksensor-Schwankungen sowie lange Messlücken und unplausible Sprünge. Das ist noch nicht mit Xcode kompiliert oder auf einem iPhone geprüft und daher nicht für echte Touren freigegeben. Hintergrundaufzeichnung, belastbare Höhenfusion/Kalibrierung und Datenmigration fehlen. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
 
 ## Was auf dem Mac installiert werden muss
 
@@ -56,7 +56,7 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 - `VELOX.xcodeproj/project.pbxproj`: minimales iOS-App-Projekt (iOS 17.0 als vorläufiges Deployment Target).
 - `VELOX/App/VELOXApp.swift`, `RootView.swift`: SwiftUI-App-Einstieg und erste native Oberfläche.
 - `VELOX/Models/*`: Tour-, GPS- und Barometer-Grundmodelle.
-- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec, `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz) und `RideRecorder.swift` (Core Location, Vordergrund-GPS, Pause/Fortsetzen/Stoppen).
+- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec, `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz) und `RideRecorder.swift` (Core Location, Vordergrund-GPS, Core-Motion-Barometerproben, Pause/Fortsetzen/Stoppen) und `RideAnalysis.swift` (vorläufige konservative Höhenänderungs-Auswertung).
 
 ## Noch offen
 
