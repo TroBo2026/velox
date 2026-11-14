@@ -1,4 +1,4 @@
-/* VELOX Pro Analysis 0.8.0 — read-only ride analytics */
+/* VELOX Pro Analysis 0.8.1 — read-only ride analytics */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -338,10 +338,15 @@
     const zoneRows = result.speedZones.map((zone) =>
       progressRow(zone.label, zone.seconds, result.movingSeconds, "Anteil an der erkannten Bewegungszeit")
     ).join("");
-    const gradeRows = e.gradeBands.map((band) =>
-      '<div class="vx-pro-grade-row"><span>' + band.label + '</span><strong>' +
-      fmt(band.distance / 1000, 2) + ' km</strong></div>'
-    ).join("");
+    const gradeTotal = e.gradeDistance || e.gradeBands.reduce((sum, band) => sum + band.distance, 0);
+    const gradeColors = ["#5799df", "#79a9d0", "#9aaab5", "#d99b78", "#df7774"];
+    const gradeRows = e.gradeBands.map((band, index) => {
+      const percent = gradeTotal > 0 ? band.distance / gradeTotal * 100 : 0;
+      return '<div class="vx-pro-grade-item"><div class="vx-pro-grade-row"><span>' + band.label +
+        '</span><strong>' + fmt(band.distance / 1000, 2) + ' km · ' + fmt(percent, 0) + ' %</strong></div>' +
+        '<div class="vx-pro-grade-track"><i style="width:' + Math.max(0, Math.min(100, percent)).toFixed(2) +
+        '%;background:' + gradeColors[index] + '"></i></div></div>';
+    }).join("");
     const splitRows = result.splits.length
       ? result.splits.map((split) =>
         '<tr><td>' + split.segment + ' / ' + split.number + '</td><td>' + fmt(split.distanceM / 1000, 2) + ' km</td><td>' +
@@ -432,6 +437,11 @@
       ".vx-pro-grade-row,.vx-pro-audit-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:10px}",
       ".vx-pro-grade-row span,.vx-pro-audit-row span{color:var(--muted)}",
       ".vx-pro-grade-row strong,.vx-pro-audit-row strong{font-variant-numeric:tabular-nums}",
+      ".vx-pro-grade-item{margin:10px 0 13px}",
+      ".vx-pro-grade-track{height:7px;margin-top:7px;border-radius:99px;background:#203546;overflow:hidden}",
+      ".vx-pro-grade-track i{display:block;height:100%;border-radius:99px;min-width:0;transition:width .25s ease}",
+      ".vx-pro-grade-row strong{font-size:10px;white-space:nowrap}",
+      "@media(prefers-reduced-motion:reduce){.vx-pro-grade-track i{transition:none}}",
       ".vx-pro-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}",
       ".vx-pro-table{width:100%;min-width:340px;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}",
       ".vx-pro-table th,.vx-pro-table td{padding:9px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}",
@@ -507,7 +517,7 @@
     }
     host.innerHTML = renderSingle(analysesCache[index], splitKm);
   }
-  window.VELOXProAnalysis = Object.freeze({ version: "0.7.1", analyzeRide });
+  window.VELOXProAnalysis = Object.freeze({ version: "0.8.1", analyzeRide });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
   else init();
 })();
