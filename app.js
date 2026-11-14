@@ -872,14 +872,15 @@
       box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Höhenpunkte für ein Profil vorhanden.</div>';
       return;
     }
-    const elevationRange=samples.reduce((range,p)=>({min:Math.min(range.min,p.elevationM),max:Math.max(range.max,p.elevationM)}),{min:Infinity,max:-Infinity}),min=elevationRange.min,max=elevationRange.max;
-    const padding=Math.max(4,(max-min)*0.08);
-    const yMin=Math.floor((min-padding)/5)*5,yMax=Math.ceil((max+padding)/5)*5,yRange=Math.max(10,yMax-yMin);
+    const min=profile.minimum??Math.min(...samples.map(p=>p.elevationM));
+    const max=profile.maximum??Math.max(...samples.map(p=>p.elevationM));
+    const padding=Math.max(8,(max-min)*0.1);
+    const yMin=Math.floor((min-padding)/10)*10,yMax=Math.ceil((max+padding)/10)*10,yRange=Math.max(20,yMax-yMin);
     const xMax=Math.max(1,profile.distanceM,samples[samples.length-1].distanceM);
-    const left=54,top=12,width=570,height=132,bottom=top+height;
+    const left=48,top=18,width=574,height=142,bottom=top+height;
     const xFor=value=>left+(value/xMax)*width;
     const yFor=value=>top+((yMax-value)/yRange)*height;
-    const stride=Math.max(1,Math.ceil(samples.length/280)),chartSamples=[];
+    const stride=Math.max(1,Math.ceil(samples.length/420)),chartSamples=[];
     for(let i=0;i<samples.length;i++){
       if(i===0||i===samples.length-1||i%stride===0||samples[i].segment!==samples[i-1]?.segment)chartSamples.push(samples[i]);
     }
@@ -889,22 +890,42 @@
       else group.push(sample);
     });
     if(group.length)groups.push(group);
+    const speedValues=[];
+    groups.forEach(g=>{for(let i=1;i<g.length;i++){
+      const dt=(g[i].t-g[i-1].t)/1000,dd=g[i].distanceM-g[i-1].distanceM;
+      if(dt>0&&dd>=0)speedValues.push(dd/dt*3.6);
+    }});
+    const sorted=[...speedValues].sort((x,y)=>x-y);
+    const lo=sorted.length?sorted[Math.floor((sorted.length-1)*0.1)]:0;
+    const hi=sorted.length?sorted[Math.floor((sorted.length-1)*0.9)]:0;
+    const speedColor=value=>{
+      const ratio=hi>lo?Math.max(0,Math.min(1,(value-lo)/(hi-lo))):0.5;
+      const hue=8+214*ratio;
+      return 'hsl('+hue.toFixed(0)+' 72% 62%)';
+    };
     const grid=[];
     for(let i=0;i<=4;i++){
       const value=yMax-(yRange*i/4),y=top+(height*i/4);
-      grid.push('<line class="grid-line" x1="'+left+'" y1="'+y+'" x2="'+(left+width)+'" y2="'+y+'"/><text class="axis-label" x="'+(left-9)+'" y="'+(y+4)+'" text-anchor="end">'+Math.round(value)+'</text>');
+      grid.push('<line class="grid-line" x1="'+left+'" y1="'+y+'" x2="'+(left+width)+'" y2="'+y+'"/><text class="axis-label" x="'+(left-8)+'" y="'+(y+4)+'" text-anchor="end">'+Math.round(value)+'</text>');
     }
-    const paths=groups.map(group=>{
-      if(group.length<2)return '';
-      const coords=group.map(p=>xFor(p.distanceM)+','+yFor(p.elevationM)).join(' ');
-      return '<polyline class="profile-line" points="'+coords+'"/>';
+    const areaPaths=groups.filter(g=>g.length>1).map(g=>{
+      const coords=g.map(p=>xFor(p.distanceM)+','+yFor(p.elevationM));
+      return '<path class="elevation-area" d="M '+xFor(g[0].distanceM)+' '+bottom+' L '+coords.join(' L ')+' L '+xFor(g[g.length-1].distanceM)+' '+bottom+' Z"/>';
+    }).join('');
+    const speedLines=groups.map(g=>{
+      const lines=[];
+      for(let i=1;i<g.length;i++){
+        const dt=(g[i].t-g[i-1].t)/1000,dd=g[i].distanceM-g[i-1].distanceM;
+        const speed=dt>0&&dd>=0?dd/dt*3.6:0;
+        lines.push('<line class="profile-speed-line" x1="'+xFor(g[i-1].distanceM)+'" y1="'+yFor(g[i-1].elevationM)+'" x2="'+xFor(g[i].distanceM)+'" y2="'+yFor(g[i].elevationM)+'" stroke="'+speedColor(speed)+'"/>');
+      }
+      return lines.join('');
     }).join('');
     const first=samples[0],last=samples[samples.length-1];
-    const firstX=xFor(first.distanceM),firstY=yFor(first.elevationM),lastX=xFor(last.distanceM),lastY=yFor(last.elevationM);
-    const xLabels='<text class="axis-label" x="'+left+'" y="166" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="166" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="166" text-anchor="end">'+fmt(xMax/1000,1)+' km</text>';
-    const endpoints='<line class="route-endpoint" x1="'+left+'" y1="'+top+'" x2="'+left+'" y2="'+bottom+'"/><line class="route-endpoint" x1="'+(left+width)+'" y1="'+top+'" x2="'+(left+width)+'" y2="'+bottom+'"/><text class="endpoint-label" x="'+(left+5)+'" y="'+(top+11)+'" text-anchor="start">Start</text><text class="endpoint-label" x="'+(left+width-5)+'" y="'+(top+11)+'" text-anchor="end">Ziel</text>';
-    const sampleMarkers='<circle class="profile-marker" cx="'+firstX+'" cy="'+firstY+'" r="4"/><circle class="profile-marker" cx="'+lastX+'" cy="'+lastY+'" r="4"/>';
-    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">Abstieg <strong>−'+Math.round(profile.loss)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 184" role="img" aria-label="Höhenprofil mit '+samples.length+' gültigen GPS-Höhenpunkten"><text class="axis-title" x="8" y="12">Höhe (m)</text>'+grid.join('')+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+endpoints+paths+sampleMarkers+xLabels+'</svg><p class="elevation-footnote">GPS-Höhenpunkte: '+profile.validCount+' von '+profile.totalCount+'. Die gestrichelten Linien markieren Tourstart und -ende; die Höhenlinie beginnt bzw. endet erst am ersten bzw. letzten verlässlichen Höhenmesspunkt. Ein Medianfilter über bis zu fünf benachbarte Messungen dämpft Ausreißer; Änderungen unter 4 m werden nicht zur Summe addiert.</p>';
+    const xLabels='<text class="axis-label" x="'+left+'" y="184" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="184" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="184" text-anchor="end">'+fmt(xMax/1000,1)+' km</text>';
+    const markers='<circle class="profile-marker" cx="'+xFor(first.distanceM)+'" cy="'+yFor(first.elevationM)+'" r="4"/><circle class="profile-marker profile-marker-end" cx="'+xFor(last.distanceM)+'" cy="'+yFor(last.elevationM)+'" r="4"/>';
+    const legend='<div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zum Tempo dieser Tour</span></div>';
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">↗ Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">↘ Abstieg <strong>'+Math.round(profile.loss)+' m</strong></span><span class="elevation-stat">Höhenbereich <strong>'+Math.round(min)+'–'+Math.round(max)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 198" role="img" aria-label="Höhenprofil von '+fmt(xMax/1000,1)+' Kilometern, Höhenbereich '+Math.round(min)+' bis '+Math.round(max)+' Meter. Linienfarbe zeigt das relative Tempo."><defs><linearGradient id="elevationAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6d91b8" stop-opacity=".32"/><stop offset="100%" stop-color="#6d91b8" stop-opacity=".025"/></linearGradient></defs><text class="axis-title" x="8" y="11">Höhe (m)</text>'+grid.join('')+areaPaths+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+speedLines+markers+xLabels+'</svg>'+legend+'<p class="elevation-footnote">Höhenprofil aus '+profile.validCount+' von '+profile.totalCount+' GPS-Höhenpunkten. Die Linienfarbe zeigt die relative Geschwindigkeit zwischen aufgezeichneten Punkten; fehlende GPS-Abschnitte werden nicht künstlich verbunden. Die Kurve wird für die Darstellung reduziert, die gespeicherten Messpunkte bleiben unverändert.</p>';
   }
   function renderSpeedProfile(points){
     const box=$("speedChart"),intervals=getMovingIntervals({points}),groups=[];
