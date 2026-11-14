@@ -53,7 +53,7 @@ struct RideElevationAnalysis: Equatable {
             .sorted { $0.timestampMs < $1.timestampMs }
 
         let trustedGPS = gps.filter {
-            guard let altitude = $0.alt, let accuracy = $0.altAccuracy else { return false }
+            guard $0.altSource == "coreLocation", let altitude = $0.alt, let accuracy = $0.altAccuracy else { return false }
             return altitude.isFinite && accuracy.isFinite && accuracy >= 0 && accuracy <= 15
         }
 
