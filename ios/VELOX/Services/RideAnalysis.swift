@@ -61,25 +61,25 @@ struct RideElevationAnalysis: Equatable {
         // Pair each barometer observation with the nearest trusted GPS altitude.
         // GPS fixes are references only; the barometer retains the shape of the profile.
         let offsets: [Double] = barometer.compactMap { sample in
-            guard let point = nearestGPS(to: sample.timestampMs, in: trustedGPS, maxDifferenceMs: 10_000),
+            guard let point = Self.nearestGPS(to: sample.timestampMs, in: trustedGPS, maxDifferenceMs: 10_000),
                   let gpsAltitude = point.alt else { return nil }
             let offset = gpsAltitude - sample.relativeAltitudeM
             return offset.isFinite ? offset : nil
         }
 
         let sortedOffsets = offsets.sorted()
-        let offset = median(sortedOffsets)
+        let offset = Self.median(sortedOffsets)
         let spread = offset.map { value in
-            median(sortedOffsets.map { abs($0 - value) }.sorted())
+            Self.median(sortedOffsets.map { abs($0 - value) }.sorted())
         }
         let calibrated = sortedOffsets.count >= 3
 
-        let route = makeRoute(gps)
+        let route = Self.makeRoute(gps)
         var plotted: [RideElevationProfilePoint] = []
 
         if !barometer.isEmpty {
             for sample in barometer {
-                guard let distance = distance(at: sample.timestampMs, on: route) else { continue }
+                guard let distance = Self.distance(at: sample.timestampMs, on: route) else { continue }
                 let altitude = sample.relativeAltitudeM + (calibrated ? (offset ?? 0) : 0)
                 guard altitude.isFinite else { continue }
                 plotted.append(RideElevationProfilePoint(
@@ -91,7 +91,7 @@ struct RideElevationAnalysis: Equatable {
         } else {
             // Explicit GPS-only fallback; never label this as barometer fusion.
             for point in trustedGPS {
-                guard let altitude = point.alt, let distance = distance(at: Int64((point.t * 1_000).rounded()), on: route) else { continue }
+                guard let altitude = point.alt, let distance = Self.distance(at: Int64((point.t * 1_000).rounded()), on: route) else { continue }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
                     distanceM: distance,
@@ -193,7 +193,7 @@ struct RideElevationAnalysis: Equatable {
         return nil
     }
 
-    private func nearestGPS(to timestamp: Int64, in points: [RidePoint], maxDifferenceMs: Int64) -> RidePoint? {
+    private static func nearestGPS(to timestamp: Int64, in points: [RidePoint], maxDifferenceMs: Int64) -> RidePoint? {
         points.min { lhs, rhs in
             abs(Int64((lhs.t * 1_000).rounded()) - timestamp) <
             abs(Int64((rhs.t * 1_000).rounded()) - timestamp)
@@ -202,7 +202,7 @@ struct RideElevationAnalysis: Equatable {
         }
     }
 
-    private func median(_ values: [Double]) -> Double? {
+    private static func median(_ values: [Double]) -> Double? {
         guard !values.isEmpty else { return nil }
         let middle = values.count / 2
         if values.count.isMultiple(of: 2) {
