@@ -1,4 +1,4 @@
-/* VELOX 0.9.3 — local-first cycling tracker */
+/* VELOX 0.9.7 — local-first cycling tracker */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
