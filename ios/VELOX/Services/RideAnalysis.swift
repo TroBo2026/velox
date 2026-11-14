@@ -11,7 +11,7 @@ struct RideElevationProfilePoint: Equatable, Identifiable {
 }
 
 struct RideElevationAnalysis: Equatable {
-    enum Reference: String {
+    enum Reference: String, Equatable {
         case gpsCalibrated = "GPS-kalibriert"
         case partiallyGPSCalibrated = "Teilweise GPS-kalibriert"
         case barometerRelative = "Nur relative Barometerhöhe"
