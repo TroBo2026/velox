@@ -10,10 +10,11 @@ private enum VELOXStyle {
 
 struct RootView: View {
     @StateObject private var barometer = BarometerService()
+    @StateObject private var recorder = RideRecorder()
 
     var body: some View {
         TabView {
-            DashboardView(barometer: barometer)
+            DashboardView(barometer: barometer, recorder: recorder)
                 .tabItem { Label("Übersicht", systemImage: "speedometer") }
             SensorStatusView(barometer: barometer)
                 .tabItem { Label("Sensoren", systemImage: "waveform.path.ecg") }
@@ -27,6 +28,7 @@ struct RootView: View {
 
 private struct DashboardView: View {
     @ObservedObject var barometer: BarometerService
+    @ObservedObject var recorder: RideRecorder
     @State private var savedRideCount = 0
     @State private var archiveMessage = "Archiv wird geprüft …"
 
@@ -48,7 +50,7 @@ private struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Native iOS · Entwicklungsstand", systemImage: "iphone")
                             .font(.headline)
-                        Text("Das SwiftUI-Grundgerüst und der echte Barometerzugriff sind vorbereitet. GPS-Tourenaufzeichnung, Archiv und Datenmigration werden separat entwickelt.")
+                        Text("SwiftUI, lokales Archiv und eine erste GPS-Aufzeichnung sind vorbereitet. Der echte Gerätetest, Hintergrundbetrieb und Datenmigration sind noch offen.")
                             .font(.subheadline)
                             .foregroundStyle(VELOXStyle.muted)
                         HStack(spacing: 8) {
@@ -57,6 +59,63 @@ private struct DashboardView: View {
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.orange)
                         }
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VELOXStyle.panel, in: RoundedRectangle(cornerRadius: 18))
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Label("Tourenaufzeichnung", systemImage: "location.fill")
+                                .font(.headline)
+                            Spacer()
+                            Text(recorder.state == .recording ? "AKTIV" : recorder.state == .paused ? "PAUSIERT" : "BEREIT")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(0.8)
+                                .foregroundStyle(recorder.state == .recording ? VELOXStyle.accent : .secondary)
+                        }
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(String(format: "%.2f", recorder.distanceMeters / 1_000))
+                                .font(.system(size: 32, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                            Text("km")
+                                .font(.subheadline)
+                                .foregroundStyle(VELOXStyle.muted)
+                        }
+                        Text(recorder.message)
+                            .font(.caption)
+                            .foregroundStyle(VELOXStyle.muted)
+                        if let accuracy = recorder.lastAccuracyMeters {
+                            Text(String(format: "Letzte GPS-Genauigkeit: ±%.0f m", accuracy))
+                                .font(.caption2)
+                                .foregroundStyle(VELOXStyle.muted)
+                        }
+                        if let error = recorder.persistenceError {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                        HStack(spacing: 10) {
+                            if recorder.state == .recording {
+                                Button("Pause", systemImage: "pause.fill") { recorder.pause() }
+                                    .buttonStyle(.bordered)
+                                Button("Beenden", systemImage: "stop.fill", role: .destructive) { recorder.stop() }
+                                    .buttonStyle(.borderedProminent)
+                            } else if recorder.state == .paused {
+                                Button("Fortsetzen", systemImage: "play.fill") { recorder.resume() }
+                                    .buttonStyle(.borderedProminent)
+                                Button("Beenden", systemImage: "stop.fill", role: .destructive) { recorder.stop() }
+                                    .buttonStyle(.bordered)
+                            } else {
+                                Button("Tour starten", systemImage: "record.circle.fill") { recorder.start() }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(recorder.state == .requestingPermission)
+                            }
+                        }
+                        .tint(VELOXStyle.accent)
+                        Text("GPS-Aufzeichnung startet nur nach deinem Tastendruck. In dieser Entwicklungsstufe läuft sie nur im Vordergrund; App-Wechsel oder Display-Sperre können die Aufzeichnung unterbrechen.")
+                            .font(.caption2)
+                            .foregroundStyle(VELOXStyle.muted)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -118,8 +177,8 @@ private struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Nächste native Ausbaustufen", systemImage: "list.bullet")
                             .font(.headline)
-                        ReadinessRow(title: "Core Location GPS-Recorder", detail: "Noch nicht implementiert")
-                        ReadinessRow(title: "Lokales Tourenarchiv", detail: "Noch nicht implementiert")
+                        ReadinessRow(title: "Core Location GPS-Recorder", detail: "Vordergrund-Grundfunktion implementiert · Gerätetest offen")
+                        ReadinessRow(title: "Lokales Tourenarchiv", detail: "Implementiert · Xcode- und Persistenztests offen")
                         ReadinessRow(title: "Web-Backup-Migration", detail: "Codec-Grundlage vorhanden · Tests offen")
                     }
                     .padding(16)
