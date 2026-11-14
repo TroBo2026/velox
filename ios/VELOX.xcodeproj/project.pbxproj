@@ -14,7 +14,8 @@
   A10000000000000000000006 = {isa = PBXBuildFile; fileRef = B10000000000000000000006; };
   A10000000000000000000007 = {isa = PBXBuildFile; fileRef = B10000000000000000000007; };
   A10000000000000000000008 = {isa = PBXBuildFile; fileRef = B10000000000000000000008; };
-  A10000000000000000000009 = {isa = PBXBuildFile; fileRef = B10000000000000000000009; };\n  A10000000000000000000010 = {isa = PBXBuildFile; fileRef = B10000000000000000000011; };
+  A10000000000000000000009 = {isa = PBXBuildFile; fileRef = B10000000000000000000009; };
+  A10000000000000000000010 = {isa = PBXBuildFile; fileRef = B10000000000000000000011; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +28,8 @@
   B10000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarometerElevationCalibrator.swift; sourceTree = "<group>"; };
   B10000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideBackupCodec.swift; sourceTree = "<group>"; };
   B10000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "VELOX/VELOX-Info.plist"; sourceTree = "<group>"; };
-  B10000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = VELOX.app; sourceTree = BUILT_PRODUCTS_DIR; };\n  B10000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideStore.swift; sourceTree = \"<group>\"; };
+  B10000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = VELOX.app; sourceTree = BUILT_PRODUCTS_DIR; };
+  B10000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideStore.swift; sourceTree = \"<group>\"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
