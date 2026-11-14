@@ -9,8 +9,9 @@ private enum VELOXStyle {
 }
 
 struct RootView: View {
-    @StateObject private var barometer = BarometerService()
     @StateObject private var recorder = RideRecorder()
+
+    private var barometer: BarometerService { recorder.barometer }
 
     var body: some View {
         TabView {
@@ -50,7 +51,7 @@ private struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Native iOS · Entwicklungsstand", systemImage: "iphone")
                             .font(.headline)
-                        Text("SwiftUI, lokales Archiv und eine erste GPS-Aufzeichnung sind vorbereitet. Der echte Gerätetest, Hintergrundbetrieb und Datenmigration sind noch offen.")
+                        Text("SwiftUI, lokales Archiv sowie GPS- und Barometeraufzeichnung im Vordergrund sind vorbereitet. Xcode-Build, echter Gerätetest, Hintergrundbetrieb und Datenmigration sind noch offen.")
                             .font(.subheadline)
                             .foregroundStyle(VELOXStyle.muted)
                         HStack(spacing: 8) {
@@ -135,7 +136,7 @@ private struct DashboardView: View {
                         Text(archiveMessage)
                             .font(.caption)
                             .foregroundStyle(VELOXStyle.muted)
-                        Text("Lokale Speicherung ist vorbereitet. Tourenaufzeichnung und automatische Speicherung sind noch nicht freigegeben.")
+                        Text("Touren und echte Sensorproben werden lokal im versionierten Archiv gespeichert. Noch nicht mit Xcode oder auf dem iPhone getestet.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
@@ -167,6 +168,18 @@ private struct DashboardView: View {
                             .font(.caption)
                             .foregroundStyle(VELOXStyle.muted)
                         Text("Relative Höhenänderung seit Start der Sensormessung – keine absolute Meereshöhe.")
+                        HStack {
+                            Label("Aufstieg", systemImage: "arrow.up.right").foregroundStyle(VELOXStyle.accent)
+                            Spacer()
+                            Text(String(format: "%.0f m", recorder.elevationSummary.ascentM)).monospacedDigit()
+                        }
+                        HStack {
+                            Label("Abstieg", systemImage: "arrow.down.right").foregroundStyle(.cyan)
+                            Spacer()
+                            Text(String(format: "%.0f m", recorder.elevationSummary.descentM)).monospacedDigit()
+                        }
+                        Text("\(recorder.elevationSummary.sampleCount) echte Barometerproben in dieser Tour · konservative 1-m-Rauschschwelle")
+                            .font(.caption2).foregroundStyle(VELOXStyle.muted)
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
@@ -178,6 +191,8 @@ private struct DashboardView: View {
                         Label("Nächste native Ausbaustufen", systemImage: "list.bullet")
                             .font(.headline)
                         ReadinessRow(title: "Core Location GPS-Recorder", detail: "Vordergrund-Grundfunktion implementiert · Gerätetest offen")
+                        ReadinessRow(title: "Core Motion in Touren", detail: "Echte Barometerproben mit Zeitstempel · Auswertung vorläufig")
+                        ReadinessRow(title: "Höhenanalyse", detail: "Auf-/Abstieg mit Rauschschwelle und Gap-Filter · Kalibrierung/Fusion offen")
                         ReadinessRow(title: "Lokales Tourenarchiv", detail: "Implementiert · Xcode- und Persistenztests offen")
                         ReadinessRow(title: "Web-Backup-Migration", detail: "Codec-Grundlage vorhanden · Tests offen")
                     }
@@ -241,7 +256,7 @@ private struct SensorStatusView: View {
                     .disabled(!barometer.isAvailable && !barometer.isRecording)
                 }
                 Section {
-                    Text("Die relative Höhenänderung ist keine absolute Höhe über dem Meeresspiegel. Die Messung ist unabhängig von einer GPS-Tour und wird derzeit noch nicht in Touren gespeichert.")
+                    Text("Während einer aktiven Tour werden echte Core-Motion-Proben mit Zeitstempel im Tourarchiv gespeichert. Relative Höhe ist keine absolute Meereshöhe; die Aufstiegs-/Abstiegswerte sind eine konservative erste Auswertung und noch nicht gerätevalidiert.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
