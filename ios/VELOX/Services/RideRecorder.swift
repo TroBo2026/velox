@@ -41,7 +41,7 @@ final class RideRecorder: NSObject, ObservableObject {
     }
 
     func start() {
-        guard state == .idle else { return }
+        guard state == .idle || (state == .failed && currentRide == nil) else { return }
         persistenceError = nil
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
@@ -122,8 +122,7 @@ final class RideRecorder: NSObject, ObservableObject {
         lastAcceptedLocation = nil
         state = .recording
         message = "GPS wird gesucht. Die Tour ist bereits lokal angelegt."
-        persist(ride, inserting: true)
-        manager.startUpdatingLocation()
+        persist(ride, inserting: true, startGPSAfterInsert: true)
     }
 
     private func accept(_ location: CLLocation) {
@@ -165,9 +164,11 @@ final class RideRecorder: NSObject, ObservableObject {
         persist(ride)
     }
 
-    private func persist(_ ride: Ride, inserting: Bool = false) {
-        persistenceTask?.cancel()
+    private func persist(_ ride: Ride, inserting: Bool = false, startGPSAfterInsert: Bool = false) {
+        // Chain writes so rapid GPS callbacks cannot overtake the initial insert.
+        let previousWrite = persistenceTask
         persistenceTask = Task { [weak self] in
+            await previousWrite?.value
             guard let self else { return }
             do {
                 if inserting {
@@ -176,6 +177,10 @@ final class RideRecorder: NSObject, ObservableObject {
                     try await store.replace(ride)
                 }
                 persistenceError = nil
+                if startGPSAfterInsert, state == .recording, currentRide?.id == ride.id {
+                    manager.startUpdatingLocation()
+                    message = "GPS wird gesucht. Punkte werden lokal gespeichert."
+                }
             } catch {
                 persistenceError = error.localizedDescription
                 message = "Speicherfehler: \(error.localizedDescription)"
