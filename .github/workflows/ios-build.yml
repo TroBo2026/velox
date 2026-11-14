@@ -55,6 +55,18 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Validate elevation analysis
+        run: |
+          set -o pipefail
+          swiftc -parse-as-library \
+            ios/VELOX/Models/RidePoint.swift \
+            ios/VELOX/Models/BarometerSample.swift \
+            ios/VELOX/Models/Ride.swift \
+            ios/VELOX/Services/RideAnalysis.swift \
+            ios/Tests/RideAnalysisValidation.swift \
+            -o "$RUNNER_TEMP/VELOX-Elevation-Validation"
+          "$RUNNER_TEMP/VELOX-Elevation-Validation"
+
       - name: Package simulator build
         if: success()
         run: |
