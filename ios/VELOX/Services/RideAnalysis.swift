@@ -72,7 +72,7 @@ struct RideElevationAnalysis: Equatable {
 
         let sortedOffsets = offsets.sorted()
         let offset = Self.median(sortedOffsets)
-        let spread = offset.map { value in
+        let spread = offset.flatMap { value in
             Self.median(sortedOffsets.map { abs($0 - value) }.sorted())
         }
         // Three distinct fixes and a modest median absolute deviation are
