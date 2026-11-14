@@ -81,12 +81,13 @@ final class RideRecorder: NSObject, ObservableObject {
     func pause() {
         guard state == .recording, var ride = currentRide else { return }
         manager.stopUpdatingLocation()
+        barometer.stop()
         let now = Date().timeIntervalSince1970
         ride.status = "paused"
         ride.pauseStarted = now
         currentRide = ride
         state = .paused
-        message = "Tour pausiert. Barometer läuft weiter; Messwerte werden während der Pause nicht übernommen."
+        message = "Tour pausiert. GPS und Barometer sind gestoppt; beim Fortsetzen beginnt eine neue Barometersitzung."
         persist(ride)
     }
 
@@ -101,7 +102,7 @@ final class RideRecorder: NSObject, ObservableObject {
         currentRide = ride
         state = .recording
         message = "Tour läuft. GPS- und Barometerdaten werden lokal gespeichert."
-        if barometer.isAvailable && !barometer.isRecording { barometer.start() }
+        if barometer.isAvailable { barometer.start() }
         manager.startUpdatingLocation()
         persist(ride)
     }
@@ -186,6 +187,7 @@ final class RideRecorder: NSObject, ObservableObject {
 
     private func acceptBarometer(_ sample: BarometerSample) {
         guard state == .recording, var ride = currentRide,
+              sample.sessionID == barometer.activeSessionID,
               sample.timestampMs > 0,
               sample.pressureKPa.isFinite, sample.pressureKPa > 0,
               sample.relativeAltitudeM.isFinite else { return }
