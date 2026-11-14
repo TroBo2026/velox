@@ -6,7 +6,7 @@ Stand: 13. November 2026 · Repository `TroBo2026/velox` · Branch `main`
 
 Ein erstes eigenständiges Xcode-Projekt unter `ios/VELOX.xcodeproj` ist angelegt. Es ist eine native SwiftUI-App und keine WebView-Hülle. Enthalten sind die erste native Oberfläche, Datenmodelle, ein Core-Motion-Barometerdienst und ein JSON-v1-Grundcodec.
 
-**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Es gibt noch keine native GPS-Aufzeichnung, kein produktives Tourenarchiv, keine native Datenbank und keine abgeschlossene Datenmigration. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
+**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Es gibt noch keine native GPS-Aufzeichnung und keine abgeschlossene Datenmigration. Ein erstes lokales JSON-Tourenarchiv ist implementiert, aber noch nicht mit Xcode kompiliert oder durch XCTest geprüft und daher noch nicht für produktive Touren freigegeben. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
 
 ## Was auf dem Mac installiert werden muss
 
@@ -56,14 +56,14 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 - `VELOX.xcodeproj/project.pbxproj`: minimales iOS-App-Projekt (iOS 17.0 als vorläufiges Deployment Target).
 - `VELOX/App/VELOXApp.swift`, `RootView.swift`: SwiftUI-App-Einstieg und erste native Oberfläche.
 - `VELOX/Models/*`: Tour-, GPS- und Barometer-Grundmodelle.
-- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein und JSON-v1-Codec.
+- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec und `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz).
 
 ## Noch offen
 
 1. Projektdatei auf dem Mac mit Xcode validieren und ersten Simulator-Build erstellen.
 2. Unbekannte JSON-Felder verlustfrei erhalten; vorher keinen produktiven Import/Export-Rundlauf erlauben.
 3. JSON-Codec mit XCTest gegen echte Web-v1-Beispiele testen, insbesondere ID-Kollisionen.
-4. Native Tourenspeicherung, Core Location Recorder, Pause/Fortsetzen/Stoppen implementieren.
+4. `RideStore` mit XCTest prüfen (Neuanlage, Duplikate, Update, Löschen, beschädigte Datei, Persistenz nach Neustart); danach Core Location Recorder, Pause/Fortsetzen/Stoppen implementieren.
 5. Höhenfusion, Sensorsegmentierung und Filterung mit reproduzierbaren Tests absichern.
 6. Erst danach iPhone XR testen. Keine Veröffentlichung oder native Ablösung vor bestandenem Gerätetest.
 
