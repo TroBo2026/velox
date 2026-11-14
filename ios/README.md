@@ -6,7 +6,7 @@ Stand: 13. November 2026 · Repository `TroBo2026/velox` · Branch `main`
 
 Ein erstes eigenständiges Xcode-Projekt unter `ios/VELOX.xcodeproj` ist angelegt. Es ist eine native SwiftUI-App und keine WebView-Hülle. Enthalten sind die erste native Oberfläche, Datenmodelle, ein Core-Motion-Barometerdienst und ein JSON-v1-Grundcodec.
 
-**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Es gibt noch keine native GPS-Aufzeichnung und keine abgeschlossene Datenmigration. Ein erstes lokales JSON-Tourenarchiv ist implementiert, aber noch nicht mit Xcode kompiliert oder durch XCTest geprüft und daher noch nicht für produktive Touren freigegeben. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
+**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Eine erste native GPS-Aufzeichnung im Vordergrund und ein lokales JSON-Tourenarchiv sind implementiert. Beides ist noch nicht mit Xcode kompiliert oder auf einem iPhone geprüft und daher nicht für echte Touren freigegeben. Hintergrundaufzeichnung und Datenmigration fehlen. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
 
 ## Was auf dem Mac installiert werden muss
 
@@ -48,7 +48,7 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 - Die bestehende Web-/PWA-Version bleibt bis zu erfolgreichen Xcode-, Datenmigrations- und iPhone-Tests erhalten.
 - Der JSON-v1-Codec ist nur ein Grundbaustein und erhält beliebige unbekannte Zusatzfelder noch nicht verlustfrei. Deshalb keinen produktiven Import/Export-Rundlauf durchführen.
 - Vorhandene Touren müssen zunächst in der Web-App als JSON gesichert werden. Import erst nach echten Rundlauf- und ID-Kollisionstests freigeben.
-- Core Motion wird nur bei gemeldeter Sensorverfügbarkeit verwendet. Relative Höhe ist nicht automatisch die absolute Meereshöhe.
+- Core Motion wird nur bei gemeldeter Sensorverfügbarkeit verwendet. Relative Höhe ist nicht automatisch die absolute Meereshöhe. Der GPS-Recorder fordert Standort nur nach aktivem Tastendruck und zunächst ausschließlich für Nutzung im Vordergrund an. Hintergrundaufzeichnung ist noch nicht aktiviert.
 - Keine kostenpflichtigen APIs, Build-Dienste oder Add-ons.
 
 ## Enthaltene Dateien
@@ -56,16 +56,16 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 - `VELOX.xcodeproj/project.pbxproj`: minimales iOS-App-Projekt (iOS 17.0 als vorläufiges Deployment Target).
 - `VELOX/App/VELOXApp.swift`, `RootView.swift`: SwiftUI-App-Einstieg und erste native Oberfläche.
 - `VELOX/Models/*`: Tour-, GPS- und Barometer-Grundmodelle.
-- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec und `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz).
+- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec, `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz) und `RideRecorder.swift` (Core Location, Vordergrund-GPS, Pause/Fortsetzen/Stoppen).
 
 ## Noch offen
 
 1. Projektdatei auf dem Mac mit Xcode validieren und ersten Simulator-Build erstellen.
 2. Unbekannte JSON-Felder verlustfrei erhalten; vorher keinen produktiven Import/Export-Rundlauf erlauben.
 3. JSON-Codec mit XCTest gegen echte Web-v1-Beispiele testen, insbesondere ID-Kollisionen.
-4. `RideStore` mit XCTest prüfen (Neuanlage, Duplikate, Update, Löschen, beschädigte Datei, Persistenz nach Neustart); danach Core Location Recorder, Pause/Fortsetzen/Stoppen implementieren.
-5. Höhenfusion, Sensorsegmentierung und Filterung mit reproduzierbaren Tests absichern.
-6. Erst danach iPhone XR testen. Keine Veröffentlichung oder native Ablösung vor bestandenem Gerätetest.
+4. `RideStore` mit XCTest prüfen (Neuanlage, Duplikate, Update, Löschen, beschädigte Datei, Persistenz nach Neustart).\n5. GPS-Recorder auf echten Geräten prüfen: Berechtigungen, GPS-Aussetzer, Pause/Fortsetzen, App-Wechsel, Sperrbildschirm und Persistenz.\n6. Barometerproben während einer Tour zeitlich korrekt speichern und anschließend Höhen-/Steigungsfusion testen.
+7. Höhenfusion, Sensorsegmentierung und Filterung mit reproduzierbaren Tests absichern.
+8. Erst danach iPhone XR testen. Keine Veröffentlichung oder native Ablösung vor bestandenem Gerätetest.
 
 ## Kosten
 
