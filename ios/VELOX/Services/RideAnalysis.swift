@@ -57,9 +57,6 @@ struct RideElevationAnalysis: Equatable {
             return altitude.isFinite && accuracy.isFinite && accuracy >= 0 && accuracy <= 15
         }
 
-        rawBarometerCount = ride.barometerSamples?.count ?? 0
-        usableGPSAltitudeCount = trustedGPS.count
-
         // Calibrate each independent Core Motion session separately. A pause
         // restarts the sensor session, so its relative-altitude zero is never
         // incorrectly joined to the previous session.
@@ -150,42 +147,59 @@ struct RideElevationAnalysis: Equatable {
             }
         }
 
-        profile = plotted
+        let computedProfile = plotted
+        let computedReference: Reference
+        let computedCalibrationOffset: Double?
+        let computedCalibrationSpread: Double?
+        let computedAnchorCount: Int
+
         if allSessionsCalibrated {
-            reference = .gpsCalibrated
-            calibrationOffsetM = calibrationOffset
-            calibrationSpreadM = calibrationSpread
-            gpsAnchorCount = totalAnchorCount
+            computedReference = .gpsCalibrated
+            computedCalibrationOffset = calibrationOffset
+            computedCalibrationSpread = calibrationSpread
+            computedAnchorCount = totalAnchorCount
         } else if hasCalibratedSession {
-            reference = .partiallyGPSCalibrated
-            calibrationOffsetM = calibrationOffset
-            calibrationSpreadM = calibrationSpread
-            gpsAnchorCount = totalAnchorCount
+            computedReference = .partiallyGPSCalibrated
+            computedCalibrationOffset = calibrationOffset
+            computedCalibrationSpread = calibrationSpread
+            computedAnchorCount = totalAnchorCount
         } else if !barometer.isEmpty {
-            reference = .barometerRelative
-            calibrationOffsetM = nil
-            calibrationSpreadM = nil
-            gpsAnchorCount = totalAnchorCount
+            computedReference = .barometerRelative
+            computedCalibrationOffset = nil
+            computedCalibrationSpread = nil
+            computedAnchorCount = totalAnchorCount
         } else if !plotted.isEmpty {
-            reference = .gpsOnly
-            calibrationOffsetM = nil
-            calibrationSpreadM = nil
-            gpsAnchorCount = 0
+            computedReference = .gpsOnly
+            computedCalibrationOffset = nil
+            computedCalibrationSpread = nil
+            computedAnchorCount = 0
         } else {
-            reference = .unavailable
-            calibrationOffsetM = nil
-            calibrationSpreadM = nil
-            gpsAnchorCount = 0
+            computedReference = .unavailable
+            computedCalibrationOffset = nil
+            computedCalibrationSpread = nil
+            computedAnchorCount = 0
         }
 
-        let totals = Self.elevationTotals(plotted)
+        let totals = Self.elevationTotals(computedProfile)
+        let computedNetChange: Double
+        if let first = computedProfile.first, let last = computedProfile.last,
+           first.segmentID == last.segmentID {
+            computedNetChange = last.altitudeM - first.altitudeM
+        } else {
+            computedNetChange = 0
+        }
+
+        // Initialize every stored property exactly once, after all calculations.
+        profile = computedProfile
         ascentM = totals.ascent
         descentM = totals.descent
-        if let first = plotted.first, let last = plotted.last, first.segmentID == last.segmentID {
-            netChangeM = last.altitudeM - first.altitudeM
-        } else {
-            netChangeM = 0
-        }
+        netChangeM = computedNetChange
+        reference = computedReference
+        gpsAnchorCount = computedAnchorCount
+        calibrationOffsetM = computedCalibrationOffset
+        calibrationSpreadM = computedCalibrationSpread
+        rawBarometerCount = ride.barometerSamples?.count ?? 0
+        usableGPSAltitudeCount = trustedGPS.count
     }
 
     private init(empty: Void) {
