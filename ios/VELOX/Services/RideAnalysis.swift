@@ -180,11 +180,7 @@ struct RideElevationAnalysis: Equatable {
         return result
     }
 
-    private func makeRoute(_ points: [RidePoint]) -> [RoutePoint] {
-        Self.makeRoute(points)
-    }
-
-    private func distance(at timestamp: Int64, on route: [RoutePoint]) -> Double? {
+    private static func distance(at timestamp: Int64, on route: [RoutePoint]) -> Double? {
         guard route.count >= 2 else { return nil }
         for index in 1..<route.count {
             let left = route[index - 1]
@@ -201,15 +197,6 @@ struct RideElevationAnalysis: Equatable {
     private static func nearestBarometer(to timestamp: Int64, in samples: [BarometerSample], maxDifferenceMs: Int64) -> BarometerSample? {
         samples.min { abs($0.timestampMs - timestamp) < abs($1.timestampMs - timestamp) }
             .flatMap { abs($0.timestampMs - timestamp) <= maxDifferenceMs ? $0 : nil }
-    }
-
-    private static func nearestGPS(to timestamp: Int64, in points: [RidePoint], maxDifferenceMs: Int64) -> RidePoint? {
-        points.min { lhs, rhs in
-            abs(Int64((lhs.t * 1_000).rounded()) - timestamp) <
-            abs(Int64((rhs.t * 1_000).rounded()) - timestamp)
-        }.flatMap { point in
-            abs(Int64((point.t * 1_000).rounded()) - timestamp) <= maxDifferenceMs ? point : nil
-        }
     }
 
     private static func median(_ values: [Double]) -> Double? {
@@ -265,7 +252,7 @@ struct RideElevationSummary: Equatable {
 }
 
 private extension RideElevationAnalysis {
-    static func elevationTotalsForSummary(_ samples: [BarometerSample]) -> (ascent: Double, descent: Double) {
+    fileprivate static func elevationTotalsForSummary(_ samples: [BarometerSample]) -> (ascent: Double, descent: Double) {
         guard let first = samples.first else { return (0, 0) }
         var ascent = 0.0
         var descent = 0.0
