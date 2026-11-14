@@ -1,6 +1,13 @@
 import SwiftUI
 import CoreMotion
 
+private enum VELOXStyle {
+    static let background = Color(red: 0.035, green: 0.075, blue: 0.12)
+    static let panel = Color(red: 0.075, green: 0.13, blue: 0.19)
+    static let accent = Color(red: 0.34, green: 0.82, blue: 0.74)
+    static let muted = Color.white.opacity(0.62)
+}
+
 struct RootView: View {
     @StateObject private var barometer = BarometerService()
 
@@ -13,7 +20,8 @@ struct RootView: View {
             AboutView()
                 .tabItem { Label("Mehr", systemImage: "ellipsis") }
         }
-        .tint(Color(red: 0.34, green: 0.82, blue: 0.74))
+        .tint(VELOXStyle.accent)
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -24,48 +32,97 @@ private struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("VELOX").font(.system(size: 34, weight: .bold, design: .rounded))
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text("VELOX")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .tracking(1.2)
                         Text("YOUR RIDE. YOUR WORLD.")
-                            .font(.caption.weight(.semibold)).tracking(2)
-                            .foregroundStyle(.secondary)
+                            .font(.caption.weight(.semibold))
+                            .tracking(2)
+                            .foregroundStyle(VELOXStyle.muted)
                     }
-                    .padding(.top, 24)
+                    .padding(.top, 12)
 
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Label("Native iOS-Grundgerüst", systemImage: "iphone")
-                                .font(.headline)
-                            Text("Die eigenständige SwiftUI-App ist vorbereitet. GPS-Aufzeichnung, Archiv und Datenmigration werden schrittweise ergänzt.")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                            Text("Noch kein produktiver Tourenbetrieb")
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Native iOS · Entwicklungsstand", systemImage: "iphone")
+                            .font(.headline)
+                        Text("Das SwiftUI-Grundgerüst und der echte Barometerzugriff sind vorbereitet. GPS-Tourenaufzeichnung, Archiv und Datenmigration werden separat entwickelt.")
+                            .font(.subheadline)
+                            .foregroundStyle(VELOXStyle.muted)
+                        HStack(spacing: 8) {
+                            Circle().fill(.orange).frame(width: 7, height: 7)
+                            Text("Noch nicht für echte Touren freigegeben")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.orange)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VELOXStyle.panel, in: RoundedRectangle(cornerRadius: 18))
 
-                    GroupBox("Barometer") {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Image(systemName: barometer.isAvailable ? "barometer" : "exclamationmark.circle")
-                                .font(.title2)
-                            VStack(alignment: .leading) {
-                                Text(barometer.isAvailable ? "Sensor laut iOS verfügbar" : "Nicht verfügbar")
-                                    .font(.headline)
-                                Text(barometer.latestSample.map {
-                                    String(format: "%.2f kPa · relative %.1f m", $0.pressureKPa, $0.relativeAltitudeM)
-                                } ?? "Noch keine Messung gestartet")
-                                .font(.caption).foregroundStyle(.secondary)
-                            }
+                            Label("Barometer", systemImage: "barometer")
+                                .font(.headline)
                             Spacer()
+                            Text(barometer.isAvailable ? "BEREIT" : "NICHT VERFÜGBAR")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(0.8)
+                                .foregroundStyle(barometer.isAvailable ? VELOXStyle.accent : .secondary)
                         }
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(barometer.latestSample.map { String(format: "%.2f", $0.relativeAltitudeM) } ?? "–")
+                                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                            Text("m relativ")
+                                .font(.subheadline)
+                                .foregroundStyle(VELOXStyle.muted)
+                        }
+                        Text(barometer.latestSample.map {
+                            String(format: "%.2f kPa · %@", $0.pressureKPa, Date(timeIntervalSince1970: Double($0.timestampMs) / 1_000).formatted(date: .omitted, time: .standard))
+                        } ?? "Noch keine Messung gestartet")
+                            .font(.caption)
+                            .foregroundStyle(VELOXStyle.muted)
+                        Text("Relative Höhenänderung seit Start der Sensormessung – keine absolute Meereshöhe.")
+                            .font(.caption2)
+                            .foregroundStyle(VELOXStyle.muted)
                     }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VELOXStyle.panel, in: RoundedRectangle(cornerRadius: 18))
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Nächste native Ausbaustufen", systemImage: "list.bullet")
+                            .font(.headline)
+                        ReadinessRow(title: "Core Location GPS-Recorder", detail: "Noch nicht implementiert")
+                        ReadinessRow(title: "Lokales Tourenarchiv", detail: "Noch nicht implementiert")
+                        ReadinessRow(title: "Web-Backup-Migration", detail: "Codec-Grundlage vorhanden · Tests offen")
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VELOXStyle.panel, in: RoundedRectangle(cornerRadius: 18))
                 }
-                .padding()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
             }
+            .background(VELOXStyle.background.ignoresSafeArea())
             .navigationTitle("VELOX")
             .navigationBarTitleDisplayMode(.inline)
         }
+    }
+}
+
+private struct ReadinessRow: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.subheadline.weight(.medium))
+            Text(detail).font(.caption).foregroundStyle(VELOXStyle.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 5)
     }
 }
 
@@ -92,10 +149,13 @@ private struct SensorStatusView: View {
                     .disabled(!barometer.isAvailable && !barometer.isRecording)
                 }
                 Section {
-                    Text("Die relative Höhenänderung ist keine absolute Höhe über dem Meeresspiegel. Sie wird hier bewusst nicht als solche bezeichnet.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("Die relative Höhenänderung ist keine absolute Höhe über dem Meeresspiegel. Die Messung ist unabhängig von einer GPS-Tour und wird derzeit noch nicht in Touren gespeichert.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(VELOXStyle.background)
             .navigationTitle("Sensorstatus")
         }
     }
@@ -107,14 +167,19 @@ private struct AboutView: View {
             List {
                 Section("Entwicklungsstand") {
                     LabeledContent("App", value: "Native SwiftUI-Vorbereitung")
-                    LabeledContent("Daten", value: "Lokale Verarbeitung geplant")
-                    LabeledContent("Build", value: "Noch nicht verifiziert")
+                    LabeledContent("Deployment Target", value: "iOS 17.0")
+                    LabeledContent("Build", value: "Xcode-Prüfung ausstehend")
                 }
-                Section("Wichtiger Hinweis") {
-                    Text("Die bestehende VELOX-Web-/PWA-Version bleibt bis zu erfolgreichen Xcode-, Datenmigrations- und iPhone-Tests erhalten.")
-                    Text("Diese frühe Oberfläche ist noch kein Ersatz für die Web-App und speichert noch keine Touren.")
+                Section("Daten und Sicherheit") {
+                    Text("Die native Oberfläche speichert noch keine Touren. Es werden keine bestehenden Web-/PWA-Daten verändert.")
+                    Text("Die bestehende VELOX-Web-/PWA-Version bleibt erhalten, bis Xcode-Build, Datenmigration und iPhone-Tests erfolgreich abgeschlossen sind.")
+                }
+                Section("Kosten") {
+                    Text("Entwicklung weiterhin ohne kostenpflichtige APIs, Build-Dienste oder Entwickler-Abonnements.")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(VELOXStyle.background)
             .navigationTitle("Mehr")
         }
     }
