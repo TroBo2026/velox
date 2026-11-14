@@ -184,12 +184,12 @@ private struct DashboardView: View {
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                         if let offset = recorder.elevationAnalysis.calibrationOffsetM {
-                            Text(String(format: "GPS-Offset: %+.1f m · Median-Abweichung: %.1f m", offset, recorder.elevationAnalysis.calibrationSpreadM ?? 0))
+                            Text(String(format: "Sitzungs-Offset (Median): %+.1f m · Median-Abweichung: %.1f m", offset, recorder.elevationAnalysis.calibrationSpreadM ?? 0))
                                 .font(.caption2)
                                 .foregroundStyle(VELOXStyle.muted)
                         }
                         ElevationProfileChart(points: recorder.elevationAnalysis.profile)
-                        Text("Barometer = Verlauf · GPS = Höhenbezug. Mindestens 3 zeitnahe GPS-Höhenreferenzen (±15 m) sind für die Kalibrierung nötig. Rohdaten bleiben unverändert.")
+                        Text("Barometer = Verlauf · GPS = Höhenbezug. Je Barometersitzung sind mindestens 3 zeitnahe echte GPS-Höhenreferenzen (±15 m) nötig. Rohdaten bleiben unverändert.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
