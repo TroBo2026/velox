@@ -948,6 +948,7 @@
         if(group.length>1)segments.push(group);group=[];lastSegment=null;continue;
       }
       const item={distance:q.distanceM,grade};
+      item.distanceM=distance;
       grades.push(item);
       if(lastSegment!==null&&q.segment!==lastSegment){if(group.length>1)segments.push(group);group=[];}
       group.push(item);lastSegment=q.segment;
@@ -978,7 +979,8 @@
       }
       return out.join('');
     }).join('');
-    const avg=grades.reduce((sum,p)=>sum+p.grade,0)/grades.length;
+    const totalGradeDistance=grades.reduce((sum,p)=>sum+p.distanceM,0);
+    const avg=totalGradeDistance?grades.reduce((sum,p)=>sum+p.grade*p.distanceM,0)/totalGradeDistance:0;
     const maxUp=Math.max(...grades.map(p=>p.grade)),maxDown=Math.min(...grades.map(p=>p.grade));
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Steigung <strong>'+fmt(avg)+' %</strong></span><span class="elevation-stat">Max. Anstieg <strong>+'+fmt(maxUp)+' %</strong></span><span class="elevation-stat">Max. Gefälle <strong>'+fmt(Math.abs(maxDown))+' %</strong></span></div><svg class="elevation-chart grade-profile-chart" viewBox="0 0 640 178" role="img" aria-label="Steigungsprofil mit Anstiegen, flachen Abschnitten und Gefällen."><text class="axis-title" x="8" y="11">Steigung</text>'+grid.join('')+'<line class="grade-zero-line" x1="'+left+'" y1="'+zero+'" x2="'+(left+width)+'" y2="'+zero+'"/>'+fills+lines+'<text class="axis-label" x="'+left+'" y="168" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="168" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="168" text-anchor="end">'+fmt(xMax/1000,1)+' km</text></svg><div class="grade-profile-legend"><span><i class="grade-up"></i>Anstieg</span><span><i class="grade-flat"></i>Flach</span><span><i class="grade-down"></i>Gefälle</span></div><p class="elevation-footnote">Steigung aus geglätteten GPS-Höhenpunkten und Streckenabstand berechnet. Kurze oder unplausible Intervalle werden ausgelassen; GPS-Lücken bleiben getrennt. Werte sind Näherungen, keine vermessenen Straßensteigungen.</p>';
   }
