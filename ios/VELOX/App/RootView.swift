@@ -171,15 +171,25 @@ private struct DashboardView: View {
                         HStack {
                             Label("Aufstieg", systemImage: "arrow.up.right").foregroundStyle(VELOXStyle.accent)
                             Spacer()
-                            Text(String(format: "%.0f m", recorder.elevationSummary.ascentM)).monospacedDigit()
+                            Text(String(format: "%.0f m", recorder.elevationAnalysis.ascentM)).monospacedDigit()
                         }
                         HStack {
                             Label("Abstieg", systemImage: "arrow.down.right").foregroundStyle(.cyan)
                             Spacer()
-                            Text(String(format: "%.0f m", recorder.elevationSummary.descentM)).monospacedDigit()
+                            Text(String(format: "%.0f m", recorder.elevationAnalysis.descentM)).monospacedDigit()
                         }
-                        Text("\(recorder.elevationSummary.sampleCount) echte Barometerproben in dieser Tour · konservative 1-m-Rauschschwelle")
-                            .font(.caption2).foregroundStyle(VELOXStyle.muted)
+                        Text("Referenz: \\(recorder.elevationAnalysis.reference.rawValue)")
+                            .font(.caption.weight(.semibold))
+                        Text("\\(recorder.elevationAnalysis.gpsAnchorCount) GPS-Referenzpaare · \\(recorder.elevationAnalysis.rawBarometerCount) Roh-Barometerproben · \\(recorder.elevationAnalysis.usableGPSAltitudeCount) geeignete GPS-Höhen")
+                            .font(.caption2)
+                            .foregroundStyle(VELOXStyle.muted)
+                        if let offset = recorder.elevationAnalysis.calibrationOffsetM {
+                            Text(String(format: "GPS-Offset: %+.1f m · Median-Abweichung: %.1f m", offset, recorder.elevationAnalysis.calibrationSpreadM ?? 0))
+                                .font(.caption2)
+                                .foregroundStyle(VELOXStyle.muted)
+                        }
+                        ElevationProfileChart(points: recorder.elevationAnalysis.profile)
+                        Text("Barometer = Verlauf · GPS = Höhenbezug. Mindestens 3 zeitnahe GPS-Höhenreferenzen (±15 m) sind für die Kalibrierung nötig. Rohdaten bleiben unverändert.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
@@ -192,7 +202,7 @@ private struct DashboardView: View {
                             .font(.headline)
                         ReadinessRow(title: "Core Location GPS-Recorder", detail: "Vordergrund-Grundfunktion implementiert · Gerätetest offen")
                         ReadinessRow(title: "Core Motion in Touren", detail: "Echte Barometerproben mit Zeitstempel · Auswertung vorläufig")
-                        ReadinessRow(title: "Höhenanalyse", detail: "Auf-/Abstieg mit Rauschschwelle und Gap-Filter · Kalibrierung/Fusion offen")
+                        ReadinessRow(title: "Höhenanalyse", detail: "GPS-Referenzoffset per Median · Barometer-Verlauf · Rohdaten bleiben erhalten · Gerätetest offen")
                         ReadinessRow(title: "Lokales Tourenarchiv", detail: "Implementiert · Xcode- und Persistenztests offen")
                         ReadinessRow(title: "Web-Backup-Migration", detail: "Codec-Grundlage vorhanden · Tests offen")
                     }
@@ -216,6 +226,37 @@ private struct DashboardView: View {
                 }
             }
         }
+    }
+}
+
+private struct ElevationProfileChart: View {
+    let points: [RideElevationProfilePoint]
+
+    var body: some View {
+        GeometryReader { geometry in
+            if points.count >= 2,
+               let minimum = points.map(\\.altitudeM).min(),
+               let maximum = points.map(\\.altitudeM).max() {
+                let range = max(1, maximum - minimum)
+                Path { path in
+                    for (index, point) in points.enumerated() {
+                        let x = CGFloat(point.distanceM / max(1, points.last?.distanceM ?? 1)) * geometry.size.width
+                        let y = geometry.size.height - CGFloat((point.altitudeM - minimum) / range) * geometry.size.height
+                        if index == 0 { path.move(to: CGPoint(x: x, y: y)) }
+                        else { path.addLine(to: CGPoint(x: x, y: y)) }
+                    }
+                }
+                .stroke(VELOXStyle.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            } else {
+                Text("Höhenprofil erscheint mit ausreichend GPS- und Barometerdaten.")
+                    .font(.caption2)
+                    .foregroundStyle(VELOXStyle.muted)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+        }
+        .frame(height: 112)
+        .padding(.vertical, 4)
+        .accessibilityLabel("Abgeleitetes Höhenprofil")
     }
 }
 
