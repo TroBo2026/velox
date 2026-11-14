@@ -839,7 +839,7 @@
       '</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">HÖHENPROFIL</span><h3>Höhenverlauf</h3><div class="chart-box" id="elevationChart"></div><p>GPS-Höhenqualität: '+gpsQuality+(Number.isFinite(c.elevationAccuracy)?' · Median der gemeldeten GPS-Höhengenauigkeit: '+fmt(c.elevationAccuracy)+' m':' · Keine durchgängige Genauigkeitsangabe')+'. Höhenmeter werden gefiltert und nicht als Barometer-Messung ausgegeben.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">TEMPO & PACE</span><h3>Geschwindigkeit über die Strecke</h3><div class="chart-box" id="speedChart"></div><div class="metric-grid detail-metrics">'+speedCards+'</div></div></section>'+
-      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">GELÄNDE</span><h3>Steigung und Gefälle</h3><div class="metric-grid detail-metrics">'+elevationCards+'</div>'+renderRideBreakdowns(c)+'</div></section>'+
+      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">GELÄNDE</span><h3>Steigungsprofil</h3><div class="chart-box" id="gradeChart"></div><div class="metric-grid detail-metrics">'+elevationCards+'</div>'+renderRideBreakdowns(c)+'</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ROUTE</span><h3>Entfernung und Streckenform</h3><div class="metric-grid detail-metrics">'+routeCards+'</div><p>Geradlinigkeit wird nur angezeigt, wenn die Route ausreichend zusammenhängend aufgezeichnet wurde.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ZEIT & AUFZEICHNUNG</span><h3>Fahr- und Standzeiten</h3><div class="metric-grid detail-metrics">'+timeCards+'</div><p>Bewegungszeit wird aus akzeptierten GPS-Intervallen berechnet. Ein Stopp zählt ab 10 Sekunden erkannter Bewegung unter 1,5 km/h; GPS-Lücken werden nicht als Stopp gewertet. Die Erkennung ist eine GPS-Näherung.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">DATENQUELLEN & SENSORSTATUS</span><h3>Was wurde tatsächlich gemessen?</h3><div class="detail-source-list"><div><span>GPS-Positionen</span><strong>'+r.points.length+' gespeicherte Punkte</strong></div><div><span>GPS-Höhe</span><strong>'+c.elevationProfile.validCount+' verwertbare Höhenpunkte</strong></div><div><span>Barometer</span><strong>Keine nativen Barometerdaten in dieser Tour</strong></div><div><span>Kompass / Magnetometer</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Gyroskop / Beschleunigung</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Herzfrequenz / Leistung / Kadenz</span><strong>Keine Datenquelle vorhanden</strong></div></div><p>Das iPhone XR besitzt zusätzliche Sensorhardware. Safari/PWA kann sie jedoch nicht wie eine native iOS-App vollständig über Core Motion auslesen. VELOX zeigt daher nur Daten, die wirklich in dieser Tour gespeichert wurden.</p></div></section>'+
@@ -867,6 +867,7 @@
       }
       renderElevation(r.points);
       renderSpeedProfile(r.points);
+      renderGradeProfile(r.points);
       if(navigator.onLine&&!window.L)ensureLeaflet().then(restoreOnlineMaps);
     },180);
     $("exportGpx").onclick=()=>exportGPX(r);
@@ -934,6 +935,52 @@
     const markers='<circle class="profile-marker" cx="'+xFor(first.distanceM)+'" cy="'+yFor(first.elevationM)+'" r="4"/><circle class="profile-marker profile-marker-end" cx="'+xFor(last.distanceM)+'" cy="'+yFor(last.elevationM)+'" r="4"/>';
     const legend='<div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zum Tempo dieser Tour</span></div>';
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">↗ Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">↘ Abstieg <strong>'+Math.round(profile.loss)+' m</strong></span><span class="elevation-stat">Höhenbereich <strong>'+Math.round(min)+'–'+Math.round(max)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 198" role="img" aria-label="Höhenprofil von '+fmt(xMax/1000,1)+' Kilometern, Höhenbereich '+Math.round(min)+' bis '+Math.round(max)+' Meter. Linienfarbe zeigt das relative Tempo."><defs><linearGradient id="elevationAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6d91b8" stop-opacity=".32"/><stop offset="100%" stop-color="#6d91b8" stop-opacity=".025"/></linearGradient></defs><text class="axis-title" x="8" y="11">Höhe (m)</text>'+grid.join('')+areaPaths+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+speedLines+markers+xLabels+'</svg>'+legend+'<p class="elevation-footnote">Höhenprofil aus '+profile.validCount+' von '+profile.totalCount+' GPS-Höhenpunkten. Die Linienfarbe zeigt die relative Geschwindigkeit zwischen aufgezeichneten Punkten; fehlende GPS-Abschnitte werden nicht künstlich verbunden. Die Kurve wird für die Darstellung reduziert, die gespeicherten Messpunkte bleiben unverändert.</p>';
+  }
+  function renderGradeProfile(points){
+    const box=$("gradeChart");
+    if(!box)return;
+    const profile=buildElevationProfile(points),samples=profile.samples||[];
+    const segments=[];let group=[],lastSegment=null,grades=[];
+    for(let i=1;i<samples.length;i++){
+      const p=samples[i-1],q=samples[i],distance=q.distanceM-p.distanceM,elapsed=(q.time-p.time)/1000;
+      const grade=(q.elevationM-p.elevationM)/distance*100;
+      if(p.segment!==q.segment||distance<8||distance>100||elapsed<=0||elapsed>60||!Number.isFinite(grade)||Math.abs(grade)>35){
+        if(group.length>1)segments.push(group);group=[];lastSegment=null;continue;
+      }
+      const item={distance:q.distanceM,grade};
+      grades.push(item);
+      if(lastSegment!==null&&q.segment!==lastSegment){if(group.length>1)segments.push(group);group=[];}
+      group.push(item);lastSegment=q.segment;
+    }
+    if(group.length>1)segments.push(group);
+    if(!grades.length){
+      box.innerHTML='<div class="empty-state">Für die Steigungsanalyse liegen nicht genügend verlässliche Höhenabschnitte vor.</div>';
+      return;
+    }
+    const maxAbs=Math.max(3,Math.min(20,Math.ceil(Math.max(...grades.map(x=>Math.abs(x.grade)))/2)*2));
+    const left=48,top=18,width=574,height=126,bottom=top+height,xMax=Math.max(1,profile.distanceM);
+    const x=v=>left+v/xMax*width,y=v=>top+(maxAbs-v)/(maxAbs*2)*height,zero=y(0);
+    const grid=[];
+    for(let i=0;i<=4;i++){
+      const value=maxAbs-i*maxAbs/2,yy=top+height*i/4;
+      grid.push('<line class="grid-line" x1="'+left+'" y1="'+yy+'" x2="'+(left+width)+'" y2="'+yy+'"/><text class="axis-label" x="'+(left-8)+'" y="'+(yy+4)+'" text-anchor="end">'+fmt(value,0)+' %</text>');
+    }
+    const fills=segments.map(g=>{
+      const pts=g.map(p=>x(p.distance)+','+y(p.grade));
+      return '<path class="grade-profile-area" d="M '+x(g[0].distance)+' '+zero+' L '+pts.join(' L ')+' L '+x(g[g.length-1].distance)+' '+zero+' Z"/>';
+    }).join('');
+    const lines=segments.map(g=>{
+      const out=[];
+      for(let i=1;i<g.length;i++){
+        const value=(g[i-1].grade+g[i].grade)/2;
+        const color=value>=1.5?'#df7774':value<=-1.5?'#5799df':'#9aaab5';
+        out.push('<line class="grade-profile-line" x1="'+x(g[i-1].distance)+'" y1="'+y(g[i-1].grade)+'" x2="'+x(g[i].distance)+'" y2="'+y(g[i].grade)+'" stroke="'+color+'"/>');
+      }
+      return out.join('');
+    }).join('');
+    const avg=grades.reduce((sum,p)=>sum+p.grade,0)/grades.length;
+    const maxUp=Math.max(...grades.map(p=>p.grade)),maxDown=Math.min(...grades.map(p=>p.grade));
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Steigung <strong>'+fmt(avg)+' %</strong></span><span class="elevation-stat">Max. Anstieg <strong>+'+fmt(maxUp)+' %</strong></span><span class="elevation-stat">Max. Gefälle <strong>'+fmt(Math.abs(maxDown))+' %</strong></span></div><svg class="elevation-chart grade-profile-chart" viewBox="0 0 640 178" role="img" aria-label="Steigungsprofil mit Anstiegen, flachen Abschnitten und Gefällen."><text class="axis-title" x="8" y="11">Steigung</text>'+grid.join('')+'<line class="grade-zero-line" x1="'+left+'" y1="'+zero+'" x2="'+(left+width)+'" y2="'+zero+'"/>'+fills+lines+'<text class="axis-label" x="'+left+'" y="168" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="168" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="168" text-anchor="end">'+fmt(xMax/1000,1)+' km</text></svg><div class="grade-profile-legend"><span><i class="grade-up"></i>Anstieg</span><span><i class="grade-flat"></i>Flach</span><span><i class="grade-down"></i>Gefälle</span></div><p class="elevation-footnote">Steigung aus geglätteten GPS-Höhenpunkten und Streckenabstand berechnet. Kurze oder unplausible Intervalle werden ausgelassen; GPS-Lücken bleiben getrennt. Werte sind Näherungen, keine vermessenen Straßensteigungen.</p>';
   }
   function renderSpeedProfile(points){
     const box=$("speedChart"),intervals=getMovingIntervals({points}),groups=[];
