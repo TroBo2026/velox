@@ -229,3 +229,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .live-grid>div{background:linear-gradient(145deg,rgba(24,44,61,.98),rgba(12,27,40,.98))}
 .live-grid>div span{letter-spacing:.015em}
 .elevation-stat strong{font-variant-numeric:tabular-nums}
+
+/* VELOX terrain profile — same chart language as elevation and speed */
+.grade-profile-chart{min-height:178px}
+.grade-profile-area{fill:rgba(91,145,184,.12);stroke:none}
+.grade-profile-line{stroke-width:3.1;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.grade-zero-line{stroke:rgba(220,235,242,.45);stroke-width:1.2;stroke-dasharray:4 4}
+.grade-profile-legend{display:flex;gap:18px;flex-wrap:wrap;margin:5px 2px 0;color:var(--muted);font-size:10px}
+.grade-profile-legend span{display:flex;align-items:center;gap:6px}
+.grade-profile-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.grade-profile-legend .grade-up{background:#df7774}
+.grade-profile-legend .grade-flat{background:#9aaab5}
+.grade-profile-legend .grade-down{background:#5799df}
