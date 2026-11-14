@@ -13,6 +13,7 @@ struct RideElevationProfilePoint: Equatable, Identifiable {
 struct RideElevationAnalysis: Equatable {
     enum Reference: String {
         case gpsCalibrated = "GPS-kalibriert"
+        case partiallyGPSCalibrated = "Teilweise GPS-kalibriert"
         case barometerRelative = "Nur relative Barometerhöhe"
         case gpsOnly = "Nur GPS-Höhe"
         case unavailable = "Keine ausreichenden Höhendaten"
@@ -59,40 +60,81 @@ struct RideElevationAnalysis: Equatable {
         rawBarometerCount = ride.barometerSamples?.count ?? 0
         usableGPSAltitudeCount = trustedGPS.count
 
-        // Pair each barometer observation with the nearest trusted GPS altitude.
-        // GPS fixes are references only; the barometer retains the shape of the profile.
-        // One calibration pair per distinct GPS fix prevents a single fix from
-        // being counted repeatedly just because the barometer samples faster.
-        let offsets: [Double] = trustedGPS.compactMap { point in
-            let timestamp = Int64((point.t * 1_000).rounded())
-            guard let sample = Self.nearestBarometer(to: timestamp, in: barometer, maxDifferenceMs: 10_000),
-                  let gpsAltitude = point.alt else { return nil }
-            let offset = gpsAltitude - sample.relativeAltitudeM
-            return offset.isFinite ? offset : nil
+        // Calibrate each independent Core Motion session separately. A pause
+        // restarts the sensor session, so its relative-altitude zero is never
+        // incorrectly joined to the previous session.
+        var calibrationBySession: [String: (offset: Double?, spread: Double?, anchorCount: Int, calibrated: Bool)] = [:]
+        let barometerSessions = Dictionary(grouping: barometer) {
+            $0.sessionID?.uuidString ?? "legacy"
         }
 
-        let sortedOffsets = offsets.sorted()
-        let offset = Self.median(sortedOffsets)
-        let spread = offset.flatMap { value in
-            Self.median(sortedOffsets.map { abs($0 - value) }.sorted())
+        for (sessionKey, sessionSamples) in barometerSessions {
+            var usedBarometerTimestamps = Set<Int64>()
+            let offsets: [Double] = trustedGPS.compactMap { point in
+                let timestamp = Int64((point.t * 1_000).rounded())
+                guard let sample = Self.nearestBarometer(
+                    to: timestamp,
+                    in: sessionSamples,
+                    maxDifferenceMs: 10_000
+                ), usedBarometerTimestamps.insert(sample.timestampMs).inserted,
+                   let gpsAltitude = point.alt else { return nil }
+                let value = gpsAltitude - sample.relativeAltitudeM
+                return value.isFinite ? value : nil
+            }
+
+            let sortedOffsets = offsets.sorted()
+            let sessionOffset = Self.median(sortedOffsets)
+            let sessionSpread = sessionOffset.flatMap { value in
+                Self.median(sortedOffsets.map { abs($0 - value) }.sorted())
+            }
+            let isCalibrated = sortedOffsets.count >= 3 && (sessionSpread ?? .infinity) <= 10
+            calibrationBySession[sessionKey] = (
+                sessionOffset,
+                sessionSpread,
+                sortedOffsets.count,
+                isCalibrated
+            )
         }
-        // Three distinct fixes and a modest median absolute deviation are
-        // required; otherwise keep the profile explicitly session-relative.
-        let calibrated = sortedOffsets.count >= 3 && (spread ?? .infinity) <= 10
+
+        let calibratedSessionCount = calibrationBySession.values.filter { $0.calibrated }.count
+        let hasCalibratedSession = calibratedSessionCount > 0
+        let allSessionsCalibrated = !barometerSessions.isEmpty &&
+            calibratedSessionCount == barometerSessions.count
+        let calibrationOffset = Self.median(
+            calibrationBySession.values
+                .filter { $0.calibrated }
+                .compactMap { $0.offset }
+                .sorted()
+        )
+        let calibrationSpread = Self.median(
+            calibrationBySession.values
+                .filter { $0.calibrated }
+                .compactMap { $0.spread }
+                .sorted()
+        )
+        let totalAnchorCount = calibrationBySession.values.reduce(0) { $0 + $1.anchorCount }
 
         let route = Self.makeRoute(gps)
         var plotted: [RideElevationProfilePoint] = []
+        var profileSegmentIDs: [String: Int] = [:]
 
         if !barometer.isEmpty {
             for sample in barometer {
                 guard let position = Self.distance(at: sample.timestampMs, on: route) else { continue }
-                let altitude = sample.relativeAltitudeM + (calibrated ? (offset ?? 0) : 0)
+                let sessionKey = sample.sessionID?.uuidString ?? "legacy"
+                let calibration = calibrationBySession[sessionKey]
+                let altitude = sample.relativeAltitudeM +
+                    ((calibration?.calibrated == true) ? (calibration?.offset ?? 0) : 0)
                 guard altitude.isFinite else { continue }
+                let segmentKey = "\(sessionKey)|\(position.segmentID)"
+                if profileSegmentIDs[segmentKey] == nil {
+                    profileSegmentIDs[segmentKey] = profileSegmentIDs.count
+                }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
                     distanceM: position.distanceM,
                     altitudeM: altitude,
-                    segmentID: position.segmentID
+                    segmentID: profileSegmentIDs[segmentKey] ?? position.segmentID
                 ))
             }
         } else {
@@ -109,16 +151,21 @@ struct RideElevationAnalysis: Equatable {
         }
 
         profile = plotted
-        if calibrated {
+        if allSessionsCalibrated {
             reference = .gpsCalibrated
-            calibrationOffsetM = offset
-            calibrationSpreadM = spread
-            gpsAnchorCount = sortedOffsets.count
+            calibrationOffsetM = calibrationOffset
+            calibrationSpreadM = calibrationSpread
+            gpsAnchorCount = totalAnchorCount
+        } else if hasCalibratedSession {
+            reference = .partiallyGPSCalibrated
+            calibrationOffsetM = calibrationOffset
+            calibrationSpreadM = calibrationSpread
+            gpsAnchorCount = totalAnchorCount
         } else if !barometer.isEmpty {
             reference = .barometerRelative
             calibrationOffsetM = nil
             calibrationSpreadM = nil
-            gpsAnchorCount = sortedOffsets.count
+            gpsAnchorCount = totalAnchorCount
         } else if !plotted.isEmpty {
             reference = .gpsOnly
             calibrationOffsetM = nil
