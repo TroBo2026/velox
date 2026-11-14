@@ -69,6 +69,19 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 7. Höhenfusion, Sensorsegmentierung und Filterung mit reproduzierbaren Tests absichern.
 8. Erst danach iPhone XR testen. Keine Veröffentlichung oder native Ablösung vor bestandenem Gerätetest.
 
+## Höhenfusion — geplante Abnahmetests
+
+Vor Freigabe der Höhenanalyse müssen mindestens diese reproduzierbaren Fälle bestanden werden:
+
+- **Konstanter GPS-Offset:** Drei oder mehr zeitlich passende, unterschiedliche GPS-Fixes mit stabiler Abweichung kalibrieren den jeweiligen Barometer-Session-Offset über den Median.
+- **Zu wenige Referenzen:** Ein oder zwei passende GPS-Fixes ergeben ausdrücklich nur relative Barometerhöhe.
+- **Instabile Referenzen:** Eine mediane absolute Abweichung über 10 m verhindert die GPS-Kalibrierung.
+- **Pause/Fortsetzen:** Jede neue Barometersitzung wird getrennt kalibriert; Profilkurve und Auf-/Abstieg dürfen nicht über den Sessionwechsel verbunden werden.
+- **GPS-Lücken und Sprünge:** Lücken über 30 Sekunden oder Segmente über 120 m werden nicht interpoliert; Summen werden segmentweise berechnet.
+- **Rohdatenintegrität:** Anzahl, Zeitstempel, Druck, relative Höhe, GPS-Koordinaten und originale Höhenwerte müssen vor und nach der Analyse identisch sein.
+
+Diese Fälle sind Prüfkriterien, keine bereits ausgeführten XCTest- oder Gerätetests.
+
 ## Kosten
 
 Ziel bleibt 0 €. Xcode und die lokalen Apple-Frameworks sind kostenlos. App-Store-Veröffentlichung und kostenpflichtige Apple-Developer-Mitgliedschaft sind ausdrücklich nicht Teil dieses Plans.
