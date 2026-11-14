@@ -29,17 +29,21 @@ final class BarometerService: ObservableObject {
         isRecording = true
         let sessionID = UUID()
         activeSessionID = sessionID
+
+        // Establish one wall-clock/uptime anchor per sensor session. Recomputing
+        // this offset for every callback would introduce small timing jitter and
+        // could misalign GPS/barometer pairing if the system clock changes.
+        let unixTimeAtSessionStart = Date().timeIntervalSince1970
+        let uptimeAtSessionStart = ProcessInfo.processInfo.systemUptime
+
         altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, error in
             let errorText = error?.localizedDescription
             let pressure = data?.pressure.doubleValue
             let relativeAltitude = data?.relativeAltitude.doubleValue
-            // Core Motion timestamps samples on the device's monotonic uptime clock.
-            // Convert that sample time to Unix milliseconds instead of stamping
-            // callback delivery time, which may be delayed by the main queue.
+            // Core Motion timestamps samples on the monotonic uptime clock.
+            // Map them to Unix time using the stable session anchor, not callback time.
             let sampleTimestamp = data.map {
-                Date().timeIntervalSince1970
-                    - ProcessInfo.processInfo.systemUptime
-                    + $0.timestamp
+                unixTimeAtSessionStart + ($0.timestamp - uptimeAtSessionStart)
             }
             let timestamp = sampleTimestamp.map { Int64(($0 * 1_000).rounded()) } ?? 0
 
