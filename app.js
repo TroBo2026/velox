@@ -358,7 +358,7 @@
     const navPage=page==="wrapped"?"settings":page;
     document.querySelectorAll(".nav-item").forEach(el=>el.classList.toggle("selected",el.dataset.page===navPage));
     if(page==="home"||page==="rides"||page==="stats"||page==="wrapped")refresh();
-    if(page==="track")setTimeout(()=>{if(liveMap)liveMap.invalidateSize();},100);
+    if(page==="track"){ensureTrackMap();setTimeout(()=>{if(liveMap)liveMap.invalidateSize();},180);}
     if(page==="stats")setTimeout(()=>renderPersonalMap(),180);
     window.scrollTo({top:0,behavior:"instant"});
   }
@@ -435,12 +435,20 @@
     }).finally(()=>{if(!window.L)leafletLoadPromise=null;});
     return leafletLoadPromise;
   }
-  async function restoreOnlineMaps(){
-    if(!navigator.onLine||!await ensureLeaflet())return;
-    if(currentPage==="track"&&activeRide){
-      liveMap=liveMap||initMap("liveMap",activeRide.points.length?[activeRide.points.at(-1).lat,activeRide.points.at(-1).lon]:[51.05,13.74]);
-      if(liveMap){liveLines=[];liveMarker=null;drawLive(activeRide.points);setTimeout(()=>liveMap&&liveMap.invalidateSize(),80);}
+  async function ensureTrackMap(){
+    const points=activeRide&&Array.isArray(activeRide.points)?activeRide.points:[];
+    if(!navigator.onLine){if(!liveMap)renderOfflineRoute("liveMap",points);return;}
+    const loaded=await ensureLeaflet();
+    if(!loaded){if(!liveMap)renderOfflineRoute("liveMap",points);return;}
+    if(!liveMap){
+      const last=points.slice().reverse().find(validRidePoint);
+      liveMap=initMap("liveMap",last?[last.lat,last.lon]:[51.05,13.74]);
     }
+    if(liveMap){liveLines=[];liveMarker=null;drawLive(points);setTimeout(()=>liveMap&&liveMap.invalidateSize(),100);}
+  }
+  async function restoreOnlineMaps(){
+    if(!navigator.onLine)return;
+    if(currentPage==="track")await ensureTrackMap();
     if(currentPage==="detail"&&lastDetailRide){
       const routeSegments=validRouteSegments(lastDetailRide.points);
       const first=routeSegments[0]?.[0]||lastDetailRide.points.find(validRidePoint);
@@ -1070,10 +1078,11 @@
     try{db=await openDB();await recoverUnfinishedRide();await refresh();}
     catch(e){showToast("Lokale Datenbank konnte nicht geöffnet werden.");console.error(e);}
     if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
-    if(window.L)liveMap=initMap("liveMap");
-    else if(!navigator.onLine)renderOfflineRoute("liveMap",[]);
+    if(navigator.onLine)ensureTrackMap();
+    else renderOfflineRoute("liveMap",[]);
     window.addEventListener("online",()=>{
       if(activeRide&&$("trackingStatus"))$("trackingStatus").textContent="Verbindung wieder da · GPS-Aufzeichnung läuft lokal weiter";
+      ensureTrackMap();
       restoreOnlineMaps();
     });
     window.addEventListener("offline",()=>{
