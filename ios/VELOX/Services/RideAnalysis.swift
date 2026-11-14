@@ -181,7 +181,11 @@ struct RideElevationAnalysis: Equatable {
         let totals = Self.elevationTotals(plotted)
         ascentM = totals.ascent
         descentM = totals.descent
-        netChangeM = (plotted.last?.altitudeM ?? 0) - (plotted.first?.altitudeM ?? 0)
+        if let first = plotted.first, let last = plotted.last, first.segmentID == last.segmentID {
+            netChangeM = last.altitudeM - first.altitudeM
+        } else {
+            netChangeM = 0
+        }
     }
 
     private init(empty: Void) {
@@ -240,6 +244,7 @@ struct RideElevationAnalysis: Equatable {
             let right = route[index]
             let duration = right.timestampMs - left.timestampMs
             guard duration > 0, duration <= 30_000,
+                  left.segmentID == right.segmentID,
                   timestamp >= left.timestampMs, timestamp <= right.timestampMs else { continue }
             let fraction = Double(timestamp - left.timestampMs) / Double(duration)
             return (left.distanceM + (right.distanceM - left.distanceM) * fraction, left.segmentID)
