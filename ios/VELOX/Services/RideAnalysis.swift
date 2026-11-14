@@ -60,8 +60,11 @@ struct RideElevationAnalysis: Equatable {
 
         // Pair each barometer observation with the nearest trusted GPS altitude.
         // GPS fixes are references only; the barometer retains the shape of the profile.
-        let offsets: [Double] = barometer.compactMap { sample in
-            guard let point = Self.nearestGPS(to: sample.timestampMs, in: trustedGPS, maxDifferenceMs: 10_000),
+        // One calibration pair per distinct GPS fix prevents a single fix from
+        // being counted repeatedly just because the barometer samples faster.
+        let offsets: [Double] = trustedGPS.compactMap { point in
+            let timestamp = Int64((point.t * 1_000).rounded())
+            guard let sample = Self.nearestBarometer(to: timestamp, in: barometer, maxDifferenceMs: 10_000),
                   let gpsAltitude = point.alt else { return nil }
             let offset = gpsAltitude - sample.relativeAltitudeM
             return offset.isFinite ? offset : nil
@@ -72,7 +75,9 @@ struct RideElevationAnalysis: Equatable {
         let spread = offset.map { value in
             Self.median(sortedOffsets.map { abs($0 - value) }.sorted())
         }
-        let calibrated = sortedOffsets.count >= 3
+        // Three distinct fixes and a modest median absolute deviation are
+        // required; otherwise keep the profile explicitly session-relative.
+        let calibrated = sortedOffsets.count >= 3 && (spread ?? .infinity) <= 10
 
         let route = Self.makeRoute(gps)
         var plotted: [RideElevationProfilePoint] = []
@@ -191,6 +196,11 @@ struct RideElevationAnalysis: Equatable {
             return left.distanceM + (right.distanceM - left.distanceM) * fraction
         }
         return nil
+    }
+
+    private static func nearestBarometer(to timestamp: Int64, in samples: [BarometerSample], maxDifferenceMs: Int64) -> BarometerSample? {
+        samples.min { abs($0.timestampMs - timestamp) < abs($1.timestampMs - timestamp) }
+            .flatMap { abs($0.timestampMs - timestamp) <= maxDifferenceMs ? $0 : nil }
     }
 
     private static func nearestGPS(to timestamp: Int64, in points: [RidePoint], maxDifferenceMs: Int64) -> RidePoint? {
