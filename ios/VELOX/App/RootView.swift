@@ -27,6 +27,8 @@ struct RootView: View {
 
 private struct DashboardView: View {
     @ObservedObject var barometer: BarometerService
+    @State private var savedRideCount = 0
+    @State private var archiveMessage = "Archiv wird geprüft …"
 
     var body: some View {
         NavigationStack {
@@ -55,6 +57,28 @@ private struct DashboardView: View {
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.orange)
                         }
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VELOXStyle.panel, in: RoundedRectangle(cornerRadius: 18))
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Lokales Tourenarchiv", systemImage: "externaldrive")
+                            .font(.headline)
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(String(savedRideCount))
+                                .font(.system(size: 30, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                            Text(savedRideCount == 1 ? "gespeicherte Tour" : "gespeicherte Touren")
+                                .font(.subheadline)
+                                .foregroundStyle(VELOXStyle.muted)
+                        }
+                        Text(archiveMessage)
+                            .font(.caption)
+                            .foregroundStyle(VELOXStyle.muted)
+                        Text("Lokale Speicherung ist vorbereitet. Tourenaufzeichnung und automatische Speicherung sind noch nicht freigegeben.")
+                            .font(.caption2)
+                            .foregroundStyle(VELOXStyle.muted)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -108,6 +132,15 @@ private struct DashboardView: View {
             .background(VELOXStyle.background.ignoresSafeArea())
             .navigationTitle("VELOX")
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                do {
+                    let rides = try await RideStore().loadAll()
+                    savedRideCount = rides.count
+                    archiveMessage = "Archiv lesbar · lokal auf diesem Gerät"
+                } catch {
+                    archiveMessage = error.localizedDescription
+                }
+            }
         }
     }
 }
