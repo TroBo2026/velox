@@ -198,3 +198,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 @media(min-width:650px){.map{height:390px}}
 @media(max-width:390px){.app-shell{padding-left:13px;padding-right:13px}.live-grid>div{padding:13px 11px}.live-grid strong{font-size:20px}.map{height:34vh;min-height:230px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+
+/* Aura-Velo-inspiriertes VELOX-Höhenprofil */
+.elevation-summary{gap:7px;margin:8px 0 10px}
+.elevation-stat{border:0;border-radius:8px;background:rgba(255,255,255,.035);padding:7px 9px}
+.elevation-chart{width:100%;height:auto;display:block}
+.elevation-chart .elevation-area{fill:url(#elevationAreaGradient);stroke:none}
+.elevation-chart .profile-speed-line{fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.elevation-chart .profile-marker{fill:#f4f7fb;stroke:#142334;stroke-width:2.5;vector-effect:non-scaling-stroke}
+.elevation-chart .profile-marker-end{fill:#72a5e8}
+.elevation-legend{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:2px 2px 0;color:var(--muted);font-size:10px}
+.elevation-legend i{display:block;width:86px;height:7px;border-radius:99px;background:linear-gradient(90deg,#df625f 0%,#bd7c91 48%,#4d91dc 100%)}
+.elevation-legend .legend-context{margin-left:auto;font-size:9px}
+.elevation-footnote{margin-top:9px}
+@media(max-width:390px){.elevation-stat{font-size:10px;padding:6px 7px}.elevation-legend{gap:6px}.elevation-legend .legend-context{width:100%;margin-left:0}}
