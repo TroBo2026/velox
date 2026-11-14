@@ -263,7 +263,7 @@ struct RideElevationSummary: Equatable {
     }
 }
 
-private extension RideElevationAnalysis {
+extension RideElevationAnalysis {
     fileprivate static func elevationTotalsForSummary(_ samples: [BarometerSample]) -> (ascent: Double, descent: Double) {
         guard let first = samples.first else { return (0, 0) }
         var ascent = 0.0
