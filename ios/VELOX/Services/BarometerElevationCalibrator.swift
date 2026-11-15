@@ -20,6 +20,8 @@ enum BarometerElevationCalibrator {
         case invalidBarometerSample
         case invalidGPSReference
         case timestampsTooFarApart
+        case differentBarometerSession
+        case samplePrecedesBaseline
 
         var errorDescription: String? {
             switch self {
@@ -29,6 +31,10 @@ enum BarometerElevationCalibrator {
                 return "Die GPS-Höhe ist für eine Kalibrierung nicht genau genug."
             case .timestampsTooFarApart:
                 return "GPS- und Barometer-Messung liegen zeitlich zu weit auseinander."
+            case .differentBarometerSession:
+                return "Basis- und Folgemessung stammen aus unterschiedlichen Barometersitzungen."
+            case .samplePrecedesBaseline:
+                return "Der Barometer-Messwert liegt zeitlich vor seiner Basismessung."
             }
         }
     }
@@ -44,6 +50,12 @@ enum BarometerElevationCalibrator {
               sample.relativeAltitudeM.isFinite, sample.timestampMs > 0,
               baseline.relativeAltitudeM.isFinite, baseline.timestampMs > 0 else {
             throw CalibrationError.invalidBarometerSample
+        }
+        guard sample.sessionID == baseline.sessionID else {
+            throw CalibrationError.differentBarometerSession
+        }
+        guard sample.timestampMs >= baseline.timestampMs else {
+            throw CalibrationError.samplePrecedesBaseline
         }
 
         guard reference.altitudeM.isFinite,
