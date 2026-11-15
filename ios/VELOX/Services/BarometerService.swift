@@ -57,8 +57,8 @@ final class BarometerService: ObservableObject {
                     return
                 }
                 guard let pressure, let relativeAltitude,
-                      pressure.isFinite, pressure > 0,
-                      relativeAltitude.isFinite else {
+                      pressure.isFinite, (30...110).contains(pressure),
+                      relativeAltitude.isFinite, (-1000...10000).contains(relativeAltitude), timestamp > 0 else {
                     return
                 }
 
