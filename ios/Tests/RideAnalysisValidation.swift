@@ -231,7 +231,7 @@ struct RideAnalysisValidation {
 
     private static func expect(_ condition: Bool, _ label: String) {
         guard condition else {
-            fputs("FAILED: \(label)\\n", stderr)
+            fputs("FAILED: \(label)\n", stderr)
             exit(1)
         }
     }
