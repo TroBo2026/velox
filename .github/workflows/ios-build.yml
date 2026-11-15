@@ -55,6 +55,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      # Covers route segmentation, GPS/barometer matching, session calibration,
+      # outlier filtering, physical sensor bounds, and preserved raw samples.
       - name: Validate elevation analysis
         run: |
           set -o pipefail
