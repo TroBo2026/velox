@@ -4,6 +4,10 @@
 <dict>
     <key>CFBundleDisplayName</key>
     <string>VELOX</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.9.9</string>
+    <key>CFBundleVersion</key>
+    <string>9</string>
     <key>NSMotionUsageDescription</key>
     <string>VELOX verwendet den Barometersensor für die Höhenmessung während einer ausdrücklich gestarteten Aufzeichnung.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
