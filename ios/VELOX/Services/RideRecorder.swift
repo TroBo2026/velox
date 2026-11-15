@@ -161,9 +161,20 @@ final class RideRecorder: NSObject, ObservableObject {
         }
 
         if let previous = lastAcceptedLocation {
+            let elapsed = location.timestamp.timeIntervalSince(previous.timestamp)
             let segment = location.distance(from: previous)
-            guard segment >= 2, segment <= 120 else { return }
-            distanceMeters += segment
+            guard elapsed.isFinite, elapsed > 0, segment.isFinite, segment >= 0 else { return }
+            if elapsed <= 30, segment <= 120, segment / elapsed * 3.6 <= 100 {
+                // Ignore sub-2 m jitter without moving the anchor, so small
+                // real movements can accumulate into the next accepted interval.
+                guard segment >= 2 else { return }
+                if segment / elapsed * 3.6 >= 1.5 {
+                    distanceMeters += segment
+                }
+            }
+            // For a long GPS gap, jump or implausible speed, retain this valid
+            // fix as the next route anchor but do not add the rejected interval.
+            // RideAnalysis will see the same break and keep the profile segmented.
         }
 
         let altitudeIsValid = location.verticalAccuracy >= 0 && location.altitude.isFinite
@@ -189,9 +200,10 @@ final class RideRecorder: NSObject, ObservableObject {
         guard state == .recording, var ride = currentRide,
               sample.sessionID == barometer.activeSessionID,
               sample.timestampMs > 0,
-              sample.pressureKPa.isFinite, sample.pressureKPa > 0,
-              sample.relativeAltitudeM.isFinite else { return }
+              sample.pressureKPa.isFinite, (30...110).contains(sample.pressureKPa),
+              sample.relativeAltitudeM.isFinite, (-1000...10000).contains(sample.relativeAltitudeM) else { return }
         if let last = ride.barometerSamples?.last,
+           last.sessionID == sample.sessionID,
            sample.timestampMs <= last.timestampMs { return }
         ride.barometerSamples = (ride.barometerSamples ?? []) + [sample]
         currentRide = ride

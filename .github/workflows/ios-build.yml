@@ -55,6 +55,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      # Covers route segmentation, GPS/barometer matching, session calibration,
+      # outlier filtering (with sorted median inputs), physical sensor bounds, and preserved raw samples.
       - name: Validate elevation analysis
         run: |
           set -o pipefail
@@ -62,6 +64,7 @@ jobs:
             ios/VELOX/Models/RidePoint.swift \
             ios/VELOX/Models/BarometerSample.swift \
             ios/VELOX/Models/Ride.swift \
+            ios/VELOX/Services/BarometerElevationCalibrator.swift \
             ios/VELOX/Services/RideAnalysis.swift \
             ios/Tests/RideAnalysisValidation.swift \
             -o "$RUNNER_TEMP/VELOX-Elevation-Validation"

@@ -1,4 +1,4 @@
-/* VELOX Pro Analysis 0.8.1 — read-only ride analytics */
+/* VELOX Pro Analysis 0.8.2 — read-only ride analytics */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -70,7 +70,7 @@
     for(let index=1;index<smooth.length;index++){
       const first=smooth[index-1],last=smooth[index],distance=last.distanceM-first.distanceM;
       const elapsed=(last.time-first.time)/1000;
-      if(first.segment!==last.segment||distance<8||distance>100||elapsed<=0||elapsed>60)continue;
+      if(first.segment!==last.segment||distance<8||distance>100||elapsed<=0||elapsed>30)continue;
       const grade=(last.elevationM-first.elevationM)/distance*100;
       if(Number.isFinite(grade)&&Math.abs(grade)<=35)grades.push({grade,distance});
     }
@@ -210,6 +210,11 @@
         stoppedGpsSeconds += durationS;
         pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: false };
         continue;
+      }
+      // When movement resumes after a stop or rejected interval, use the
+      // latest point as the new altitude baseline at the current route distance.
+      if (!pointMeta[index - 1] || pointMeta[index - 1].useAltitude !== true) {
+        pointMeta[index - 1] = { distanceM, segment: segmentNumber, useAltitude: true };
       }
       segments.push({
         distanceM: segmentDistance,

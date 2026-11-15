@@ -5,6 +5,7 @@ import CoreLocation
 /// untouched in Ride.points and Ride.barometerSamples.
 struct RideElevationProfilePoint: Equatable, Identifiable {
     let id: Int
+    let timestampMs: Int64
     let distanceM: Double
     let altitudeM: Double
     let segmentID: Int
@@ -49,21 +50,24 @@ struct RideElevationAnalysis: Equatable {
 
         let gps = ride.points
             .filter {
-                $0.t.isFinite && $0.lat.isFinite && $0.lon.isFinite &&
+                $0.t.isFinite && $0.t > 0 && $0.t < Double(Int64.max) / 1_000 &&
+                $0.lat.isFinite && (-90...90).contains($0.lat) &&
+                $0.lon.isFinite && (-180...180).contains($0.lon) &&
                 $0.accuracy.map { $0 >= 0 && $0 <= 35 } == true
             }
             .sorted { $0.t < $1.t }
 
         let barometer = (ride.barometerSamples ?? [])
             .filter {
-                $0.timestampMs > 0 && $0.pressureKPa.isFinite && $0.pressureKPa > 0 &&
-                $0.relativeAltitudeM.isFinite
+                $0.timestampMs > 0 && $0.pressureKPa.isFinite && (30...110).contains($0.pressureKPa) &&
+                $0.relativeAltitudeM.isFinite && (-1000...10000).contains($0.relativeAltitudeM)
             }
             .sorted { $0.timestampMs < $1.timestampMs }
 
         let trustedGPS = gps.filter {
             guard $0.altSource == "coreLocation", let altitude = $0.alt, let accuracy = $0.altAccuracy else { return false }
-            return altitude.isFinite && accuracy.isFinite && accuracy >= 0 && accuracy <= 15
+            return altitude.isFinite && (-1000...10000).contains(altitude) &&
+                accuracy.isFinite && accuracy >= 0 && accuracy <= 15
         }
 
         // Calibrate each independent Core Motion session separately. A pause
@@ -118,11 +122,19 @@ struct RideElevationAnalysis: Equatable {
                 .compactMap { $0.spread }
                 .sorted()
         )
+        // Preserve spread diagnostics even when every candidate session is rejected.
+        // This is observational only: rejected offsets are never applied to the profile.
+        let candidateCalibrationSpread = Self.median(
+            calibrationBySession.values
+                .compactMap { $0.spread }
+                .sorted()
+        )
         let totalAnchorCount = calibrationBySession.values.reduce(0) { $0 + $1.anchorCount }
 
         let route = Self.makeRoute(gps)
         var plotted: [RideElevationProfilePoint] = []
         var profileSegmentIDs: [String: Int] = [:]
+        var lastBarometerByRouteSegment: [String: (timestampMs: Int64, gapIndex: Int)] = [:]
 
         if !barometer.isEmpty {
             for sample in barometer {
@@ -132,12 +144,19 @@ struct RideElevationAnalysis: Equatable {
                 let altitude = sample.relativeAltitudeM +
                     ((calibration?.calibrated == true) ? (calibration?.offset ?? 0) : 0)
                 guard altitude.isFinite else { continue }
-                let segmentKey = "\(sessionKey)|\(position.segmentID)"
+                let routeKey = "\(sessionKey)|\(position.segmentID)"
+                let previousSample = lastBarometerByRouteSegment[routeKey]
+                let gapIndex = previousSample.map {
+                    $0.gapIndex + (sample.timestampMs - $0.timestampMs > 30_000 ? 1 : 0)
+                } ?? 0
+                lastBarometerByRouteSegment[routeKey] = (sample.timestampMs, gapIndex)
+                let segmentKey = "\(routeKey)|\(gapIndex)"
                 if profileSegmentIDs[segmentKey] == nil {
                     profileSegmentIDs[segmentKey] = profileSegmentIDs.count
                 }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
+                    timestampMs: sample.timestampMs,
                     distanceM: position.distanceM,
                     altitudeM: altitude,
                     segmentID: profileSegmentIDs[segmentKey] ?? position.segmentID
@@ -149,6 +168,7 @@ struct RideElevationAnalysis: Equatable {
                 guard let altitude = point.alt, let position = Self.distance(at: Int64((point.t * 1_000).rounded()), on: route) else { continue }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
+                    timestampMs: Int64((point.t * 1_000).rounded()),
                     distanceM: position.distanceM,
                     altitudeM: altitude,
                     segmentID: position.segmentID
@@ -156,7 +176,7 @@ struct RideElevationAnalysis: Equatable {
             }
         }
 
-        let computedProfile = plotted
+        let computedProfile = Self.smoothedProfile(plotted)
         let computedReference: Reference
         let computedCalibrationOffset: Double?
         let computedCalibrationSpread: Double?
@@ -170,12 +190,14 @@ struct RideElevationAnalysis: Equatable {
         } else if hasCalibratedSession {
             computedReference = .partiallyGPSCalibrated
             computedCalibrationOffset = calibrationOffset
-            computedCalibrationSpread = calibrationSpread
+            // Include rejected sessions in the diagnostic; accepted offsets
+            // remain limited to sessions that passed the calibration threshold.
+            computedCalibrationSpread = candidateCalibrationSpread
             computedAnchorCount = totalAnchorCount
-        } else if !barometer.isEmpty {
+        } else if !barometer.isEmpty && !plotted.isEmpty {
             computedReference = .barometerRelative
             computedCalibrationOffset = nil
-            computedCalibrationSpread = nil
+            computedCalibrationSpread = candidateCalibrationSpread
             computedAnchorCount = totalAnchorCount
         } else if !plotted.isEmpty {
             computedReference = .gpsOnly
@@ -242,13 +264,28 @@ struct RideElevationAnalysis: Equatable {
                 continue
             }
             let elapsedMs = Int64(((point.t - previousPoint.t) * 1_000).rounded())
-            guard elapsedMs > 0 else { continue }
+            guard elapsedMs > 0 else {
+                // A duplicate or reversed clock value breaks interpolation.
+                segmentID += 1
+                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
             let a = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
             let b = CLLocation(latitude: point.lat, longitude: point.lon)
             let segment = b.distance(from: a)
-            guard elapsedMs <= 30_000, segment.isFinite, segment >= 0, segment <= 120 else {
+            let speedKmh = elapsedMs > 0 ? segment / (Double(elapsedMs) / 1_000) * 3.6 : .infinity
+            guard elapsedMs <= 30_000, segment.isFinite, segment >= 0,
+                  segment <= 120, speedKmh.isFinite, speedKmh <= 100 else {
                 // Start a new segment; never connect or total elevation across this gap.
                 segmentID += 1
+                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
+            // Match the web analysis: GPS drift and sub-1.5 km/h intervals
+            // do not increase route distance or distort the profile's x-axis.
+            if segment < 0.8 || speedKmh < 1.5 {
                 result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
@@ -262,31 +299,104 @@ struct RideElevationAnalysis: Equatable {
 
     private static func distance(at timestamp: Int64, on route: [RoutePoint]) -> (distanceM: Double, segmentID: Int)? {
         guard route.count >= 2 else { return nil }
-        for index in 1..<route.count {
-            let left = route[index - 1]
-            let right = route[index]
-            let duration = right.timestampMs - left.timestampMs
-            guard duration > 0, duration <= 30_000,
-                  left.segmentID == right.segmentID,
-                  timestamp >= left.timestampMs, timestamp <= right.timestampMs else { continue }
-            let fraction = Double(timestamp - left.timestampMs) / Double(duration)
-            return (left.distanceM + (right.distanceM - left.distanceM) * fraction, left.segmentID)
+        if timestamp == route[0].timestampMs {
+            return (route[0].distanceM, route[0].segmentID)
         }
-        return nil
+        if timestamp == route[route.count - 1].timestampMs {
+            return (route[route.count - 1].distanceM, route[route.count - 1].segmentID)
+        }
+
+        // Route timestamps are sorted, so binary search avoids rescanning the
+        // full GPS route for every barometer sample on longer rides.
+        var low = 1
+        var high = route.count - 1
+        while low < high {
+            let middle = (low + high) / 2
+            if route[middle].timestampMs < timestamp {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
+        if route[low].timestampMs == timestamp {
+            var exact = low
+            while exact + 1 < route.count && route[exact + 1].timestampMs == timestamp {
+                exact += 1
+            }
+            return (route[exact].distanceM, route[exact].segmentID)
+        }
+        let left = route[low - 1]
+        let right = route[low]
+        let duration = right.timestampMs - left.timestampMs
+        guard duration > 0, duration <= 30_000,
+              left.segmentID == right.segmentID,
+              timestamp >= left.timestampMs, timestamp <= right.timestampMs else { return nil }
+        let fraction = Double(timestamp - left.timestampMs) / Double(duration)
+        return (left.distanceM + (right.distanceM - left.distanceM) * fraction, left.segmentID)
     }
 
     private static func nearestBarometer(to timestamp: Int64, in samples: [BarometerSample], maxDifferenceMs: Int64) -> BarometerSample? {
-        samples.min { abs($0.timestampMs - timestamp) < abs($1.timestampMs - timestamp) }
-            .flatMap { abs($0.timestampMs - timestamp) <= maxDifferenceMs ? $0 : nil }
+        guard !samples.isEmpty else { return nil }
+        var low = 0
+        var high = samples.count
+        while low < high {
+            let middle = (low + high) / 2
+            if samples[middle].timestampMs < timestamp {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
+        var nearest: BarometerSample?
+        if low < samples.count { nearest = samples[low] }
+        if low > 0 {
+            let previous = samples[low - 1]
+            if nearest == nil ||
+                abs(previous.timestampMs - timestamp) < abs(nearest!.timestampMs - timestamp) {
+                nearest = previous
+            }
+        }
+        guard let nearest,
+              abs(nearest.timestampMs - timestamp) <= maxDifferenceMs else { return nil }
+        return nearest
     }
 
     private static func median(_ values: [Double]) -> Double? {
         guard !values.isEmpty else { return nil }
-        let middle = values.count / 2
-        if values.count.isMultiple(of: 2) {
-            return (values[middle - 1] + values[middle]) / 2
+        let sorted = values.sorted()
+        let middle = sorted.count / 2
+        if sorted.count.isMultiple(of: 2) {
+            return (sorted[middle - 1] + sorted[middle]) / 2
         }
-        return values[middle]
+        return sorted[middle]
+    }
+
+    /// Smooth only the derived profile, never the original archived sensor samples.
+    /// A three-point median removes isolated barometer spikes without joining sessions
+    /// or observations separated by a long sampling gap.
+    private static func smoothedProfile(_ points: [RideElevationProfilePoint]) -> [RideElevationProfilePoint] {
+        guard points.count >= 5 else { return points }
+        return points.enumerated().map { index, point in
+            guard index > 0, index + 1 < points.count else { return point }
+            let previous = points[index - 1]
+            let next = points[index + 1]
+            let previousInterval = point.timestampMs - previous.timestampMs
+            let nextInterval = next.timestampMs - point.timestampMs
+            guard previous.segmentID == point.segmentID,
+                  next.segmentID == point.segmentID,
+                  previousInterval > 0, previousInterval <= 3_000,
+                  nextInterval > 0, nextInterval <= 3_000,
+                  let altitude = Self.median([previous.altitudeM, point.altitudeM, next.altitudeM]) else {
+                return point
+            }
+            return RideElevationProfilePoint(
+                id: point.id,
+                timestampMs: point.timestampMs,
+                distanceM: point.distanceM,
+                altitudeM: altitude,
+                segmentID: point.segmentID
+            )
+        }
     }
 
     private static func elevationTotals(_ points: [RideElevationProfilePoint]) -> (ascent: Double, descent: Double) {
@@ -294,20 +404,24 @@ struct RideElevationAnalysis: Equatable {
         var ascent = 0.0
         var descent = 0.0
         var previous = first.altitudeM
-        var previousSegment = points[0].segmentID
+        var previousTimestamp = first.timestampMs
+        var previousSegment = first.segmentID
         for point in points.dropFirst() {
-            if point.segmentID != previousSegment {
+            let elapsed = point.timestampMs - previousTimestamp
+            if point.segmentID != previousSegment || elapsed <= 0 || elapsed > 30_000 {
                 previous = point.altitudeM
+                previousTimestamp = point.timestampMs
                 previousSegment = point.segmentID
                 continue
             }
             let delta = point.altitudeM - previous
-            // Reject isolated jumps; keep the raw observation in the ride archive.
+            // Reject isolated jumps and never accumulate across stale sensor data.
             if delta.isFinite && abs(delta) <= 8 {
                 if delta >= 1 { ascent += delta }
                 else if delta <= -1 { descent += abs(delta) }
             }
             previous = point.altitudeM
+            previousTimestamp = point.timestampMs
         }
         return (ascent, descent)
     }
@@ -322,7 +436,10 @@ struct RideElevationSummary: Equatable {
 
     init(samples: [BarometerSample]) {
         let ordered = samples
-            .filter { $0.timestampMs > 0 && $0.relativeAltitudeM.isFinite }
+            .filter {
+                $0.timestampMs > 0 && $0.pressureKPa.isFinite && (30...110).contains($0.pressureKPa) &&
+                $0.relativeAltitudeM.isFinite && (-1000...10000).contains($0.relativeAltitudeM)
+            }
             .sorted { $0.timestampMs < $1.timestampMs }
         sampleCount = ordered.count
         guard let first = ordered.first else {
@@ -334,7 +451,12 @@ struct RideElevationSummary: Equatable {
         let totals = RideElevationAnalysis.elevationTotalsForSummary(ordered)
         ascentM = totals.ascent
         descentM = totals.descent
-        netChangeM = ordered.last!.relativeAltitudeM - first.relativeAltitudeM
+        let continuous = zip(ordered, ordered.dropFirst()).allSatisfy { previous, current in
+            previous.sessionID == current.sessionID &&
+            current.timestampMs > previous.timestampMs &&
+            current.timestampMs - previous.timestampMs <= 15_000
+        }
+        netChangeM = continuous ? ordered.last!.relativeAltitudeM - first.relativeAltitudeM : 0
     }
 }
 
@@ -347,7 +469,8 @@ extension RideElevationAnalysis {
         for sample in samples.dropFirst() {
             let elapsed = sample.timestampMs - previous.timestampMs
             let delta = sample.relativeAltitudeM - previous.relativeAltitudeM
-            if elapsed > 0 && elapsed <= 15_000 && delta.isFinite && abs(delta) <= 8 {
+            if sample.sessionID == previous.sessionID &&
+                elapsed > 0 && elapsed <= 15_000 && delta.isFinite && abs(delta) <= 8 {
                 if delta >= 1 { ascent += delta }
                 else if delta <= -1 { descent += abs(delta) }
             }

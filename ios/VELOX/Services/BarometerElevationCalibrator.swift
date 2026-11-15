@@ -20,6 +20,8 @@ enum BarometerElevationCalibrator {
         case invalidBarometerSample
         case invalidGPSReference
         case timestampsTooFarApart
+        case differentBarometerSession
+        case samplePrecedesBaseline
 
         var errorDescription: String? {
             switch self {
@@ -29,6 +31,10 @@ enum BarometerElevationCalibrator {
                 return "Die GPS-Höhe ist für eine Kalibrierung nicht genau genug."
             case .timestampsTooFarApart:
                 return "GPS- und Barometer-Messung liegen zeitlich zu weit auseinander."
+            case .differentBarometerSession:
+                return "Basis- und Folgemessung stammen aus unterschiedlichen Barometersitzungen."
+            case .samplePrecedesBaseline:
+                return "Der Barometer-Messwert liegt zeitlich vor seiner Basismessung."
             }
         }
     }
@@ -40,13 +46,21 @@ enum BarometerElevationCalibrator {
         maximumGPSVerticalAccuracyM: Double = 10,
         maximumTimeDifferenceMs: Int64 = 10_000
     ) throws -> CalibratedBarometerReading {
-        guard sample.pressureKPa.isFinite, sample.pressureKPa > 0,
-              sample.relativeAltitudeM.isFinite, sample.timestampMs > 0,
-              baseline.relativeAltitudeM.isFinite, baseline.timestampMs > 0 else {
+        guard sample.pressureKPa.isFinite, (30...110).contains(sample.pressureKPa),
+              sample.relativeAltitudeM.isFinite, (-1000...10000).contains(sample.relativeAltitudeM), sample.timestampMs > 0,
+              baseline.pressureKPa.isFinite, (30...110).contains(baseline.pressureKPa),
+              baseline.relativeAltitudeM.isFinite, (-1000...10000).contains(baseline.relativeAltitudeM),
+              baseline.timestampMs > 0 else {
             throw CalibrationError.invalidBarometerSample
         }
+        guard sample.sessionID == baseline.sessionID else {
+            throw CalibrationError.differentBarometerSession
+        }
+        guard sample.timestampMs >= baseline.timestampMs else {
+            throw CalibrationError.samplePrecedesBaseline
+        }
 
-        guard reference.altitudeM.isFinite,
+        guard reference.altitudeM.isFinite, (-1000...10000).contains(reference.altitudeM),
               reference.verticalAccuracyM.isFinite,
               reference.verticalAccuracyM >= 0,
               maximumGPSVerticalAccuracyM.isFinite,
@@ -85,8 +99,8 @@ enum BarometerElevationCalibrator {
         gpsReference: GPSAltitudeReference,
         maximumGPSVerticalAccuracyM: Double = 10
     ) -> Double? {
-        guard barometerAltitudeM.isFinite,
-              gpsReference.altitudeM.isFinite,
+        guard barometerAltitudeM.isFinite, (-1000...10000).contains(barometerAltitudeM),
+              gpsReference.altitudeM.isFinite, (-1000...10000).contains(gpsReference.altitudeM),
               gpsReference.verticalAccuracyM.isFinite,
               gpsReference.verticalAccuracyM >= 0,
               maximumGPSVerticalAccuracyM.isFinite,

@@ -1,0 +1,54 @@
+name: VELOX Web Checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "*.js"
+      - "index.html"
+      - "styles.css"
+      - "sw.js"
+      - "tests/**"
+      - ".github/workflows/web-check.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "*.js"
+      - "index.html"
+      - "styles.css"
+      - "sw.js"
+      - "tests/**"
+      - ".github/workflows/web-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velox-web-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Validate web app and ride analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out VELOX
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check app.js
+          node --check elevation-core.js
+          node --check analysis-pro.js
+          node --check sensor-core.js
+          node --check sw.js
+
+      - name: Run elevation and analysis regression tests
+        run: node --test tests/elevation-core.test.js

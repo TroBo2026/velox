@@ -51,7 +51,7 @@ private struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Native iOS · Entwicklungsstand", systemImage: "iphone")
                             .font(.headline)
-                        Text("SwiftUI, lokales Archiv sowie GPS- und Barometeraufzeichnung im Vordergrund sind vorbereitet. Xcode-Build, echter Gerätetest, Hintergrundbetrieb und Datenmigration sind noch offen.")
+                        Text("SwiftUI, lokales Archiv sowie GPS- und Barometeraufzeichnung im Vordergrund sind vorbereitet. Simulator-CI-Build und 16 Höhenanalyse-Referenztests bestanden; echter iPhone-Test, Hintergrundbetrieb und Datenmigration sind noch offen.")
                             .font(.subheadline)
                             .foregroundStyle(VELOXStyle.muted)
                         HStack(spacing: 8) {
@@ -136,7 +136,7 @@ private struct DashboardView: View {
                         Text(archiveMessage)
                             .font(.caption)
                             .foregroundStyle(VELOXStyle.muted)
-                        Text("Touren und echte Sensorproben werden lokal im versionierten Archiv gespeichert. Noch nicht mit Xcode oder auf dem iPhone getestet.")
+                        Text("Touren und echte Sensorproben werden lokal im versionierten Archiv gespeichert. CI-Simulator-Build bestanden · Persistenz- und iPhone-Test offen.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
@@ -187,6 +187,11 @@ private struct DashboardView: View {
                             Text(String(format: "Sitzungs-Offset (Median): %+.1f m · Median-Abweichung: %.1f m", offset, recorder.elevationAnalysis.calibrationSpreadM ?? 0))
                                 .font(.caption2)
                                 .foregroundStyle(VELOXStyle.muted)
+                        } else if let spread = recorder.elevationAnalysis.calibrationSpreadM {
+                            Text(String(format: "Keine GPS-Kalibrierung übernommen · %d Referenzpaare · Median-Abweichung: %.1f m",
+                                         recorder.elevationAnalysis.gpsAnchorCount, spread))
+                                .font(.caption2)
+                                .foregroundStyle(VELOXStyle.muted)
                         }
                         ElevationProfileChart(points: recorder.elevationAnalysis.profile)
                         Text("Barometer = Verlauf · GPS = Höhenbezug. Je Barometersitzung sind mindestens 3 zeitnahe echte GPS-Höhenreferenzen (±15 m) nötig. Rohdaten bleiben unverändert.")
@@ -203,7 +208,7 @@ private struct DashboardView: View {
                         ReadinessRow(title: "Core Location GPS-Recorder", detail: "Vordergrund-Grundfunktion implementiert · Gerätetest offen")
                         ReadinessRow(title: "Core Motion in Touren", detail: "Echte Barometerproben mit Zeitstempel · Auswertung vorläufig")
                         ReadinessRow(title: "Höhenanalyse", detail: "GPS-Referenzoffset per Median · Barometer-Verlauf · Rohdaten bleiben erhalten · Gerätetest offen")
-                        ReadinessRow(title: "Lokales Tourenarchiv", detail: "Implementiert · Xcode- und Persistenztests offen")
+                        ReadinessRow(title: "Lokales Tourenarchiv", detail: "Implementiert · Persistenztest auf Gerät offen")
                         ReadinessRow(title: "Web-Backup-Migration", detail: "Codec-Grundlage vorhanden · Tests offen")
                     }
                     .padding(16)
@@ -316,7 +321,7 @@ private struct AboutView: View {
                 Section("Entwicklungsstand") {
                     LabeledContent("App", value: "Native SwiftUI-Vorbereitung")
                     LabeledContent("Deployment Target", value: "iOS 17.0")
-                    LabeledContent("Build", value: "Xcode-Prüfung ausstehend")
+                    LabeledContent("Build", value: "CI-Simulator-Build bestanden · Gerätetest offen")
                 }
                 Section("Daten und Sicherheit") {
                     Text("Die native Grundversion speichert neue GPS-Touren und Barometerproben lokal. Bestehende Web-/PWA-Daten werden nicht verändert; eine geprüfte Migration ist noch offen.")

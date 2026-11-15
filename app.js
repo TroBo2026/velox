@@ -1,4 +1,4 @@
-/* VELOX 0.9.9 — local-first cycling tracker */
+/* VELOX 0.9.10 — local-first cycling tracker */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
@@ -90,25 +90,47 @@
     return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
   }
   function buildElevationProfile(points){
-    const raw=[];let distance=0,segment=0,previous=null;
-    for(const point of points){
-      if(!validRidePoint(point)){previous=null;segment++;continue;}
-      if(previous){
-        const d=haversine(previous,point),dt=(point.t-previous.t)/1000;
-        const horizontal=[previous.accuracy,point.accuracy].filter(Number.isFinite);
-        const validInterval=Number.isFinite(d)&&d>=0.8&&d<150&&Number.isFinite(dt)&&dt>0&&dt<=30&&
-          !horizontal.some(value=>value<0||value>80)&&d/dt*3.6<=100;
-        if(validInterval)distance+=d;else segment++;
-      }
-      const accuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
+    const raw=[];
+    let distance=0,segment=0,previous=null,lastProfileTime=null;
+    const validAltitude=point=>{
       const hasAccuracy=point.altAccuracy!==undefined&&point.altAccuracy!==null;
-      const altitudeValid=Number.isFinite(point.alt)&&point.alt>=-1000&&point.alt<=10000&&
-        (!hasAccuracy||(accuracy!==null&&accuracy>=0&&accuracy<=35));
-      if(altitudeValid)raw.push({distanceM:distance,altitude:point.alt,time:point.t,segment,accuracy,source:point.altSource||"gps"});
-      else segment++;
+      return Number.isFinite(point.alt)&&point.alt>=-1000&&point.alt<=10000&&
+        (!hasAccuracy||(Number.isFinite(point.altAccuracy)&&point.altAccuracy>=0&&point.altAccuracy<=35));
+    };
+    const append=(point,distanceM)=>{
+      if(!validAltitude(point))return;
+      if(raw.length&&raw[raw.length-1].time===point.t&&raw[raw.length-1].segment===segment)return;
+      raw.push({distanceM,altitude:point.alt,time:point.t,segment,
+        accuracy:Number.isFinite(point.altAccuracy)?point.altAccuracy:null,source:point.altSource||"gps"});
+      lastProfileTime=point.t;
+    };
+    for(const point of points){
+      if(!validRidePoint(point)){previous=null;segment++;lastProfileTime=null;continue;}
+      if(!previous){previous=point;continue;}
+      const d=haversine(previous,point),dt=(point.t-previous.t)/1000;
+      const horizontal=[previous.accuracy,point.accuracy].filter(Number.isFinite);
+      const timeValid=Number.isFinite(dt)&&dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds;
+      const accuracyValid=!horizontal.some(value=>value<0||value>RIDE_INTERVAL_FILTERS.maxHorizontalAccuracyM);
+      const distanceFinite=Number.isFinite(d)&&d>=0;
+      const speed=timeValid&&distanceFinite?d/dt*3.6:Infinity;
+      if(!timeValid||!accuracyValid||!distanceFinite||d>RIDE_INTERVAL_FILTERS.maxDistanceM||
+         !Number.isFinite(speed)||speed>RIDE_INTERVAL_FILTERS.maxSpeedKmh){
+        segment++;lastProfileTime=null;previous=point;continue;
+      }
+      // Sub-threshold GPS drift is treated as a stop: it adds neither route
+      // distance nor noisy stationary altitude samples to the profile.
+      if(d<RIDE_INTERVAL_FILTERS.minDistanceM||speed<RIDE_INTERVAL_FILTERS.minMovingSpeedKmh){
+        previous=point;continue;
+      }
+      if(lastProfileTime!==previous.t)append(previous,distance);
+      distance+=d;
+      append(point,distance);
       previous=point;
     }
-    const result=window.VELOXElevation?window.VELOXElevation.process(raw):{samples:raw.map(s=>({...s,elevationM:s.altitude})),gain:0,loss:0,min:null,max:null,medianAccuracy:null,validCount:raw.length,quality:"unrated"};
+    const result=window.VELOXElevation?window.VELOXElevation.process(raw):{
+      samples:raw.map(s=>({...s,elevationM:s.altitude})),gain:0,loss:0,min:null,max:null,
+      medianAccuracy:null,validCount:raw.length,quality:"unrated"
+    };
     return {samples:result.samples,gain:result.gain,loss:result.loss,distanceM:distance,
       validCount:result.validCount,totalCount:points.length,minimum:result.min,maximum:result.max,
       medianAccuracy:result.medianAccuracy,quality:result.quality,spikesRejected:result.spikesRejected||0,
@@ -150,7 +172,7 @@
     };
     for(let i=1;i<samples.length;i++){
       const a=samples[i-1],b=samples[i],distance=b.distanceM-a.distanceM,elapsed=(b.time-a.time)/1000;
-      if(a.segment!==b.segment||distance<8||distance>100||elapsed<=0||elapsed>60){finishClimb();continue;}
+      if(a.segment!==b.segment||distance<8||distance>100||elapsed<=0||elapsed>30){finishClimb();continue;}
       const elevationDelta=b.elevationM-a.elevationM,grade=elevationDelta/distance*100;
       if(!Number.isFinite(grade)||Math.abs(grade)>35){finishClimb();continue;}
       grades.push({grade,distance});weightedSum+=grade*distance;weightedDistance+=distance;
@@ -185,7 +207,7 @@
       const first=samples[i];
       if(first.segment!==last.segment)break;
       const distance=last.distanceM-first.distanceM,elapsed=(last.time-first.time)/1000;
-      if(elapsed>90)break;
+      if(elapsed>30)break;
       if(elapsed<=0||distance<20)continue;
       if(distance>80)break;
       const grade=(last.elevationM-first.elevationM)/distance*100;
@@ -274,7 +296,9 @@
     const route=routeStats(intervals,distance);
     return {
       distanceM:distance,elevationProfile:elevation,elevationGain:elevation.gain,elevationLoss:elevation.loss,
-      elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationRange:elevation.minimum!==null&&elevation.maximum!==null?elevation.maximum-elevation.minimum:null,netElevationChange:elevation.samples.length>1?elevation.samples[elevation.samples.length-1].elevationM-elevation.samples[0].elevationM:null,elevationQuality:elevation.quality,
+      elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationRange:elevation.minimum!==null&&elevation.maximum!==null?elevation.maximum-elevation.minimum:null,
+      netElevationChange:elevation.samples.length>1&&elevation.samples[0].segment===elevation.samples[elevation.samples.length-1].segment
+        ?elevation.samples[elevation.samples.length-1].elevationM-elevation.samples[0].elevationM:null,elevationQuality:elevation.quality,
       elevationAccuracy:elevation.medianAccuracy,gradeAverage:grades.average,gradeMax:grades.maximum,
       gradeMin:grades.minimum,gradeSamples:grades.samples,gradeDistribution:grades.distribution,longestClimb:grades.longestClimb,
       elapsedSeconds:elapsed,movingSeconds:moving,stoppedSeconds:stopped,movingRatio:elapsed?moving/elapsed*100:0,
@@ -829,7 +853,7 @@
       metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–")+
       metric("Max. GPS-Tempo",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–")+
       metric("Tempo-Median",c.movingSeconds?fmt(c.medianSpeed)+" km/h":"–");
-    const gpsQuality=c.elevationQuality==="high"?"Gut":c.elevationQuality==="medium"?"Mittel":"Eingeschränkt";
+    const gpsQuality=c.elevationQuality==="high"?"Gut":c.elevationQuality==="medium"?"Mittel":c.elevationQuality==="low"?"Eingeschränkt":"Nicht bewertet";
     $("rideDetail").innerHTML=
       '<div class="detail-header"><span class="eyebrow">TOURENDETAIL</span><h1>'+escapeHtml(r.name||"Fahrradtour")+'</h1><p class="muted">'+date+'</p><div class="ride-time-strip"><div><span>START</span><strong>'+startTime+' Uhr</strong></div><div><span>ENDE</span><strong>'+endTime+' Uhr</strong></div></div></div>'+
       '<section class="detail-route-section"><div class="detail-section-heading"><span class="eyebrow">DEINE STRECKE</span><span class="detail-map-distance">'+fmt(c.distanceM/1000,2)+' km</span></div><div class="detail-map detail-map-primary" id="detailMap" role="img" aria-label="Karte der aufgezeichneten Fahrradroute"></div><div class="detail-route-legend"><span>● Start</span><span>● Ziel</span><span>'+validRouteSegments(r.points).length+' GPS-Abschnitte</span></div></section>'+
@@ -901,8 +925,9 @@
     if(group.length)groups.push(group);
     const speedValues=[];
     groups.forEach(g=>{for(let i=1;i<g.length;i++){
-      const dt=(g[i].t-g[i-1].t)/1000,dd=g[i].distanceM-g[i-1].distanceM;
-      if(dt>0&&dd>=0)speedValues.push(dd/dt*3.6);
+      const dt=(g[i].time-g[i-1].time)/1000,dd=g[i].distanceM-g[i-1].distanceM;
+      const speed=dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds&&dd>0?dd/dt*3.6:null;
+      if(speed!==null&&speed>=RIDE_INTERVAL_FILTERS.minMovingSpeedKmh&&speed<=RIDE_INTERVAL_FILTERS.maxSpeedKmh)speedValues.push(speed);
     }});
     const sorted=[...speedValues].sort((x,y)=>x-y);
     const lo=sorted.length?sorted[Math.floor((sorted.length-1)*0.1)]:0;
@@ -924,17 +949,30 @@
     const speedLines=groups.map(g=>{
       const lines=[];
       for(let i=1;i<g.length;i++){
-        const dt=(g[i].t-g[i-1].t)/1000,dd=g[i].distanceM-g[i-1].distanceM;
-        const speed=dt>0&&dd>=0?dd/dt*3.6:0;
-        lines.push('<line class="profile-speed-line" x1="'+xFor(g[i-1].distanceM)+'" y1="'+yFor(g[i-1].elevationM)+'" x2="'+xFor(g[i].distanceM)+'" y2="'+yFor(g[i].elevationM)+'" stroke="'+speedColor(speed)+'"/>');
+        const dt=(g[i].time-g[i-1].time)/1000,dd=g[i].distanceM-g[i-1].distanceM;
+        const speed=dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds&&dd>0?dd/dt*3.6:null;
+        const stroke=speed!==null&&speed>=RIDE_INTERVAL_FILTERS.minMovingSpeedKmh&&speed<=RIDE_INTERVAL_FILTERS.maxSpeedKmh
+          ?speedColor(speed):"#8295a5";
+        lines.push('<line class="profile-speed-line" x1="'+xFor(g[i-1].distanceM)+'" y1="'+yFor(g[i-1].elevationM)+'" x2="'+xFor(g[i].distanceM)+'" y2="'+yFor(g[i].elevationM)+'" stroke="'+stroke+'"/>');
       }
       return lines.join('');
     }).join('');
     const first=samples[0],last=samples[samples.length-1];
     const xLabels='<text class="axis-label" x="'+left+'" y="184" text-anchor="start">0 km</text><text class="axis-label" x="'+(left+width/2)+'" y="184" text-anchor="middle">'+fmt(xMax/2000,1)+' km</text><text class="axis-label" x="'+(left+width)+'" y="184" text-anchor="end">'+fmt(xMax/1000,1)+' km</text>';
-    const markers='<circle class="profile-marker" cx="'+xFor(first.distanceM)+'" cy="'+yFor(first.elevationM)+'" r="4"/><circle class="profile-marker profile-marker-end" cx="'+xFor(last.distanceM)+'" cy="'+yFor(last.elevationM)+'" r="4"/>';
-    const legend='<div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zum Tempo dieser Tour</span></div>';
-    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">↗ Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">↘ Abstieg <strong>'+Math.round(profile.loss)+' m</strong></span><span class="elevation-stat">Höhenbereich <strong>'+Math.round(min)+'–'+Math.round(max)+' m</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 198" role="img" aria-label="Höhenprofil von '+fmt(xMax/1000,1)+' Kilometern, Höhenbereich '+Math.round(min)+' bis '+Math.round(max)+' Meter. Linienfarbe zeigt das relative Tempo."><defs><linearGradient id="elevationAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6d91b8" stop-opacity=".32"/><stop offset="100%" stop-color="#6d91b8" stop-opacity=".025"/></linearGradient></defs><text class="axis-title" x="8" y="11">Höhe (m)</text>'+grid.join('')+areaPaths+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+speedLines+markers+xLabels+'</svg>'+legend+'<p class="elevation-footnote">Höhenprofil aus '+profile.validCount+' von '+profile.totalCount+' GPS-Höhenpunkten. Die Linienfarbe zeigt die relative Geschwindigkeit zwischen aufgezeichneten Punkten; fehlende GPS-Abschnitte werden nicht künstlich verbunden. Die Kurve wird für die Darstellung reduziert, die gespeicherten Messpunkte bleiben unverändert.</p>';
+    const highPoint=samples.reduce((best,p)=>p.elevationM>best.elevationM?p:best,samples[0]);
+    const lowPoint=samples.reduce((best,p)=>p.elevationM<best.elevationM?p:best,samples[0]);
+    const labelX=p=>Math.max(left+34,Math.min(left+width-34,xFor(p.distanceM)));
+    const highLabelY=Math.max(top+11,yFor(highPoint.elevationM)-9);
+    const lowLabelY=Math.min(bottom-3,yFor(lowPoint.elevationM)+15);
+    const extremeMarkers=max-min>=2
+      ?'<circle class="profile-marker" cx="'+xFor(highPoint.distanceM)+'" cy="'+yFor(highPoint.elevationM)+'" r="3.5"/><text class="marker-label" x="'+labelX(highPoint)+'" y="'+highLabelY+'" text-anchor="middle">Max. '+Math.round(highPoint.elevationM)+' m</text>'+
+       '<circle class="profile-marker" cx="'+xFor(lowPoint.distanceM)+'" cy="'+yFor(lowPoint.elevationM)+'" r="3.5"/><text class="marker-label" x="'+labelX(lowPoint)+'" y="'+lowLabelY+'" text-anchor="middle">Min. '+Math.round(lowPoint.elevationM)+' m</text>'
+      :'';
+    const markers='<circle class="profile-marker" cx="'+xFor(first.distanceM)+'" cy="'+yFor(first.elevationM)+'" r="4"/><circle class="profile-marker profile-marker-end" cx="'+xFor(last.distanceM)+'" cy="'+yFor(last.elevationM)+'" r="4"/>'+extremeMarkers;
+    const qualityLabel=profile.quality==="high"?"Hoch":profile.quality==="medium"?"Mittel":profile.quality==="low"?"Begrenzt":"Nicht bewertet";
+    const accuracyLabel=profile.medianAccuracy===null?"keine vertikale Genauigkeit gemeldet":"Median ±"+fmt(profile.medianAccuracy)+" m";
+    const legend='<div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Grau = Tempo nicht auswertbar</span></div>';
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">↗ Aufstieg <strong>+'+Math.round(profile.gain)+' m</strong></span><span class="elevation-stat">↘ Abstieg <strong>'+Math.round(profile.loss)+' m</strong></span><span class="elevation-stat">Höhenbereich <strong>'+Math.round(min)+'–'+Math.round(max)+' m</strong></span><span class="elevation-stat">Qualität <strong>'+qualityLabel+'</strong></span><span class="elevation-stat">Ausreißer <strong>'+profile.spikesRejected+'</strong></span></div><svg class="elevation-chart" viewBox="0 0 640 198" role="img" aria-label="Höhenprofil von '+fmt(xMax/1000,1)+' Kilometern, Höhenbereich '+Math.round(min)+' bis '+Math.round(max)+' Meter. Höchster und tiefster Punkt sind markiert."><defs><linearGradient id="elevationAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6d91b8" stop-opacity=".32"/><stop offset="100%" stop-color="#6d91b8" stop-opacity=".025"/></linearGradient></defs><text class="axis-title" x="8" y="11">Höhe (m)</text>'+grid.join('')+areaPaths+'<line class="axis-line" x1="'+left+'" y1="'+bottom+'" x2="'+(left+width)+'" y2="'+bottom+'"/>'+speedLines+markers+xLabels+'</svg>'+legend+'<p class="elevation-footnote">Höhenprofil aus '+profile.validCount+' von '+profile.totalCount+' GPS-Höhenpunkten · '+accuracyLabel+'. Fehlende oder unplausible GPS-Abschnitte werden nicht künstlich verbunden. Die Kurve wird nur für die Darstellung reduziert; gespeicherte Messpunkte bleiben unverändert.</p>';
   }
   function renderGradeProfile(points){
     const box=$("gradeChart");
@@ -944,7 +982,7 @@
     for(let i=1;i<samples.length;i++){
       const p=samples[i-1],q=samples[i],distance=q.distanceM-p.distanceM,elapsed=(q.time-p.time)/1000;
       const grade=(q.elevationM-p.elevationM)/distance*100;
-      if(p.segment!==q.segment||distance<8||distance>100||elapsed<=0||elapsed>60||!Number.isFinite(grade)||Math.abs(grade)>35){
+      if(p.segment!==q.segment||distance<8||distance>100||elapsed<=0||elapsed>30||!Number.isFinite(grade)||Math.abs(grade)>35){
         if(group.length>1)segments.push(group);group=[];lastSegment=null;continue;
       }
       const item={distance:q.distanceM,grade};

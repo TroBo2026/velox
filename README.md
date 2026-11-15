@@ -7,11 +7,11 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
 
-**Inhalt:** [Aktueller Stand](#aktueller-stand--version-099) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
+**Inhalt:** [Aktueller Stand](#aktueller-stand--version-0910) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
 
 ---
 
-## Aktueller Stand – Version 0.9.9
+## Aktueller Stand – Version 0.9.10
 
 ### Aufzeichnung
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start auf der Startseite oder direkt auf der Track-Seite. Eine laufende Tour kann nicht versehentlich ein zweites Mal gestartet werden.
@@ -95,10 +95,10 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 | `sw.js` | Service Worker: Cache der App-Shell, Offline-Start |
 | `manifest.webmanifest` | PWA-Metadaten und App-Icon |
 | `icon.svg` | VELOX-App-/Browser-Icon |
-| `tests/` | Logik-Tests (Node.js) für `app.js` und `sensor-core.js` |
+| `tests/elevation-core.test.js` | Reproduzierbare Tests für Höhenfilter, Ausreißer, GPS-Segmente und Profilregressionen |
 | `ios/` | Natives SwiftUI-Xcode-Projekt (siehe [`ios/README.md`](ios/README.md)) |
 | `.github/workflows/` | CI: `web-check.yml` (Web), `ios-build.yml` (iOS-Simulator) |
-| `CHANGELOG-0.9.8.md` | Ausführliche Liste der Änderungen dieser Version |
+| `CHANGELOG-0.9.10.md` | Höhenprofil-, Analyse- und Validierungsverbesserungen dieser Version |
 
 ## Kostenlos testen und bereitstellen
 
@@ -114,19 +114,22 @@ Empfohlene Cloudflare-Pages-Einstellungen:
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
 
-**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v27`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
+**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v28`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
 
 ## Entwicklung und Tests
 
 Voraussetzung: Node.js 20 oder neuer. Es gibt keinen Build-Schritt.
 
 ```bash
-node --check app.js              # Syntax prüfen (analog für die übrigen .js-Dateien)
-node tests/sensor-core.test.js   # Barometer-Fusion und Zeitstempel-Regeln
-node tests/app-smoke.test.js     # App lädt ohne Fehler; Distanz, Stillstand, Cache, Robustheit
+node --check app.js
+node --check elevation-core.js
+node --check analysis-pro.js
+node --check sensor-core.js
+node --check sw.js
+node --test tests/elevation-core.test.js
 ```
 
-Der Workflow `web-check.yml` führt dieselben Prüfungen bei jedem Push und Pull Request aus und kontrolliert zusätzlich `manifest.webmanifest` und die Offline-Cache-Liste. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator.
+Der Workflow `web-check.yml` prüft bei Änderungen an der Web-App die JavaScript-Syntax, führt die Höhenprofil-Regressionstests aus und kontrolliert, dass die Analysemodule in der richtigen Reihenfolge geladen und offline zwischengespeichert werden. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator und führt die nativen Höhenanalyse-Validierungen aus.
 
 ---
 
@@ -153,7 +156,7 @@ Schräglage, Beschleunigung/Bremsung, Herzfrequenz, Leistung, Trittfrequenz und 
 
 Das Repository enthält ein vorbereitetes eigenständiges SwiftUI-Xcode-Projekt unter `ios/VELOX.xcodeproj`. Die native App ist ausdrücklich keine WKWebView-Hülle. Sie nutzt lokale JSON-Sicherung, Core Location und – sofern das Gerät es unterstützt – Core Motion. Die Web-/PWA-Version bleibt nutzbar und wird erst nach erfolgreichen Xcode-, Import-/Export- und iPhone-Tests ersetzt.
 
-Der native Quellcode ist vorbereitet, aber noch **nicht** mit Xcode gebaut oder auf einem iPhone installiert. Auf dem Mac `ios/VELOX.xcodeproj` öffnen, das Schema `VELOX` wählen und zunächst für einen iPhone-Simulator bauen. Für den Gerätestart muss Xcode gegebenenfalls eine kostenlose persönliche Signierung einrichten. Eine App-Store-Veröffentlichung ist nicht Teil dieses kostenlosen Vorhabens. Der Workflow `ios-build.yml` baut das Projekt zusätzlich automatisch für den Simulator.
+Der native Quellcode wird durch den GitHub-Actions-Workflow `ios-build.yml` für den iOS-Simulator gebaut und mit reproduzierbaren Höhenanalyse-Referenzfällen geprüft. Am 15. November 2026 waren der Simulator-Build und 16/16 native Höhenanalyse-Referenztests erfolgreich. Diese CI-Prüfung ersetzt keinen echten iPhone-Test: Core-Location- und Core-Motion-Messungen, Berechtigungen, Persistenz und Verhalten bei App-Wechseln müssen weiterhin auf einem Gerät geprüft werden. Für einen späteren lokalen Test kann `ios/VELOX.xcodeproj` auf einem kompatiblen Mac in Xcode geöffnet werden. Eine App-Store-Veröffentlichung oder kostenpflichtige Mitgliedschaft ist nicht Teil dieses kostenlosen Vorhabens.
 
 Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punkten als JSON-Werte. Damit bleiben insbesondere optionale Web-Felder wie `weather` beim nativen Import-/Export-Rundlauf erhalten. Die `BarometerService.swift` nutzt den Core-Motion-Sample-Zeitstempel (monotone Geräte-Uptime, auf Unix-Zeit abgebildet) statt der verzögerten Callback-Empfangszeit. Das iOS-Barometer liefert zunächst relative Höhenänderungen; die Swift-Kalibrierung kann diese mit einem zeitnahen, ausreichend genauen GPS-Höhenreferenzpunkt verankern. Diese native Messkette ist noch nicht mit der Web-App verbunden und wird daher nicht als aktive Sensorquelle ausgegeben. Details, bekannte Grenzen und ein 30-Minuten-Mac-Ablauf stehen in [`ios/README.md`](ios/README.md).
 
@@ -171,6 +174,8 @@ Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punk
 ---
 
 ## Versionsverlauf
+
+**0.9.10** – Einheitliche Bewegungsfilter für Höhenprofil und Tourdistanz, gap-sichere Höhen- und Steigungsberechnung, reparierte Tempo-Farbkodierung, bessere Extrempunkt-/Qualitätsanzeige, robustere native GPS-/Barometersegmentierung und neue automatisierte Regressionstests.
 
 **0.9.9** – Versionsangleichung: Web-App, native iOS-Metadaten und aktuelle Dokumentation tragen jetzt dieselbe Versionsnummer. Keine Funktionsänderung.
 
