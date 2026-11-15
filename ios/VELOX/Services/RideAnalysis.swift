@@ -59,14 +59,15 @@ struct RideElevationAnalysis: Equatable {
 
         let barometer = (ride.barometerSamples ?? [])
             .filter {
-                $0.timestampMs > 0 && $0.pressureKPa.isFinite && $0.pressureKPa > 0 &&
-                $0.relativeAltitudeM.isFinite
+                $0.timestampMs > 0 && $0.pressureKPa.isFinite && (30...110).contains($0.pressureKPa) &&
+                $0.relativeAltitudeM.isFinite && (-1000...10000).contains($0.relativeAltitudeM)
             }
             .sorted { $0.timestampMs < $1.timestampMs }
 
         let trustedGPS = gps.filter {
             guard $0.altSource == "coreLocation", let altitude = $0.alt, let accuracy = $0.altAccuracy else { return false }
-            return altitude.isFinite && accuracy.isFinite && accuracy >= 0 && accuracy <= 15
+            return altitude.isFinite && (-1000...10000).contains(altitude) &&
+                accuracy.isFinite && accuracy >= 0 && accuracy <= 15
         }
 
         // Calibrate each independent Core Motion session separately. A pause
@@ -390,7 +391,10 @@ struct RideElevationSummary: Equatable {
 
     init(samples: [BarometerSample]) {
         let ordered = samples
-            .filter { $0.timestampMs > 0 && $0.relativeAltitudeM.isFinite }
+            .filter {
+                $0.timestampMs > 0 && $0.pressureKPa.isFinite && (30...110).contains($0.pressureKPa) &&
+                $0.relativeAltitudeM.isFinite && (-1000...10000).contains($0.relativeAltitudeM)
+            }
             .sorted { $0.timestampMs < $1.timestampMs }
         sampleCount = ordered.count
         guard let first = ordered.first else {
