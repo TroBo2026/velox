@@ -70,7 +70,7 @@
     for(let index=1;index<smooth.length;index++){
       const first=smooth[index-1],last=smooth[index],distance=last.distanceM-first.distanceM;
       const elapsed=(last.time-first.time)/1000;
-      if(first.segment!==last.segment||distance<8||distance>100||elapsed<=0||elapsed>60)continue;
+      if(first.segment!==last.segment||distance<8||distance>100||elapsed<=0||elapsed>30)continue;
       const grade=(last.elevationM-first.elevationM)/distance*100;
       if(Number.isFinite(grade)&&Math.abs(grade)<=35)grades.push({grade,distance});
     }
