@@ -189,7 +189,9 @@ struct RideElevationAnalysis: Equatable {
         } else if hasCalibratedSession {
             computedReference = .partiallyGPSCalibrated
             computedCalibrationOffset = calibrationOffset
-            computedCalibrationSpread = calibrationSpread
+            // Include rejected sessions in the diagnostic; accepted offsets
+            // remain limited to sessions that passed the calibration threshold.
+            computedCalibrationSpread = candidateCalibrationSpread
             computedAnchorCount = totalAnchorCount
         } else if !barometer.isEmpty && !plotted.isEmpty {
             computedReference = .barometerRelative
@@ -261,7 +263,13 @@ struct RideElevationAnalysis: Equatable {
                 continue
             }
             let elapsedMs = Int64(((point.t - previousPoint.t) * 1_000).rounded())
-            guard elapsedMs > 0 else { continue }
+            guard elapsedMs > 0 else {
+                // A duplicate or reversed clock value breaks interpolation.
+                segmentID += 1
+                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
             let a = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
             let b = CLLocation(latitude: point.lat, longitude: point.lon)
             let segment = b.distance(from: a)
