@@ -10,7 +10,8 @@ struct RideAnalysisValidation {
         testGPSGapSplitsElevationTotals()
         testBarometerGapSplitsProfile()
         testMissingRouteIsUnavailable()
-        print("VELOX elevation validation: 7/7 checks passed")
+        testImplausibleGPSspeedSplitsRoute()
+        print("VELOX elevation validation: 8/8 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -138,6 +139,39 @@ struct RideAnalysisValidation {
         let result = RideElevationAnalysis(ride: ride)
         expect(result.profile.isEmpty, "barometer without route cannot be plotted")
         expect(result.reference == .unavailable, "missing route is not labeled as relative profile")
+    }
+
+    private static func testImplausibleGPSspeedSplitsRoute() {
+        let start = 1_700_000_000.0
+        let first = gpsPoint(time: start, altitude: nil)
+        let second = RidePoint(
+            lat: 51.0009,
+            lon: 13.0,
+            t: start + 2,
+            alt: nil,
+            altAccuracy: nil,
+            altSource: nil,
+            pressureKPa: nil,
+            accuracy: 5
+        )
+        let ride = Ride(
+            id: "implausible-speed-test",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 2,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [first, second],
+            barometerSamples: [
+                sample(time: start + 0.5, altitude: 0),
+                sample(time: start + 1.5, altitude: 3)
+            ],
+            importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.isEmpty, "implausible GPS speed cannot anchor an elevation segment")
+        expect(result.reference == .unavailable, "rejected GPS route is not shown as relative profile")
     }
 
     private static func makeRide(
