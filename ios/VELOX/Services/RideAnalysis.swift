@@ -112,12 +112,12 @@ struct RideElevationAnalysis: Equatable {
                 .compactMap { $0.offset }
                 .sorted()
         )
-        let calibrationSpread = Self.median(
-            calibrationBySession.values
-                .filter { $0.calibrated }
-                .compactMap { $0.spread }
-                .sorted()
-        )
+        // Expose the worst measurable session MAD even when calibration is
+        // rejected. This makes poor reference quality visible instead of hiding it.
+        let calibrationSpread = calibrationBySession.values
+            .filter { $0.anchorCount >= 2 }
+            .compactMap { $0.spread }
+            .max()
         let totalAnchorCount = calibrationBySession.values.reduce(0) { $0 + $1.anchorCount }
 
         let route = Self.makeRoute(gps)
