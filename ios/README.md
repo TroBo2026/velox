@@ -60,7 +60,7 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 - `VELOX.xcodeproj/project.pbxproj`: minimales iOS-App-Projekt (iOS 17.0 als vorläufiges Deployment Target).
 - `VELOX/App/VELOXApp.swift`, `RootView.swift`: SwiftUI-App-Einstieg und erste native Oberfläche.
 - `VELOX/Models/*`: Tour-, GPS- und Barometer-Grundmodelle.
-- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec, `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz) und `RideRecorder.swift` (Core Location, Vordergrund-GPS, Core-Motion-Barometerproben, Pause/Fortsetzen/Stoppen) und `RideAnalysis.swift` (GPS-verankerte Barometerfusion, Qualitätsstatus und natives Distanz-Höhenprofil; noch nicht validiert).
+- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec, `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz) und `RideRecorder.swift` (Core Location, Vordergrund-GPS, Core-Motion-Barometerproben, Pause/Fortsetzen/Stoppen) und `RideAnalysis.swift` (GPS-verankerte Barometerfusion, Qualitätsstatus und natives Distanz-Höhenprofil; synthetische CI-Checks 7/7 bestanden, reale Sensorprüfung offen).
 
 ## Noch offen
 
