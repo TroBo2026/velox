@@ -46,9 +46,11 @@ enum BarometerElevationCalibrator {
         maximumGPSVerticalAccuracyM: Double = 10,
         maximumTimeDifferenceMs: Int64 = 10_000
     ) throws -> CalibratedBarometerReading {
-        guard sample.pressureKPa.isFinite, sample.pressureKPa > 0,
-              sample.relativeAltitudeM.isFinite, sample.timestampMs > 0,
-              baseline.relativeAltitudeM.isFinite, baseline.timestampMs > 0 else {
+        guard sample.pressureKPa.isFinite, (30...110).contains(sample.pressureKPa),
+              sample.relativeAltitudeM.isFinite, (-1000...10000).contains(sample.relativeAltitudeM), sample.timestampMs > 0,
+              baseline.pressureKPa.isFinite, (30...110).contains(baseline.pressureKPa),
+              baseline.relativeAltitudeM.isFinite, (-1000...10000).contains(baseline.relativeAltitudeM),
+              baseline.timestampMs > 0 else {
             throw CalibrationError.invalidBarometerSample
         }
         guard sample.sessionID == baseline.sessionID else {
