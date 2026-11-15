@@ -62,6 +62,7 @@ jobs:
             ios/VELOX/Models/RidePoint.swift \
             ios/VELOX/Models/BarometerSample.swift \
             ios/VELOX/Models/Ride.swift \
+            ios/VELOX/Services/BarometerElevationCalibrator.swift \
             ios/VELOX/Services/RideAnalysis.swift \
             ios/Tests/RideAnalysisValidation.swift \
             -o "$RUNNER_TEMP/VELOX-Elevation-Validation"
