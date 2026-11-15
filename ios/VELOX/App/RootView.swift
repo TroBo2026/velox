@@ -51,7 +51,7 @@ private struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Native iOS · Entwicklungsstand", systemImage: "iphone")
                             .font(.headline)
-                        Text("SwiftUI, lokales Archiv sowie GPS- und Barometeraufzeichnung im Vordergrund sind vorbereitet. Automatisierter Simulator-Build und Höhenanalyse-Referenztests laufen; echter iPhone-Test, Hintergrundbetrieb und Datenmigration sind noch offen.")
+                        Text("SwiftUI, lokales Archiv sowie GPS- und Barometeraufzeichnung im Vordergrund sind vorbereitet. Simulator-CI-Build und 16 Höhenanalyse-Referenztests bestanden; echter iPhone-Test, Hintergrundbetrieb und Datenmigration sind noch offen.")
                             .font(.subheadline)
                             .foregroundStyle(VELOXStyle.muted)
                         HStack(spacing: 8) {
@@ -136,7 +136,7 @@ private struct DashboardView: View {
                         Text(archiveMessage)
                             .font(.caption)
                             .foregroundStyle(VELOXStyle.muted)
-                        Text("Touren und echte Sensorproben werden lokal im versionierten Archiv gespeichert. CI-Simulator-Build vorgesehen · Persistenz- und iPhone-Test offen.")
+                        Text("Touren und echte Sensorproben werden lokal im versionierten Archiv gespeichert. CI-Simulator-Build bestanden · Persistenz- und iPhone-Test offen.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
@@ -321,7 +321,7 @@ private struct AboutView: View {
                 Section("Entwicklungsstand") {
                     LabeledContent("App", value: "Native SwiftUI-Vorbereitung")
                     LabeledContent("Deployment Target", value: "iOS 17.0")
-                    LabeledContent("Build", value: "CI-Simulator-Build · Gerätetest offen")
+                    LabeledContent("Build", value: "CI-Simulator-Build bestanden · Gerätetest offen")
                 }
                 Section("Daten und Sicherheit") {
                     Text("Die native Grundversion speichert neue GPS-Touren und Barometerproben lokal. Bestehende Web-/PWA-Daten werden nicht verändert; eine geprüfte Migration ist noch offen.")
