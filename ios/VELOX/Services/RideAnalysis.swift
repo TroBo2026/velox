@@ -318,6 +318,13 @@ struct RideElevationAnalysis: Equatable {
                 high = middle
             }
         }
+        if route[low].timestampMs == timestamp {
+            var exact = low
+            while exact + 1 < route.count && route[exact + 1].timestampMs == timestamp {
+                exact += 1
+            }
+            return (route[exact].distanceM, route[exact].segmentID)
+        }
         let left = route[low - 1]
         let right = route[low]
         let duration = right.timestampMs - left.timestampMs
