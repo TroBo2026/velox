@@ -95,7 +95,7 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 | `sw.js` | Service Worker: Cache der App-Shell, Offline-Start |
 | `manifest.webmanifest` | PWA-Metadaten und App-Icon |
 | `icon.svg` | VELOX-App-/Browser-Icon |
-| `tests/` | Logik-Tests (Node.js) für `app.js` und `sensor-core.js` |
+| `tests/elevation-core.test.js` | Reproduzierbare Tests für Höhenfilter, Ausreißer, GPS-Segmente und Profilregressionen |
 | `ios/` | Natives SwiftUI-Xcode-Projekt (siehe [`ios/README.md`](ios/README.md)) |
 | `.github/workflows/` | CI: `web-check.yml` (Web), `ios-build.yml` (iOS-Simulator) |
 | `CHANGELOG-0.9.8.md` | Ausführliche Liste der Änderungen dieser Version |
@@ -121,12 +121,15 @@ Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen
 Voraussetzung: Node.js 20 oder neuer. Es gibt keinen Build-Schritt.
 
 ```bash
-node --check app.js              # Syntax prüfen (analog für die übrigen .js-Dateien)
-node tests/sensor-core.test.js   # Barometer-Fusion und Zeitstempel-Regeln
-node tests/app-smoke.test.js     # App lädt ohne Fehler; Distanz, Stillstand, Cache, Robustheit
+node --check app.js
+node --check elevation-core.js
+node --check analysis-pro.js
+node --check sensor-core.js
+node --check sw.js
+node --test tests/elevation-core.test.js
 ```
 
-Der Workflow `web-check.yml` führt dieselben Prüfungen bei jedem Push und Pull Request aus und kontrolliert zusätzlich `manifest.webmanifest` und die Offline-Cache-Liste. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator.
+Der Workflow `web-check.yml` prüft bei Änderungen an der Web-App die JavaScript-Syntax, führt die Höhenprofil-Regressionstests aus und kontrolliert, dass die Analysemodule in der richtigen Reihenfolge geladen und offline zwischengespeichert werden. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator und führt die nativen Höhenanalyse-Validierungen aus.
 
 ---
 
