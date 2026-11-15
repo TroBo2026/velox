@@ -12,7 +12,8 @@ struct RideAnalysisValidation {
         testMissingRouteIsUnavailable()
         testImplausibleGPSspeedSplitsRoute()
         testSlowGPSDriftDoesNotAddDistance()
-        print("VELOX elevation validation: 9/9 checks passed")
+        testSummaryDoesNotBridgeBarometerSessions()
+        print("VELOX elevation validation: 10/10 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -207,6 +208,33 @@ struct RideAnalysisValidation {
         expect(result.profile.count == 2, "slow drift profile samples remain available")
         expect(abs(result.profile[1].distanceM - result.profile[0].distanceM) < 0.001,
                "sub-threshold GPS drift does not increase profile distance")
+    }
+
+    private static func testSummaryDoesNotBridgeBarometerSessions() {
+        let start = 1_700_000_000.0
+        let firstSession = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+        let secondSession = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
+        let samples = [
+            sample(time: start + 1, altitude: 0),
+            sample(time: start + 9, altitude: 3),
+            BarometerSample(
+                pressureKPa: 100,
+                relativeAltitudeM: 0,
+                timestampMs: Int64(((start + 11) * 1_000).rounded()),
+                sessionID: secondSession
+            ),
+            BarometerSample(
+                pressureKPa: 100,
+                relativeAltitudeM: 4,
+                timestampMs: Int64(((start + 19) * 1_000).rounded()),
+                sessionID: secondSession
+            )
+        ]
+        expect(samples[0].sessionID == firstSession, "first barometer session fixture")
+        let summary = RideElevationSummary(samples: samples)
+        expect(abs(summary.ascentM - 7) < 0.001, "summary accumulates ascent inside each sensor session")
+        expect(abs(summary.descentM) < 0.001, "summary excludes false descent at session reset")
+        expect(abs(summary.netChangeM) < 0.001, "summary does not calculate net change across sessions")
     }
 
     private static func makeRide(
