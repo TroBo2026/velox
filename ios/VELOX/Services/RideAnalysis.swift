@@ -282,6 +282,13 @@ struct RideElevationAnalysis: Equatable {
                 previous = point
                 continue
             }
+            // Match the web analysis: GPS drift and sub-1.5 km/h intervals
+            // do not increase route distance or distort the profile's x-axis.
+            if segment < 0.8 || speedKmh < 1.5 {
+                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
             distance += segment
             result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
             previous = point
