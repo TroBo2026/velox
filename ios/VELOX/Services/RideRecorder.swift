@@ -81,6 +81,9 @@ final class RideRecorder: NSObject, ObservableObject {
     func pause() {
         guard state == .recording, var ride = currentRide else { return }
         manager.stopUpdatingLocation()
+        // A resumed ride starts a fresh GPS segment. Never compare its first
+        // fix with the pre-pause location or count movement made while paused.
+        lastAcceptedLocation = nil
         barometer.stop()
         let now = Date().timeIntervalSince1970
         ride.status = "paused"
