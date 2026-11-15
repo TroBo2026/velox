@@ -1,5 +1,5 @@
 /* VELOX offline shell — versioned, same-origin only */
-const CACHE = "velox-shell-v27";
+const CACHE = "velox-shell-v28";
 const SHELL = [
   "./",
   "./index.html",
