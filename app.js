@@ -90,25 +90,47 @@
     return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
   }
   function buildElevationProfile(points){
-    const raw=[];let distance=0,segment=0,previous=null;
-    for(const point of points){
-      if(!validRidePoint(point)){previous=null;segment++;continue;}
-      if(previous){
-        const d=haversine(previous,point),dt=(point.t-previous.t)/1000;
-        const horizontal=[previous.accuracy,point.accuracy].filter(Number.isFinite);
-        const validInterval=Number.isFinite(d)&&d>=0.8&&d<150&&Number.isFinite(dt)&&dt>0&&dt<=30&&
-          !horizontal.some(value=>value<0||value>80)&&d/dt*3.6<=100;
-        if(validInterval)distance+=d;else segment++;
-      }
-      const accuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
+    const raw=[];
+    let distance=0,segment=0,previous=null,lastProfileTime=null;
+    const validAltitude=point=>{
       const hasAccuracy=point.altAccuracy!==undefined&&point.altAccuracy!==null;
-      const altitudeValid=Number.isFinite(point.alt)&&point.alt>=-1000&&point.alt<=10000&&
-        (!hasAccuracy||(accuracy!==null&&accuracy>=0&&accuracy<=35));
-      if(altitudeValid)raw.push({distanceM:distance,altitude:point.alt,time:point.t,segment,accuracy,source:point.altSource||"gps"});
-      else segment++;
+      return Number.isFinite(point.alt)&&point.alt>=-1000&&point.alt<=10000&&
+        (!hasAccuracy||(Number.isFinite(point.altAccuracy)&&point.altAccuracy>=0&&point.altAccuracy<=35));
+    };
+    const append=(point,distanceM)=>{
+      if(!validAltitude(point))return;
+      if(raw.length&&raw[raw.length-1].time===point.t&&raw[raw.length-1].segment===segment)return;
+      raw.push({distanceM,altitude:point.alt,time:point.t,segment,
+        accuracy:Number.isFinite(point.altAccuracy)?point.altAccuracy:null,source:point.altSource||"gps"});
+      lastProfileTime=point.t;
+    };
+    for(const point of points){
+      if(!validRidePoint(point)){previous=null;segment++;lastProfileTime=null;continue;}
+      if(!previous){previous=point;continue;}
+      const d=haversine(previous,point),dt=(point.t-previous.t)/1000;
+      const horizontal=[previous.accuracy,point.accuracy].filter(Number.isFinite);
+      const timeValid=Number.isFinite(dt)&&dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds;
+      const accuracyValid=!horizontal.some(value=>value<0||value>RIDE_INTERVAL_FILTERS.maxHorizontalAccuracyM);
+      const distanceValid=Number.isFinite(d)&&d>=RIDE_INTERVAL_FILTERS.minDistanceM&&d<=RIDE_INTERVAL_FILTERS.maxDistanceM;
+      const speed=timeValid&&distanceValid?d/dt*3.6:Infinity;
+      if(!timeValid||!accuracyValid||!Number.isFinite(d)||d>RIDE_INTERVAL_FILTERS.maxDistanceM||
+         !Number.isFinite(speed)||speed>RIDE_INTERVAL_FILTERS.maxSpeedKmh){
+        segment++;lastProfileTime=null;previous=point;continue;
+      }
+      // Sub-threshold GPS drift is treated as a stop: it adds neither route
+      // distance nor noisy stationary altitude samples to the profile.
+      if(d<RIDE_INTERVAL_FILTERS.minDistanceM||speed<RIDE_INTERVAL_FILTERS.minMovingSpeedKmh){
+        previous=point;continue;
+      }
+      if(lastProfileTime!==previous.t)append(previous,distance);
+      distance+=d;
+      append(point,distance);
       previous=point;
     }
-    const result=window.VELOXElevation?window.VELOXElevation.process(raw):{samples:raw.map(s=>({...s,elevationM:s.altitude})),gain:0,loss:0,min:null,max:null,medianAccuracy:null,validCount:raw.length,quality:"unrated"};
+    const result=window.VELOXElevation?window.VELOXElevation.process(raw):{
+      samples:raw.map(s=>({...s,elevationM:s.altitude})),gain:0,loss:0,min:null,max:null,
+      medianAccuracy:null,validCount:raw.length,quality:"unrated"
+    };
     return {samples:result.samples,gain:result.gain,loss:result.loss,distanceM:distance,
       validCount:result.validCount,totalCount:points.length,minimum:result.min,maximum:result.max,
       medianAccuracy:result.medianAccuracy,quality:result.quality,spikesRejected:result.spikesRejected||0,
@@ -274,7 +296,9 @@
     const route=routeStats(intervals,distance);
     return {
       distanceM:distance,elevationProfile:elevation,elevationGain:elevation.gain,elevationLoss:elevation.loss,
-      elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationRange:elevation.minimum!==null&&elevation.maximum!==null?elevation.maximum-elevation.minimum:null,netElevationChange:elevation.samples.length>1?elevation.samples[elevation.samples.length-1].elevationM-elevation.samples[0].elevationM:null,elevationQuality:elevation.quality,
+      elevationMin:elevation.minimum,elevationMax:elevation.maximum,elevationRange:elevation.minimum!==null&&elevation.maximum!==null?elevation.maximum-elevation.minimum:null,
+      netElevationChange:elevation.samples.length>1&&elevation.samples[0].segment===elevation.samples[elevation.samples.length-1].segment
+        ?elevation.samples[elevation.samples.length-1].elevationM-elevation.samples[0].elevationM:null,elevationQuality:elevation.quality,
       elevationAccuracy:elevation.medianAccuracy,gradeAverage:grades.average,gradeMax:grades.maximum,
       gradeMin:grades.minimum,gradeSamples:grades.samples,gradeDistribution:grades.distribution,longestClimb:grades.longestClimb,
       elapsedSeconds:elapsed,movingSeconds:moving,stoppedSeconds:stopped,movingRatio:elapsed?moving/elapsed*100:0,
@@ -901,8 +925,9 @@
     if(group.length)groups.push(group);
     const speedValues=[];
     groups.forEach(g=>{for(let i=1;i<g.length;i++){
-      const dt=(g[i].t-g[i-1].t)/1000,dd=g[i].distanceM-g[i-1].distanceM;
-      if(dt>0&&dd>=0)speedValues.push(dd/dt*3.6);
+      const dt=(g[i].time-g[i-1].time)/1000,dd=g[i].distanceM-g[i-1].distanceM;
+      const speed=dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds&&dd>0?dd/dt*3.6:null;
+      if(speed!==null&&speed>=RIDE_INTERVAL_FILTERS.minMovingSpeedKmh&&speed<=RIDE_INTERVAL_FILTERS.maxSpeedKmh)speedValues.push(speed);
     }});
     const sorted=[...speedValues].sort((x,y)=>x-y);
     const lo=sorted.length?sorted[Math.floor((sorted.length-1)*0.1)]:0;
@@ -924,9 +949,11 @@
     const speedLines=groups.map(g=>{
       const lines=[];
       for(let i=1;i<g.length;i++){
-        const dt=(g[i].t-g[i-1].t)/1000,dd=g[i].distanceM-g[i-1].distanceM;
-        const speed=dt>0&&dd>=0?dd/dt*3.6:0;
-        lines.push('<line class="profile-speed-line" x1="'+xFor(g[i-1].distanceM)+'" y1="'+yFor(g[i-1].elevationM)+'" x2="'+xFor(g[i].distanceM)+'" y2="'+yFor(g[i].elevationM)+'" stroke="'+speedColor(speed)+'"/>');
+        const dt=(g[i].time-g[i-1].time)/1000,dd=g[i].distanceM-g[i-1].distanceM;
+        const speed=dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds&&dd>0?dd/dt*3.6:null;
+        const stroke=speed!==null&&speed>=RIDE_INTERVAL_FILTERS.minMovingSpeedKmh&&speed<=RIDE_INTERVAL_FILTERS.maxSpeedKmh
+          ?speedColor(speed):"#8295a5";
+        lines.push('<line class="profile-speed-line" x1="'+xFor(g[i-1].distanceM)+'" y1="'+yFor(g[i-1].elevationM)+'" x2="'+xFor(g[i].distanceM)+'" y2="'+yFor(g[i].elevationM)+'" stroke="'+stroke+'"/>');
       }
       return lines.join('');
     }).join('');
