@@ -161,9 +161,18 @@ final class RideRecorder: NSObject, ObservableObject {
         }
 
         if let previous = lastAcceptedLocation {
+            let elapsed = location.timestamp.timeIntervalSince(previous.timestamp)
             let segment = location.distance(from: previous)
-            guard segment >= 2, segment <= 120 else { return }
-            distanceMeters += segment
+            guard elapsed.isFinite, elapsed > 0, segment.isFinite, segment >= 0 else { return }
+            if elapsed <= 30, segment <= 120, segment / elapsed * 3.6 <= 100 {
+                // Ignore sub-2 m jitter without moving the anchor, so small
+                // real movements can accumulate into the next accepted interval.
+                guard segment >= 2 else { return }
+                distanceMeters += segment
+            }
+            // For a long GPS gap, jump or implausible speed, retain this valid
+            // fix as the next route anchor but do not add the rejected interval.
+            // RideAnalysis will see the same break and keep the profile segmented.
         }
 
         let altitudeIsValid = location.verticalAccuracy >= 0 && location.altitude.isFinite
