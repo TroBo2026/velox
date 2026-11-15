@@ -203,6 +203,7 @@ final class RideRecorder: NSObject, ObservableObject {
               sample.pressureKPa.isFinite, (30...110).contains(sample.pressureKPa),
               sample.relativeAltitudeM.isFinite, (-1000...10000).contains(sample.relativeAltitudeM) else { return }
         if let last = ride.barometerSamples?.last,
+           last.sessionID == sample.sessionID,
            sample.timestampMs <= last.timestampMs { return }
         ride.barometerSamples = (ride.barometerSamples ?? []) + [sample]
         currentRide = ride
