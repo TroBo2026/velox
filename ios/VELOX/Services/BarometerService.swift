@@ -45,7 +45,13 @@ final class BarometerService: ObservableObject {
             let sampleTimestamp = data.map {
                 unixTimeAtSessionStart + ($0.timestamp - uptimeAtSessionStart)
             }
-            let timestamp = sampleTimestamp.map { Int64(($0 * 1_000).rounded()) } ?? 0
+            let timestamp: Int64
+            if let sampleTimestamp, sampleTimestamp.isFinite, sampleTimestamp > 0,
+               sampleTimestamp < Double(Int64.max) / 1_000 {
+                timestamp = Int64((sampleTimestamp * 1_000).rounded())
+            } else {
+                timestamp = 0
+            }
 
             Task { @MainActor in
                 guard let self, self.activeSessionID == sessionID else { return }
