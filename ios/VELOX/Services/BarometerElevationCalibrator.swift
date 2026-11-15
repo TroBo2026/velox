@@ -60,7 +60,7 @@ enum BarometerElevationCalibrator {
             throw CalibrationError.samplePrecedesBaseline
         }
 
-        guard reference.altitudeM.isFinite,
+        guard reference.altitudeM.isFinite, (-1000...10000).contains(reference.altitudeM),
               reference.verticalAccuracyM.isFinite,
               reference.verticalAccuracyM >= 0,
               maximumGPSVerticalAccuracyM.isFinite,
@@ -99,8 +99,8 @@ enum BarometerElevationCalibrator {
         gpsReference: GPSAltitudeReference,
         maximumGPSVerticalAccuracyM: Double = 10
     ) -> Double? {
-        guard barometerAltitudeM.isFinite,
-              gpsReference.altitudeM.isFinite,
+        guard barometerAltitudeM.isFinite, (-1000...10000).contains(barometerAltitudeM),
+              gpsReference.altitudeM.isFinite, (-1000...10000).contains(gpsReference.altitudeM),
               gpsReference.verticalAccuracyM.isFinite,
               gpsReference.verticalAccuracyM >= 0,
               maximumGPSVerticalAccuracyM.isFinite,
