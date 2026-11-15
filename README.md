@@ -114,7 +114,7 @@ Empfohlene Cloudflare-Pages-Einstellungen:
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
 
-**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v27`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
+**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v28`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
 
 ## Entwicklung und Tests
 
@@ -156,7 +156,7 @@ Schräglage, Beschleunigung/Bremsung, Herzfrequenz, Leistung, Trittfrequenz und 
 
 Das Repository enthält ein vorbereitetes eigenständiges SwiftUI-Xcode-Projekt unter `ios/VELOX.xcodeproj`. Die native App ist ausdrücklich keine WKWebView-Hülle. Sie nutzt lokale JSON-Sicherung, Core Location und – sofern das Gerät es unterstützt – Core Motion. Die Web-/PWA-Version bleibt nutzbar und wird erst nach erfolgreichen Xcode-, Import-/Export- und iPhone-Tests ersetzt.
 
-Der native Quellcode ist vorbereitet, aber noch **nicht** mit Xcode gebaut oder auf einem iPhone installiert. Auf dem Mac `ios/VELOX.xcodeproj` öffnen, das Schema `VELOX` wählen und zunächst für einen iPhone-Simulator bauen. Für den Gerätestart muss Xcode gegebenenfalls eine kostenlose persönliche Signierung einrichten. Eine App-Store-Veröffentlichung ist nicht Teil dieses kostenlosen Vorhabens. Der Workflow `ios-build.yml` baut das Projekt zusätzlich automatisch für den Simulator.
+Der native Quellcode wird durch den GitHub-Actions-Workflow `ios-build.yml` für den iOS-Simulator gebaut und mit reproduzierbaren Höhenanalyse-Referenzfällen geprüft. Diese CI-Prüfung ersetzt keinen echten iPhone-Test: Core-Location- und Core-Motion-Messungen, Berechtigungen, Persistenz und Verhalten bei App-Wechseln müssen weiterhin auf einem Gerät geprüft werden. Für einen späteren lokalen Test kann `ios/VELOX.xcodeproj` auf einem kompatiblen Mac in Xcode geöffnet werden. Eine App-Store-Veröffentlichung oder kostenpflichtige Mitgliedschaft ist nicht Teil dieses kostenlosen Vorhabens.
 
 Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punkten als JSON-Werte. Damit bleiben insbesondere optionale Web-Felder wie `weather` beim nativen Import-/Export-Rundlauf erhalten. Die `BarometerService.swift` nutzt den Core-Motion-Sample-Zeitstempel (monotone Geräte-Uptime, auf Unix-Zeit abgebildet) statt der verzögerten Callback-Empfangszeit. Das iOS-Barometer liefert zunächst relative Höhenänderungen; die Swift-Kalibrierung kann diese mit einem zeitnahen, ausreichend genauen GPS-Höhenreferenzpunkt verankern. Diese native Messkette ist noch nicht mit der Web-App verbunden und wird daher nicht als aktive Sensorquelle ausgegeben. Details, bekannte Grenzen und ein 30-Minuten-Mac-Ablauf stehen in [`ios/README.md`](ios/README.md).
 
