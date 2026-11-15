@@ -11,7 +11,8 @@ struct RideAnalysisValidation {
         testBarometerGapSplitsProfile()
         testMissingRouteIsUnavailable()
         testImplausibleGPSspeedSplitsRoute()
-        print("VELOX elevation validation: 8/8 checks passed")
+        testSlowGPSDriftDoesNotAddDistance()
+        print("VELOX elevation validation: 9/9 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -172,6 +173,40 @@ struct RideAnalysisValidation {
         let result = RideElevationAnalysis(ride: ride)
         expect(result.profile.isEmpty, "implausible GPS speed cannot anchor an elevation segment")
         expect(result.reference == .unavailable, "rejected GPS route is not shown as relative profile")
+    }
+
+    private static func testSlowGPSDriftDoesNotAddDistance() {
+        let start = 1_700_000_000.0
+        let first = gpsPoint(time: start, altitude: nil)
+        let second = RidePoint(
+            lat: 51.000027,
+            lon: 13.0,
+            t: start + 10,
+            alt: nil,
+            altAccuracy: nil,
+            altSource: nil,
+            pressureKPa: nil,
+            accuracy: 5
+        )
+        let ride = Ride(
+            id: "slow-drift-test",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 10,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [first, second],
+            barometerSamples: [
+                sample(time: start + 1, altitude: 0),
+                sample(time: start + 9, altitude: 0.2)
+            ],
+            importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.count == 2, "slow drift profile samples remain available")
+        expect(abs(result.profile[1].distanceM - result.profile[0].distanceM) < 0.001,
+               "sub-threshold GPS drift does not increase profile distance")
     }
 
     private static func makeRide(
