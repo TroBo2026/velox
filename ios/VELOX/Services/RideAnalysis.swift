@@ -363,11 +363,12 @@ struct RideElevationAnalysis: Equatable {
 
     private static func median(_ values: [Double]) -> Double? {
         guard !values.isEmpty else { return nil }
-        let middle = values.count / 2
-        if values.count.isMultiple(of: 2) {
-            return (values[middle - 1] + values[middle]) / 2
+        let sorted = values.sorted()
+        let middle = sorted.count / 2
+        if sorted.count.isMultiple(of: 2) {
+            return (sorted[middle - 1] + sorted[middle]) / 2
         }
-        return values[middle]
+        return sorted[middle]
     }
 
     /// Smooth only the derived profile, never the original archived sensor samples.
