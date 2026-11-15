@@ -168,7 +168,9 @@ final class RideRecorder: NSObject, ObservableObject {
                 // Ignore sub-2 m jitter without moving the anchor, so small
                 // real movements can accumulate into the next accepted interval.
                 guard segment >= 2 else { return }
-                distanceMeters += segment
+                if segment / elapsed * 3.6 >= 1.5 {
+                    distanceMeters += segment
+                }
             }
             // For a long GPS gap, jump or implausible speed, retain this valid
             // fix as the next route anchor but do not add the rejected interval.
