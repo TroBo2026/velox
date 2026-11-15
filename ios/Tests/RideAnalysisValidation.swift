@@ -17,7 +17,8 @@ struct RideAnalysisValidation {
         testCalibratorRejectsCrossSessionBaseline()
         testCalibratorRejectsEarlierSample()
         testProfileMedianFilterPreservesRawSamples()
-        print("VELOX elevation validation: 14/14 checks passed")
+        testInvalidPressureDoesNotCreateProfile()
+        print("VELOX elevation validation: 15/15 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -338,6 +339,36 @@ struct RideAnalysisValidation {
         expect(abs(result.profile[3].altitudeM - 4) < 0.001, "neighboring profile point remains robust")
         expect(result.rawBarometerCount == 6, "raw barometer count remains unchanged")
         expect(ride.barometerSamples?.map(\.relativeAltitudeM) == altitudes, "archived raw barometer values remain untouched")
+    }
+
+    private static func testInvalidPressureDoesNotCreateProfile() {
+        let start = 1_700_000_000.0
+        let ride = Ride(
+            id: "invalid-pressure-test",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 10,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [
+                gpsPoint(time: start, altitude: nil),
+                gpsPoint(time: start + 10, altitude: nil)
+            ],
+            barometerSamples: [
+                BarometerSample(
+                    pressureKPa: 200,
+                    relativeAltitudeM: 4,
+                    timestampMs: Int64(((start + 1) * 1_000).rounded()),
+                    sessionID: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+                )
+            ],
+            importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.isEmpty, "implausible pressure is excluded from plotted elevation")
+        expect(result.reference == .unavailable, "invalid pressure cannot create a relative profile")
+        expect(result.rawBarometerCount == 1, "original invalid observation remains in raw archive count")
     }
 
     private static func makeRide(
