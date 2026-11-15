@@ -175,7 +175,7 @@ struct RideElevationAnalysis: Equatable {
         } else if !barometer.isEmpty {
             computedReference = .barometerRelative
             computedCalibrationOffset = nil
-            computedCalibrationSpread = nil
+            computedCalibrationSpread = calibrationSpread
             computedAnchorCount = totalAnchorCount
         } else if !plotted.isEmpty {
             computedReference = .gpsOnly
