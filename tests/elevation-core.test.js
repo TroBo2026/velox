@@ -91,7 +91,7 @@ test("application profile and Pro analysis use consistent movement and time fiel
   assert.ok(chartStart >= 0 && chartEnd > chartStart);
   const chart = app.slice(chartStart, chartEnd);
   assert.match(chart, /g\[i\]\.time/);
-  assert.doesNotMatch(chart, /g\[i\]\.t/);
+  assert.doesNotMatch(chart, /g\[i\]\.t(?!ime)/);
   assert.match(app, /speed<RIDE_INTERVAL_FILTERS\.minMovingSpeedKmh/);
   assert.match(app, /elevation\.samples\[0\]\.segment===elevation\.samples\[elevation\.samples\.length-1\]\.segment/);
   assert.match(pro, /pointMeta\[index - 1\] = \{ distanceM, segment: segmentNumber, useAltitude: true \}/);
