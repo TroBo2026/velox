@@ -187,6 +187,11 @@ private struct DashboardView: View {
                             Text(String(format: "Sitzungs-Offset (Median): %+.1f m · Median-Abweichung: %.1f m", offset, recorder.elevationAnalysis.calibrationSpreadM ?? 0))
                                 .font(.caption2)
                                 .foregroundStyle(VELOXStyle.muted)
+                        } else if let spread = recorder.elevationAnalysis.calibrationSpreadM {
+                            Text(String(format: "Keine GPS-Kalibrierung übernommen · %d Referenzpaare · Median-Abweichung: %.1f m",
+                                         recorder.elevationAnalysis.gpsAnchorCount, spread))
+                                .font(.caption2)
+                                .foregroundStyle(VELOXStyle.muted)
                         }
                         ElevationProfileChart(points: recorder.elevationAnalysis.profile)
                         Text("Barometer = Verlauf · GPS = Höhenbezug. Je Barometersitzung sind mindestens 3 zeitnahe echte GPS-Höhenreferenzen (±15 m) nötig. Rohdaten bleiben unverändert.")
