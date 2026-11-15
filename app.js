@@ -111,9 +111,9 @@
       const horizontal=[previous.accuracy,point.accuracy].filter(Number.isFinite);
       const timeValid=Number.isFinite(dt)&&dt>0&&dt<=RIDE_INTERVAL_FILTERS.maxGapSeconds;
       const accuracyValid=!horizontal.some(value=>value<0||value>RIDE_INTERVAL_FILTERS.maxHorizontalAccuracyM);
-      const distanceValid=Number.isFinite(d)&&d>=RIDE_INTERVAL_FILTERS.minDistanceM&&d<=RIDE_INTERVAL_FILTERS.maxDistanceM;
-      const speed=timeValid&&distanceValid?d/dt*3.6:Infinity;
-      if(!timeValid||!accuracyValid||!Number.isFinite(d)||d>RIDE_INTERVAL_FILTERS.maxDistanceM||
+      const distanceFinite=Number.isFinite(d)&&d>=0;
+      const speed=timeValid&&distanceFinite?d/dt*3.6:Infinity;
+      if(!timeValid||!accuracyValid||!distanceFinite||d>RIDE_INTERVAL_FILTERS.maxDistanceM||
          !Number.isFinite(speed)||speed>RIDE_INTERVAL_FILTERS.maxSpeedKmh){
         segment++;lastProfileTime=null;previous=point;continue;
       }
