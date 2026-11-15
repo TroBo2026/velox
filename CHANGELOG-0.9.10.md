@@ -24,6 +24,10 @@
 - GPS-Lücken, doppelte Zeitstempel und Barometer-Datenlücken trennen das Höhenprofil.
 - GPS-Offsets nicht kalibrierter Barometersitzungen bleiben sichtbar diagnostizierbar, werden aber nicht auf das Profil angewendet.
 - Native Streckenlänge ignoriert langsame GPS-Drift.
+- Das native Profil erhält einen segment- und zeitbewussten Medianfilter; Roh-Barometerproben bleiben unverändert.
+- Der native Kompatibilitäts-Höhensummenwert verbindet weder Barometersitzungen noch lange Sensorlücken.
+- Der Kalibrierungsbaustein weist Basismessungen aus anderen Sessions und zeitlich frühere Proben zurück.
+- Abgelehnte Kalibrierungsabweichungen werden auch ohne angewendeten Offset in der nativen Oberfläche angezeigt.
 - Der Recorder kann nach einem GPS-Sprung oder einer längeren Unterbrechung mit einem neuen Positionsanker weiterarbeiten.
 
 ## Qualitätssicherung
