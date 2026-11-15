@@ -50,7 +50,7 @@ struct RideElevationAnalysis: Equatable {
 
         let gps = ride.points
             .filter {
-                $0.t.isFinite && $0.t > 0 &&
+                $0.t.isFinite && $0.t > 0 && $0.t < Double(Int64.max) / 1_000 &&
                 $0.lat.isFinite && (-90...90).contains($0.lat) &&
                 $0.lon.isFinite && (-180...180).contains($0.lon) &&
                 $0.accuracy.map { $0 >= 0 && $0 <= 35 } == true
