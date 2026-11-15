@@ -8,7 +8,9 @@ struct RideAnalysisValidation {
         testInsufficientAnchorsStayRelative()
         testUnstableAnchorsStayRelative()
         testGPSGapSplitsElevationTotals()
-        print("VELOX elevation validation: 5/5 checks passed")
+        testBarometerGapSplitsProfile()
+        testMissingRouteIsUnavailable()
+        print("VELOX elevation validation: 7/7 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -88,6 +90,54 @@ struct RideAnalysisValidation {
         expect(abs(result.ascentM - 6) < 0.001, "elevation total excludes gap jump")
         expect(abs(result.netChangeM) < 0.001, "net change is not joined across segments")
         expect(result.rawBarometerCount == 4, "raw samples remain counted")
+    }
+
+    private static func testBarometerGapSplitsProfile() {
+        let start = 1_700_000_000.0
+        let gps = (0..<7).map { index in
+            gpsPoint(time: start + Double(index * 10), altitude: nil)
+        }
+        let ride = Ride(
+            id: "barometer-gap-test",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 60,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: gps,
+            barometerSamples: [
+                sample(time: start + 1, altitude: 0),
+                sample(time: start + 9, altitude: 3),
+                sample(time: start + 41, altitude: 50),
+                sample(time: start + 49, altitude: 53)
+            ],
+            importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.count == 4, "barometer samples remain plotted around sensor gap")
+        expect(result.profile[1].segmentID != result.profile[2].segmentID, "stale barometer interval splits profile")
+        expect(abs(result.ascentM - 6) < 0.001, "ascent excludes unobserved barometer gap")
+        expect(abs(result.netChangeM) < 0.001, "net change is not joined across barometer gap")
+    }
+
+    private static func testMissingRouteIsUnavailable() {
+        let start = 1_700_000_000.0
+        let ride = Ride(
+            id: "missing-route-test",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 2,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [gpsPoint(time: start, altitude: nil)],
+            barometerSamples: [sample(time: start + 1, altitude: 4)],
+            importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.isEmpty, "barometer without route cannot be plotted")
+        expect(result.reference == .unavailable, "missing route is not labeled as relative profile")
     }
 
     private static func makeRide(
