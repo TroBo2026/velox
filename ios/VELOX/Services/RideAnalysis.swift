@@ -5,6 +5,7 @@ import CoreLocation
 /// untouched in Ride.points and Ride.barometerSamples.
 struct RideElevationProfilePoint: Equatable, Identifiable {
     let id: Int
+    let timestampMs: Int64
     let distanceM: Double
     let altitudeM: Double
     let segmentID: Int
@@ -49,7 +50,9 @@ struct RideElevationAnalysis: Equatable {
 
         let gps = ride.points
             .filter {
-                $0.t.isFinite && $0.lat.isFinite && $0.lon.isFinite &&
+                $0.t.isFinite && $0.t > 0 &&
+                $0.lat.isFinite && (-90...90).contains($0.lat) &&
+                $0.lon.isFinite && (-180...180).contains($0.lon) &&
                 $0.accuracy.map { $0 >= 0 && $0 <= 35 } == true
             }
             .sorted { $0.t < $1.t }
@@ -130,6 +133,7 @@ struct RideElevationAnalysis: Equatable {
         let route = Self.makeRoute(gps)
         var plotted: [RideElevationProfilePoint] = []
         var profileSegmentIDs: [String: Int] = [:]
+        var lastBarometerByRouteSegment: [String: (timestampMs: Int64, gapIndex: Int)] = [:]
 
         if !barometer.isEmpty {
             for sample in barometer {
@@ -139,12 +143,19 @@ struct RideElevationAnalysis: Equatable {
                 let altitude = sample.relativeAltitudeM +
                     ((calibration?.calibrated == true) ? (calibration?.offset ?? 0) : 0)
                 guard altitude.isFinite else { continue }
-                let segmentKey = "\(sessionKey)|\(position.segmentID)"
+                let routeKey = "\(sessionKey)|\(position.segmentID)"
+                let previousSample = lastBarometerByRouteSegment[routeKey]
+                let gapIndex = previousSample.map {
+                    $0.gapIndex + (sample.timestampMs - $0.timestampMs > 30_000 ? 1 : 0)
+                } ?? 0
+                lastBarometerByRouteSegment[routeKey] = (sample.timestampMs, gapIndex)
+                let segmentKey = "\(routeKey)|\(gapIndex)"
                 if profileSegmentIDs[segmentKey] == nil {
                     profileSegmentIDs[segmentKey] = profileSegmentIDs.count
                 }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
+                    timestampMs: sample.timestampMs,
                     distanceM: position.distanceM,
                     altitudeM: altitude,
                     segmentID: profileSegmentIDs[segmentKey] ?? position.segmentID
@@ -156,6 +167,7 @@ struct RideElevationAnalysis: Equatable {
                 guard let altitude = point.alt, let position = Self.distance(at: Int64((point.t * 1_000).rounded()), on: route) else { continue }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
+                    timestampMs: Int64((point.t * 1_000).rounded()),
                     distanceM: position.distanceM,
                     altitudeM: altitude,
                     segmentID: position.segmentID
@@ -179,7 +191,7 @@ struct RideElevationAnalysis: Equatable {
             computedCalibrationOffset = calibrationOffset
             computedCalibrationSpread = calibrationSpread
             computedAnchorCount = totalAnchorCount
-        } else if !barometer.isEmpty {
+        } else if !barometer.isEmpty && !plotted.isEmpty {
             computedReference = .barometerRelative
             computedCalibrationOffset = nil
             computedCalibrationSpread = candidateCalibrationSpread
@@ -253,7 +265,9 @@ struct RideElevationAnalysis: Equatable {
             let a = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
             let b = CLLocation(latitude: point.lat, longitude: point.lon)
             let segment = b.distance(from: a)
-            guard elapsedMs <= 30_000, segment.isFinite, segment >= 0, segment <= 120 else {
+            let speedKmh = elapsedMs > 0 ? segment / (Double(elapsedMs) / 1_000) * 3.6 : .infinity
+            guard elapsedMs <= 30_000, segment.isFinite, segment >= 0,
+                  segment <= 120, speedKmh.isFinite, speedKmh <= 100 else {
                 // Start a new segment; never connect or total elevation across this gap.
                 segmentID += 1
                 result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
@@ -301,20 +315,24 @@ struct RideElevationAnalysis: Equatable {
         var ascent = 0.0
         var descent = 0.0
         var previous = first.altitudeM
-        var previousSegment = points[0].segmentID
+        var previousTimestamp = first.timestampMs
+        var previousSegment = first.segmentID
         for point in points.dropFirst() {
-            if point.segmentID != previousSegment {
+            let elapsed = point.timestampMs - previousTimestamp
+            if point.segmentID != previousSegment || elapsed <= 0 || elapsed > 30_000 {
                 previous = point.altitudeM
+                previousTimestamp = point.timestampMs
                 previousSegment = point.segmentID
                 continue
             }
             let delta = point.altitudeM - previous
-            // Reject isolated jumps; keep the raw observation in the ride archive.
+            // Reject isolated jumps and never accumulate across stale sensor data.
             if delta.isFinite && abs(delta) <= 8 {
                 if delta >= 1 { ascent += delta }
                 else if delta <= -1 { descent += abs(delta) }
             }
             previous = point.altitudeM
+            previousTimestamp = point.timestampMs
         }
         return (ascent, descent)
     }
