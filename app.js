@@ -172,7 +172,7 @@
     };
     for(let i=1;i<samples.length;i++){
       const a=samples[i-1],b=samples[i],distance=b.distanceM-a.distanceM,elapsed=(b.time-a.time)/1000;
-      if(a.segment!==b.segment||distance<8||distance>100||elapsed<=0||elapsed>60){finishClimb();continue;}
+      if(a.segment!==b.segment||distance<8||distance>100||elapsed<=0||elapsed>30){finishClimb();continue;}
       const elevationDelta=b.elevationM-a.elevationM,grade=elevationDelta/distance*100;
       if(!Number.isFinite(grade)||Math.abs(grade)>35){finishClimb();continue;}
       grades.push({grade,distance});weightedSum+=grade*distance;weightedDistance+=distance;
@@ -207,7 +207,7 @@
       const first=samples[i];
       if(first.segment!==last.segment)break;
       const distance=last.distanceM-first.distanceM,elapsed=(last.time-first.time)/1000;
-      if(elapsed>90)break;
+      if(elapsed>30)break;
       if(elapsed<=0||distance<20)continue;
       if(distance>80)break;
       const grade=(last.elevationM-first.elevationM)/distance*100;
@@ -971,7 +971,7 @@
     for(let i=1;i<samples.length;i++){
       const p=samples[i-1],q=samples[i],distance=q.distanceM-p.distanceM,elapsed=(q.time-p.time)/1000;
       const grade=(q.elevationM-p.elevationM)/distance*100;
-      if(p.segment!==q.segment||distance<8||distance>100||elapsed<=0||elapsed>60||!Number.isFinite(grade)||Math.abs(grade)>35){
+      if(p.segment!==q.segment||distance<8||distance>100||elapsed<=0||elapsed>30||!Number.isFinite(grade)||Math.abs(grade)>35){
         if(group.length>1)segments.push(group);group=[];lastSegment=null;continue;
       }
       const item={distance:q.distanceM,grade};
