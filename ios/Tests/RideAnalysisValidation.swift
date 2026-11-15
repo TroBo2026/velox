@@ -18,7 +18,8 @@ struct RideAnalysisValidation {
         testCalibratorRejectsEarlierSample()
         testProfileMedianFilterPreservesRawSamples()
         testInvalidPressureDoesNotCreateProfile()
-        print("VELOX elevation validation: 15/15 checks passed")
+        testImpossibleGPSAltitudeIsRejected()
+        print("VELOX elevation validation: 16/16 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -369,6 +370,30 @@ struct RideAnalysisValidation {
         expect(result.profile.isEmpty, "implausible pressure is excluded from plotted elevation")
         expect(result.reference == .unavailable, "invalid pressure cannot create a relative profile")
         expect(result.rawBarometerCount == 1, "original invalid observation remains in raw archive count")
+    }
+
+    private static func testImpossibleGPSAltitudeIsRejected() {
+        let start = 1_700_000_000.0
+        let ride = Ride(
+            id: "invalid-gps-altitude-test",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 20,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [
+                gpsPoint(time: start, altitude: 20_000),
+                gpsPoint(time: start + 10, altitude: 20_001),
+                gpsPoint(time: start + 20, altitude: 20_002)
+            ],
+            barometerSamples: [],
+            importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.isEmpty, "impossible GPS altitude is not plotted")
+        expect(result.reference == .unavailable, "invalid GPS altitude cannot become a GPS-only profile")
+        expect(result.usableGPSAltitudeCount == 0, "invalid GPS altitude is excluded from trusted references")
     }
 
     private static func makeRide(
