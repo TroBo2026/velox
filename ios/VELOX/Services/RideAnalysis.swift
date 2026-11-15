@@ -374,7 +374,12 @@ struct RideElevationSummary: Equatable {
         let totals = RideElevationAnalysis.elevationTotalsForSummary(ordered)
         ascentM = totals.ascent
         descentM = totals.descent
-        netChangeM = ordered.last!.relativeAltitudeM - first.relativeAltitudeM
+        let continuous = zip(ordered, ordered.dropFirst()).allSatisfy { previous, current in
+            previous.sessionID == current.sessionID &&
+            current.timestampMs > previous.timestampMs &&
+            current.timestampMs - previous.timestampMs <= 15_000
+        }
+        netChangeM = continuous ? ordered.last!.relativeAltitudeM - first.relativeAltitudeM : 0
     }
 }
 
@@ -387,7 +392,8 @@ extension RideElevationAnalysis {
         for sample in samples.dropFirst() {
             let elapsed = sample.timestampMs - previous.timestampMs
             let delta = sample.relativeAltitudeM - previous.relativeAltitudeM
-            if elapsed > 0 && elapsed <= 15_000 && delta.isFinite && abs(delta) <= 8 {
+            if sample.sessionID == previous.sessionID &&
+                elapsed > 0 && elapsed <= 15_000 && delta.isFinite && abs(delta) <= 8 {
                 if delta >= 1 { ascent += delta }
                 else if delta <= -1 { descent += abs(delta) }
             }
