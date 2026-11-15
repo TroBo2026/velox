@@ -13,7 +13,10 @@ struct RideAnalysisValidation {
         testImplausibleGPSspeedSplitsRoute()
         testSlowGPSDriftDoesNotAddDistance()
         testSummaryDoesNotBridgeBarometerSessions()
-        print("VELOX elevation validation: 10/10 checks passed")
+        testCalibratorAnchorsWithinOneSession()
+        testCalibratorRejectsCrossSessionBaseline()
+        testCalibratorRejectsEarlierSample()
+        print("VELOX elevation validation: 13/13 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -235,6 +238,76 @@ struct RideAnalysisValidation {
         expect(abs(summary.ascentM - 7) < 0.001, "summary accumulates ascent inside each sensor session")
         expect(abs(summary.descentM) < 0.001, "summary excludes false descent at session reset")
         expect(abs(summary.netChangeM) < 0.001, "summary does not calculate net change across sessions")
+    }
+
+    private static func testCalibratorAnchorsWithinOneSession() {
+        let start = 1_700_000_000.0
+        let baseline = sample(time: start + 1, altitude: 0)
+        let later = sample(time: start + 2, altitude: 3)
+        let reference = GPSAltitudeReference(
+            altitudeM: 100,
+            verticalAccuracyM: 5,
+            timestampMs: Int64(((start + 1) * 1_000).rounded())
+        )
+        do {
+            let result = try BarometerElevationCalibrator.calibrate(
+                sample: later,
+                baseline: baseline,
+                against: reference
+            )
+            expect(close(result.altitudeM, to: 103), "same-session barometer altitude anchored to GPS")
+        } catch {
+            expect(false, "same-session calibration unexpectedly failed")
+        }
+    }
+
+    private static func testCalibratorRejectsCrossSessionBaseline() {
+        let start = 1_700_000_000.0
+        let baseline = sample(time: start + 1, altitude: 0)
+        let differentSession = BarometerSample(
+            pressureKPa: 100,
+            relativeAltitudeM: 3,
+            timestampMs: Int64(((start + 2) * 1_000).rounded()),
+            sessionID: UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")
+        )
+        let reference = GPSAltitudeReference(
+            altitudeM: 100,
+            verticalAccuracyM: 5,
+            timestampMs: Int64(((start + 1) * 1_000).rounded())
+        )
+        var rejected = false
+        do {
+            _ = try BarometerElevationCalibrator.calibrate(
+                sample: differentSession,
+                baseline: baseline,
+                against: reference
+            )
+        } catch BarometerElevationCalibrator.CalibrationError.differentBarometerSession {
+            rejected = true
+        } catch {}
+        expect(rejected, "calibrator rejects baseline from another sensor session")
+    }
+
+    private static func testCalibratorRejectsEarlierSample() {
+        let start = 1_700_000_000.0
+        let baseline = sample(time: start + 2, altitude: 2)
+        let earlier = sample(time: start + 1, altitude: 1)
+        let reference = GPSAltitudeReference(
+            altitudeM: 100,
+            verticalAccuracyM: 5,
+            timestampMs: Int64(((start + 2) * 1_000).rounded())
+        )
+        var rejected = false
+        do {
+            _ = try BarometerElevationCalibrator.calibrate(
+                sample: earlier,
+                baseline: baseline,
+                against: reference
+            )
+        } catch BarometerElevationCalibrator.CalibrationError.samplePrecedesBaseline {
+            rejected = true
+        } catch {}
+        expect(rejected, "calibrator rejects sample preceding its baseline")
     }
 
     private static func makeRide(
