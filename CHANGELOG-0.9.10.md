@@ -26,7 +26,9 @@
 - Native Streckenlänge ignoriert langsame GPS-Drift.
 - Das native Profil erhält einen segment- und zeitbewussten Medianfilter; Roh-Barometerproben bleiben unverändert.
 - Der native Kompatibilitäts-Höhensummenwert verbindet weder Barometersitzungen noch lange Sensorlücken.
-- Der Kalibrierungsbaustein weist Basismessungen aus anderen Sessions und zeitlich frühere Proben zurück.
+- Der Kalibrierungsbaustein weist Basismessungen aus anderen Sessions, zeitlich frühere Proben und unplausible Druck-/Höhenwerte zurück.
+- Core-Motion-Zeitstempel werden vor der Millisekunden-Konvertierung geprüft; die Probenreihenfolge wird pro Sensor-Session validiert.
+- GPS-/Barometer-Zeitzuordnung nutzt binäre Suche statt vollständiger Streckenscans und bleibt auch an exakten Segmentgrenzen korrekt.
 - Abgelehnte Kalibrierungsabweichungen werden auch ohne angewendeten Offset in der nativen Oberfläche angezeigt.
 - Der Recorder kann nach einem GPS-Sprung oder einer längeren Unterbrechung mit einem neuen Positionsanker weiterarbeiten.
 
