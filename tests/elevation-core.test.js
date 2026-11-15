@@ -43,7 +43,10 @@ test("accumulates gradual climbs against a stable altitude anchor", () => {
     sample(0, 100, 0),
     sample(10, 101, 10),
     sample(20, 102, 20),
-    sample(30, 103, 30)
+    sample(30, 103, 30),
+    sample(40, 104, 40),
+    sample(50, 105, 50),
+    sample(60, 106, 60)
   ]);
   assert.equal(result.gain, 3);
   assert.equal(result.loss, 0);
@@ -69,11 +72,11 @@ test("rejects impossible vertical accuracy but keeps missing accuracy unrated", 
   assert.equal(invalid.validCount, 2);
 
   const missing = processElevation([
-    sample(0, 100, 0, 0, undefined),
-    sample(10, 101, 10, 0, undefined),
-    sample(20, 102, 20, 0, undefined),
-    sample(30, 103, 30, 0, undefined),
-    sample(40, 104, 40, 0, undefined)
+    sample(0, 100, 0, 0, null),
+    sample(10, 101, 10, 0, null),
+    sample(20, 102, 20, 0, null),
+    sample(30, 103, 30, 0, null),
+    sample(40, 104, 40, 0, null)
   ]);
   assert.equal(missing.validCount, 5);
   assert.equal(missing.quality, "unrated");
