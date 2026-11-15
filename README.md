@@ -7,11 +7,11 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
 
-**Inhalt:** [Aktueller Stand](#aktueller-stand--version-099) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
+**Inhalt:** [Aktueller Stand](#aktueller-stand--version-0910) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
 
 ---
 
-## Aktueller Stand – Version 0.9.9
+## Aktueller Stand – Version 0.9.10
 
 ### Aufzeichnung
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start auf der Startseite oder direkt auf der Track-Seite. Eine laufende Tour kann nicht versehentlich ein zweites Mal gestartet werden.
@@ -98,7 +98,7 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 | `tests/elevation-core.test.js` | Reproduzierbare Tests für Höhenfilter, Ausreißer, GPS-Segmente und Profilregressionen |
 | `ios/` | Natives SwiftUI-Xcode-Projekt (siehe [`ios/README.md`](ios/README.md)) |
 | `.github/workflows/` | CI: `web-check.yml` (Web), `ios-build.yml` (iOS-Simulator) |
-| `CHANGELOG-0.9.8.md` | Ausführliche Liste der Änderungen dieser Version |
+| `CHANGELOG-0.9.10.md` | Höhenprofil-, Analyse- und Validierungsverbesserungen dieser Version |
 
 ## Kostenlos testen und bereitstellen
 
@@ -174,6 +174,8 @@ Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punk
 ---
 
 ## Versionsverlauf
+
+**0.9.10** – Einheitliche Bewegungsfilter für Höhenprofil und Tourdistanz, gap-sichere Höhen- und Steigungsberechnung, reparierte Tempo-Farbkodierung, bessere Extrempunkt-/Qualitätsanzeige, robustere native GPS-/Barometersegmentierung und neue automatisierte Regressionstests.
 
 **0.9.9** – Versionsangleichung: Web-App, native iOS-Metadaten und aktuelle Dokumentation tragen jetzt dieselbe Versionsnummer. Keine Funktionsänderung.
 
