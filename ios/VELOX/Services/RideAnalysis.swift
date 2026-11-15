@@ -334,10 +334,12 @@ struct RideElevationAnalysis: Equatable {
             guard index > 0, index + 1 < points.count else { return point }
             let previous = points[index - 1]
             let next = points[index + 1]
+            let previousInterval = point.timestampMs - previous.timestampMs
+            let nextInterval = next.timestampMs - point.timestampMs
             guard previous.segmentID == point.segmentID,
                   next.segmentID == point.segmentID,
-                  point.timestampMs - previous.timestampMs <= 3_000,
-                  next.timestampMs - point.timestampMs <= 3_000,
+                  previousInterval > 0, previousInterval <= 3_000,
+                  nextInterval > 0, nextInterval <= 3_000,
                   let altitude = Self.median([previous.altitudeM, point.altitudeM, next.altitudeM]) else {
                 return point
             }
