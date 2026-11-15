@@ -118,6 +118,13 @@ struct RideElevationAnalysis: Equatable {
                 .compactMap { $0.spread }
                 .sorted()
         )
+        // Preserve spread diagnostics even when every candidate session is rejected.
+        // This is observational only: rejected offsets are never applied to the profile.
+        let candidateCalibrationSpread = Self.median(
+            calibrationBySession.values
+                .compactMap { $0.spread }
+                .sorted()
+        )
         let totalAnchorCount = calibrationBySession.values.reduce(0) { $0 + $1.anchorCount }
 
         let route = Self.makeRoute(gps)
@@ -175,7 +182,7 @@ struct RideElevationAnalysis: Equatable {
         } else if !barometer.isEmpty {
             computedReference = .barometerRelative
             computedCalibrationOffset = nil
-            computedCalibrationSpread = nil
+            computedCalibrationSpread = candidateCalibrationSpread
             computedAnchorCount = totalAnchorCount
         } else if !plotted.isEmpty {
             computedReference = .gpsOnly
