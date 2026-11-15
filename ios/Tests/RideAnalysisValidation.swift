@@ -88,7 +88,7 @@ struct RideAnalysisValidation {
             barometerSamples: [
                 sample(time: start + 1, altitude: 0),
                 sample(time: start + 9, altitude: 3),
-                sample(time: start + 71, altitude: 50),
+                sample(time: start + 70, altitude: 50),
                 sample(time: start + 79, altitude: 53)
             ],
             importedFromId: nil
