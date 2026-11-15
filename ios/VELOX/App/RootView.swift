@@ -51,7 +51,7 @@ private struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Native iOS · Entwicklungsstand", systemImage: "iphone")
                             .font(.headline)
-                        Text("SwiftUI, lokales Archiv sowie GPS- und Barometeraufzeichnung im Vordergrund sind vorbereitet. Xcode-Build, echter Gerätetest, Hintergrundbetrieb und Datenmigration sind noch offen.")
+                        Text("Ein Xcode-Simulator-Build ist erfolgreich. Echter iPhone-Gerätetest, Datenmigration und Hintergrundbetrieb sind noch offen.")
                             .font(.subheadline)
                             .foregroundStyle(VELOXStyle.muted)
                         HStack(spacing: 8) {
@@ -136,7 +136,7 @@ private struct DashboardView: View {
                         Text(archiveMessage)
                             .font(.caption)
                             .foregroundStyle(VELOXStyle.muted)
-                        Text("Touren und echte Sensorproben werden lokal im versionierten Archiv gespeichert. Noch nicht mit Xcode oder auf dem iPhone getestet.")
+                        Text("Touren und echte Sensorproben werden lokal im versionierten Archiv gespeichert. Simulator-Build erfolgreich; Persistenz und Sensorverhalten auf dem iPhone noch nicht getestet.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                     }
@@ -184,7 +184,12 @@ private struct DashboardView: View {
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
                         if let offset = recorder.elevationAnalysis.calibrationOffsetM {
-                            Text(String(format: "Sitzungs-Offset (Median): %+.1f m · Median-Abweichung: %.1f m", offset, recorder.elevationAnalysis.calibrationSpreadM ?? 0))
+                            Text(String(format: "Median der kalibrierten Sitzungs-Offsets: %+.1f m", offset))
+                                .font(.caption2)
+                                .foregroundStyle(VELOXStyle.muted)
+                        }
+                        if let spread = recorder.elevationAnalysis.calibrationSpreadM {
+                            Text(String(format: "Größte Sitzungs-MAD der Referenzpaare: %.1f m", spread))
                                 .font(.caption2)
                                 .foregroundStyle(VELOXStyle.muted)
                         }
@@ -203,7 +208,7 @@ private struct DashboardView: View {
                         ReadinessRow(title: "Core Location GPS-Recorder", detail: "Vordergrund-Grundfunktion implementiert · Gerätetest offen")
                         ReadinessRow(title: "Core Motion in Touren", detail: "Echte Barometerproben mit Zeitstempel · Auswertung vorläufig")
                         ReadinessRow(title: "Höhenanalyse", detail: "GPS-Referenzoffset per Median · Barometer-Verlauf · Rohdaten bleiben erhalten · Gerätetest offen")
-                        ReadinessRow(title: "Lokales Tourenarchiv", detail: "Implementiert · Xcode- und Persistenztests offen")
+                        ReadinessRow(title: "Lokales Tourenarchiv", detail: "Simulator-Build erfolgreich · Persistenz- und Gerätetests offen")
                         ReadinessRow(title: "Web-Backup-Migration", detail: "Codec-Grundlage vorhanden · Tests offen")
                     }
                     .padding(16)
@@ -316,7 +321,7 @@ private struct AboutView: View {
                 Section("Entwicklungsstand") {
                     LabeledContent("App", value: "Native SwiftUI-Vorbereitung")
                     LabeledContent("Deployment Target", value: "iOS 17.0")
-                    LabeledContent("Build", value: "Xcode-Prüfung ausstehend")
+                    LabeledContent("Build", value: "Simulator-Build erfolgreich · iPhone-Test offen")
                 }
                 Section("Daten und Sicherheit") {
                     Text("Die native Grundversion speichert neue GPS-Touren und Barometerproben lokal. Bestehende Web-/PWA-Daten werden nicht verändert; eine geprüfte Migration ist noch offen.")
