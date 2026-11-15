@@ -11,7 +11,8 @@
     const maxAccuracy = finite(options.maxAccuracyM) ? options.maxAccuracyM : 35;
     const valid = input.filter(s => s && finite(s.distanceM) && finite(s.altitude) &&
       finite(s.time) && finite(s.segment) && s.altitude >= -1000 && s.altitude <= 10000 &&
-      (!finite(s.accuracy) || (s.accuracy >= 0 && s.accuracy <= maxAccuracy)));
+      (s.accuracy === null || s.accuracy === undefined ||
+        (finite(s.accuracy) && s.accuracy >= 0 && s.accuracy <= maxAccuracy)));
     const screened = [];
     let spikesRejected = 0;
     for (let i=0;i<valid.length;i++) {
@@ -22,7 +23,9 @@
           Math.abs(n.time-s.time)<=45000) neighborhood.push(n.altitude);
       }
       const center=median(neighborhood);
-      const tolerance=Math.max(8, finite(s.accuracy)?s.accuracy*1.8:8);
+      // Cap the rejection window: a poor accuracy estimate must not make a
+      // very large isolated altitude spike automatically acceptable.
+      const tolerance=finite(s.accuracy)?Math.max(8,Math.min(20,s.accuracy*1.5)):8;
       if(neighborhood.length>=3 && Math.abs(s.altitude-center)>tolerance){
         spikesRejected++;
         continue;
@@ -45,13 +48,22 @@
     const quality=smoothed.length<5?"low":
       medianAccuracy===null?(barometerCount>0?"medium":"unrated"):
       medianAccuracy<=8?"high":medianAccuracy<=18?"medium":"low";
-    let gain=0,loss=0,anchor=null,lastSegment=null,climbThreshold=3;
+    let gain=0,loss=0,anchor=null,lastSegment=null,lastTime=null,lastDistance=null,climbThreshold=3;
     if(medianAccuracy!==null)climbThreshold=Math.max(2.5,Math.min(6,medianAccuracy*0.35));
     for(const s of smoothed){
-      if(s.segment!==lastSegment){lastSegment=s.segment;anchor=s.elevationM;continue;}
+      const elapsed=lastTime===null?0:s.time-lastTime;
+      const travelled=lastDistance===null?0:s.distanceM-lastDistance;
+      if(s.segment!==lastSegment||anchor===null||elapsed>45||elapsed<=0||travelled>150||travelled<0){
+        lastSegment=s.segment;anchor=s.elevationM;
+        lastTime=s.time;lastDistance=s.distanceM;
+        continue;
+      }
       const delta=s.elevationM-anchor;
       if(delta>=climbThreshold){gain+=delta;anchor=s.elevationM;}
       else if(delta<=-climbThreshold){loss-=delta;anchor=s.elevationM;}
+      // Keep the continuity clock moving even while small vertical changes
+      // accumulate against the last accepted altitude anchor.
+      lastTime=s.time;lastDistance=s.distanceM;
     }
     const elevations=smoothed.map(s=>s.elevationM);
     return {
