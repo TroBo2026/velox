@@ -337,7 +337,7 @@ struct RideAnalysisValidation {
         expect(abs(result.profile[2].altitudeM - 3) < 0.001, "isolated barometer spike is median-filtered")
         expect(abs(result.profile[3].altitudeM - 4) < 0.001, "neighboring profile point remains robust")
         expect(result.rawBarometerCount == 6, "raw barometer count remains unchanged")
-        expect(ride.barometerSamples?.map(\\.relativeAltitudeM) == altitudes, "archived raw barometer values remain untouched")
+        expect(ride.barometerSamples?.map(\.relativeAltitudeM) == altitudes, "archived raw barometer values remain untouched")
     }
 
     private static func makeRide(
