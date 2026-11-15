@@ -299,22 +299,59 @@ struct RideElevationAnalysis: Equatable {
 
     private static func distance(at timestamp: Int64, on route: [RoutePoint]) -> (distanceM: Double, segmentID: Int)? {
         guard route.count >= 2 else { return nil }
-        for index in 1..<route.count {
-            let left = route[index - 1]
-            let right = route[index]
-            let duration = right.timestampMs - left.timestampMs
-            guard duration > 0, duration <= 30_000,
-                  left.segmentID == right.segmentID,
-                  timestamp >= left.timestampMs, timestamp <= right.timestampMs else { continue }
-            let fraction = Double(timestamp - left.timestampMs) / Double(duration)
-            return (left.distanceM + (right.distanceM - left.distanceM) * fraction, left.segmentID)
+        if timestamp == route[0].timestampMs {
+            return (route[0].distanceM, route[0].segmentID)
         }
-        return nil
+        if timestamp == route[route.count - 1].timestampMs {
+            return (route[route.count - 1].distanceM, route[route.count - 1].segmentID)
+        }
+
+        // Route timestamps are sorted, so binary search avoids rescanning the
+        // full GPS route for every barometer sample on longer rides.
+        var low = 1
+        var high = route.count - 1
+        while low < high {
+            let middle = (low + high) / 2
+            if route[middle].timestampMs < timestamp {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
+        let left = route[low - 1]
+        let right = route[low]
+        let duration = right.timestampMs - left.timestampMs
+        guard duration > 0, duration <= 30_000,
+              left.segmentID == right.segmentID,
+              timestamp >= left.timestampMs, timestamp <= right.timestampMs else { return nil }
+        let fraction = Double(timestamp - left.timestampMs) / Double(duration)
+        return (left.distanceM + (right.distanceM - left.distanceM) * fraction, left.segmentID)
     }
 
     private static func nearestBarometer(to timestamp: Int64, in samples: [BarometerSample], maxDifferenceMs: Int64) -> BarometerSample? {
-        samples.min { abs($0.timestampMs - timestamp) < abs($1.timestampMs - timestamp) }
-            .flatMap { abs($0.timestampMs - timestamp) <= maxDifferenceMs ? $0 : nil }
+        guard !samples.isEmpty else { return nil }
+        var low = 0
+        var high = samples.count
+        while low < high {
+            let middle = (low + high) / 2
+            if samples[middle].timestampMs < timestamp {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
+        var nearest: BarometerSample?
+        if low < samples.count { nearest = samples[low] }
+        if low > 0 {
+            let previous = samples[low - 1]
+            if nearest == nil ||
+                abs(previous.timestampMs - timestamp) < abs(nearest!.timestampMs - timestamp) {
+                nearest = previous
+            }
+        }
+        guard let nearest,
+              abs(nearest.timestampMs - timestamp) <= maxDifferenceMs else { return nil }
+        return nearest
     }
 
     private static func median(_ values: [Double]) -> Double? {
