@@ -1,12 +1,16 @@
-# VELOX Native iOS — Mac-Testvorbereitung
+# VELOX Native iOS — Build- und Teststatus
 
-Stand: 13. November 2026 · Repository `TroBo2026/velox` · Branch `main`
+Stand: 15. November 2026 · Repository `TroBo2026/velox` · Branch `main`
 
-## Status vor dem ersten Xcode-Lauf
+## Aktueller Status
 
-Ein erstes eigenständiges Xcode-Projekt unter `ios/VELOX.xcodeproj` ist angelegt. Es ist eine native SwiftUI-App und keine WebView-Hülle. Enthalten sind die erste native Oberfläche, Datenmodelle, ein Core-Motion-Barometerdienst und ein JSON-v1-Grundcodec.
+Unter `ios/VELOX.xcodeproj` liegt ein eigenständiges natives SwiftUI-Projekt, keine WebView-Hülle. Am **15. November 2026** waren Projektvalidierung und ein echter `xcodebuild`-Build für den generischen iOS-Simulator in GitHub Actions erfolgreich (Xcode 16.4, iOS-Simulator-SDK 18.5, ohne Codesignierung). Die native App wurde damit kompiliert, aber noch nicht im Simulator gestartet und nicht auf einem iPhone installiert oder getestet.
 
-**Noch nicht mit Xcode oder dem Apple iOS SDK kompiliert:** Die Projektdatei und Swift-Quellen müssen auf einem Mac erstmals von Xcode validiert werden. Die App ist ausdrücklich nur ein technischer Startpunkt und noch kein vollständiger Touren-Tracker. Eine erste native GPS-Aufzeichnung im Vordergrund, ein lokales JSON-Tourenarchiv und die zeitgestempelte Speicherung echter Core-Motion-Barometerproben während einer Tour sind implementiert. Eine native Höhenprofil-Pipeline ist ergänzt: zeitlich nahe GPS-Höhenmessungen mit vertikaler Genauigkeit bis 15 m werden je GPS-Fix mit Barometerproben gepaart. Ab drei unterschiedlichen Referenzfixes und einer medianen absoluten Abweichung von höchstens 10 m wird ein robuster Median-Offset gebildet. Der Barometerverlauf liefert die Profilform; GPS verankert die Höhe. Jede Core-Motion-Sitzung wird separat kalibriert; beim Pausieren wird der Barometer gestoppt und beim Fortsetzen neu gestartet, damit relative Höhen-Nullpunkte nicht vermischt werden. Ohne ausreichende Referenzen wird das jeweilige Segment ausdrücklich als session-relativ markiert. Wenn keine Barometerdaten vorliegen, ist ein getrennt gekennzeichneter GPS-only-Fallback vorgesehen. Distanzwerte werden zeitlich zwischen GPS-Fixes interpoliert; Lücken über 30 Sekunden oder unplausible GPS-Sprünge werden nicht überbrückt. Profilsegmente und Auf-/Abstiegssummen werden an solchen Lücken getrennt. Auf-/Abstieg ignoriert Änderungen unter 1 m und isolierte Sprünge über 8 m. Sämtliche GPS- und Barometer-Rohmessungen bleiben unverändert im Tourmodell. Diese Analyse ist noch nicht mit Xcode kompiliert, mit Testdatensätzen automatisiert validiert oder auf einem iPhone geprüft und daher nicht für echte Touren freigegeben. Hintergrundaufzeichnung und Datenmigration fehlen. Die Web-/PWA-Version bleibt die nutzbare VELOX-Version.
+Zusätzlich besteht ein reproduzierbarer Swift-Validierungslauf für die Höhenanalyse. Der aktuelle Lauf hat **7/7 Prüfungen bestanden**: leere Daten, stabile Kalibrierung, zu wenige Referenzen, instabile Referenzen, GPS-Lücken, getrennte Barometersitzungen nach Pause/Fortsetzen sowie Ausreißer- und Rohdatenintegrität. Das ist ein eigenständiges Testprogramm, kein XCTest-Target. Die Tests verwenden synthetische Prüfdaten und ersetzen keine echte Sensor- oder Gerätetestfahrt.
+
+Die native Grundfunktion enthält eine vom Nutzer gestartete GPS-Aufzeichnung im Vordergrund, ein lokales versioniertes Tourenarchiv und echte zeitgestempelte Core-Motion-Barometerproben. Die Höhenprofil-Pipeline verwendet zeitnahe echte GPS-Höhenreferenzen mit vertikaler Genauigkeit bis 15 m. Je Barometersitzung sind mindestens drei unterschiedliche Referenzpaare und eine mediane absolute Abweichung von höchstens 10 m erforderlich. Der Barometerverlauf liefert die Profilform; GPS verankert jede Sitzung separat. Bei unzureichender Referenz bleibt die Sitzung ausdrücklich relativ. Die größte messbare Sitzungs-MAD bleibt als Qualitätsdiagnose sichtbar, auch wenn eine Kalibrierung abgelehnt wird. Lücken über 30 Sekunden und unplausible GPS-Sprünge werden nicht überbrückt; isolierte Höhenänderungen über 8 m werden aus den Auf-/Abstiegssummen ausgeschlossen, aber nicht aus den Rohdaten gelöscht.
+
+**Noch nicht freigegeben:** echter iPhone-Test, manuelle UI-Prüfung im Simulator, Langzeit-/Pause-Tests mit realen Sensoren, persistente Archivtests, JSON-v1-Rundlauf und Datenmigration. Hintergrundaufzeichnung ist nicht implementiert. Die bestehende Web-/PWA-Version bleibt die nutzbare VELOX-Version und wird nicht durch die native Vorschau ersetzt.
 
 ## Was auf dem Mac installiert werden muss
 
@@ -28,7 +32,7 @@ Xcode ist ein großer Download. Plane vorsichtshalber mindestens etwa 40–50 GB
 5. VELOX von GitHub laden: Repository `TroBo2026/velox`, Branch `main` > Code > Download ZIP. ZIP entpacken.
 6. Im entpackten Ordner die Datei `ios/VELOX.xcodeproj` öffnen.
 
-## 30-Minuten-Testablauf
+## Manueller Simulator-UI-Test (noch offen)
 
 - **0–5 min:** Xcode starten, `VELOX.xcodeproj` öffnen und warten, bis das Projekt geladen ist.
 - **5–10 min:** Oben das Schema `VELOX` und einen iPhone-Simulator auswählen (zunächst kein echtes iPhone).
@@ -60,27 +64,26 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 
 ## Noch offen
 
-1. Projektdatei auf dem Mac mit Xcode validieren und ersten Simulator-Build erstellen.
-2. Unbekannte JSON-Felder verlustfrei erhalten; vorher keinen produktiven Import/Export-Rundlauf erlauben.
-3. JSON-Codec mit XCTest gegen echte Web-v1-Beispiele testen, insbesondere ID-Kollisionen.
-4. `RideStore` mit XCTest prüfen (Neuanlage, Duplikate, Update, Löschen, beschädigte Datei, Persistenz nach Neustart).
-5. GPS-Recorder auf echten Geräten prüfen: Berechtigungen, GPS-Aussetzer, Pause/Fortsetzen, App-Wechsel, Sperrbildschirm und Persistenz.
-6. Barometerproben während einer Tour zeitlich korrekt speichern und anschließend Höhen-/Steigungsfusion testen.
-7. Höhenfusion, Sensorsegmentierung und Filterung mit reproduzierbaren Tests absichern.
-8. Erst danach iPhone XR testen. Keine Veröffentlichung oder native Ablösung vor bestandenem Gerätetest.
+1. App im iOS-Simulator manuell starten und Navigation, Zustände, Layout sowie Fehleranzeigen prüfen.
+2. Ein echtes iPhone-Testverfahren ohne kostenpflichtige Developer-Mitgliedschaft klären; vorher keine Signierung oder Installation behaupten.
+3. `RideStore` mit reproduzierbaren Tests prüfen (Neuanlage, Duplikate, Update, exaktes Löschen, beschädigte Datei, Persistenz nach Neustart).
+4. JSON-v1-Codec mit echten Web-v1-Beispielen prüfen. Unbekannte Felder werden derzeit nicht verlustfrei erhalten; deshalb keinen produktiven Import-/Export-Rundlauf freigeben.
+5. Recorder auf einem echten Gerät prüfen: Berechtigungen, GPS-Aussetzer, Pause/Fortsetzen, App-Wechsel, Display-Sperre und Persistenz.
+6. Höhenprofil und Steigungsanalyse mit realen Sensorfahrten vergleichen. Erst danach eine native Ablösung der PWA erwägen.
 
-## Höhenfusion — geplante Abnahmetests
+## Höhenfusion — automatisierte Validierung
 
-Vor Freigabe der Höhenanalyse müssen mindestens diese reproduzierbaren Fälle bestanden werden:
+Der eigenständige CI-Validierungslauf `ios/Tests/RideAnalysisValidation.swift` wird mit `swiftc` kompiliert und auf dem macOS-Runner ausgeführt. Am 15. November 2026 wurden **7/7 Prüfungen bestanden**:
 
-- **Konstanter GPS-Offset:** Drei oder mehr zeitlich passende, unterschiedliche GPS-Fixes mit stabiler Abweichung kalibrieren den jeweiligen Barometer-Session-Offset über den Median.
-- **Zu wenige Referenzen:** Ein oder zwei passende GPS-Fixes ergeben ausdrücklich nur relative Barometerhöhe.
-- **Instabile Referenzen:** Eine mediane absolute Abweichung über 10 m verhindert die GPS-Kalibrierung.
-- **Pause/Fortsetzen:** Jede neue Barometersitzung wird getrennt kalibriert; Profilkurve und Auf-/Abstieg dürfen nicht über den Sessionwechsel verbunden werden.
-- **GPS-Lücken und Sprünge:** Lücken über 30 Sekunden oder Segmente über 120 m werden nicht interpoliert; Summen werden segmentweise berechnet.
-- **Rohdatenintegrität:** Anzahl, Zeitstempel, Druck, relative Höhe, GPS-Koordinaten und originale Höhenwerte müssen vor und nach der Analyse identisch sein.
+- Leere Tour: Analyse bleibt ohne Höhendaten ausdrücklich nicht verfügbar.
+- Stabile Referenzen: mindestens drei zeitnahe GPS-/Barometerpaare erzeugen einen Median-Offset.
+- Zu wenige Referenzen: zwei Paare kalibrieren nicht; die Sitzung bleibt relativ.
+- Instabile Referenzen: MAD über 10 m verhindert die Kalibrierung; die Streuung bleibt sichtbar.
+- GPS-Lücke: Lücken über 30 Sekunden trennen Profilsegmente und werden nicht als Höhenanstieg gezählt.
+- Pause/Fortsetzen: zwei unterschiedliche Barometer-Session-IDs werden unabhängig kalibriert und im Profil getrennt gehalten.
+- Ausreißer/Rohdatenintegrität: isolierte Höhen-Spikes über 8 m fließen nicht in Auf-/Abstiegssummen ein; GPS- und Barometer-Roharrays bleiben unverändert.
 
-Diese Fälle sind Prüfkriterien, keine bereits ausgeführten XCTest- oder Gerätetests.
+**Grenze der Tests:** Die Pause-/Fortsetzen-Prüfung setzt getrennte Session-IDs in Testdaten voraus. Sie beweist nicht den vollständigen Core-Motion-/Core-Location-Lebenszyklus auf einem iPhone. Es gibt noch kein XCTest-Target und keine reale Sensor-Testfahrt.
 
 ## Kosten
 
