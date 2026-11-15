@@ -2,13 +2,17 @@ import Foundation
 
 @main
 struct RideAnalysisValidation {
+    private static let defaultSessionID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+
     static func main() {
         testEmptyRide()
         testStableGPSCalibration()
         testInsufficientAnchorsStayRelative()
         testUnstableAnchorsStayRelative()
         testGPSGapSplitsElevationTotals()
-        print("VELOX elevation validation: 5/5 checks passed")
+        testPauseResumeSessionsCalibrateIndependently()
+        testElevationOutlierAndRawDataIntegrity()
+        print("VELOX elevation validation: 7/7 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -43,18 +47,19 @@ struct RideAnalysisValidation {
         expect(result.reference == .barometerRelative, "two anchors do not calibrate")
         expect(result.calibrationOffsetM == nil, "no offset exposed without calibration")
         expect(result.gpsAnchorCount == 2, "two candidate anchors reported")
+        expect(close(result.calibrationSpreadM, to: 0), "candidate spread remains diagnosable")
     }
 
     private static func testUnstableAnchorsStayRelative() {
         let ride = makeRide(
-            gpsAltitudes: [100, 120, 140],
+            gpsAltitudes: [100, 121, 142],
             barometerAltitudes: [0, 1, 2],
             offsetsInSeconds: [1, 11, 19]
         )
         let result = RideElevationAnalysis(ride: ride)
         expect(result.reference == .barometerRelative, "unstable references do not calibrate")
         expect(result.calibrationOffsetM == nil, "unstable offset is not applied")
-        expect((result.calibrationSpreadM ?? 0) > 10, "unstable spread is visible")
+        expect(close(result.calibrationSpreadM, to: 20), "unstable spread remains visible")
     }
 
     private static func testGPSGapSplitsElevationTotals() {
@@ -87,6 +92,84 @@ struct RideAnalysisValidation {
         expect(abs(result.ascentM - 6) < 0.001, "elevation total excludes gap jump")
         expect(abs(result.netChangeM) < 0.001, "net change is not joined across segments")
         expect(result.rawBarometerCount == 4, "raw samples remain counted")
+    }
+
+    private static func testPauseResumeSessionsCalibrateIndependently() {
+        let start = 1_700_000_000.0
+        let firstSession = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let secondSession = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        let gpsTimes = [0.0, 10, 20, 100, 110, 120]
+        let gpsAltitudes = [100.0, 101, 102, 200, 201, 202]
+        let gps = zip(gpsTimes, gpsAltitudes).map { time, altitude in
+            gpsPoint(time: start + time, altitude: altitude)
+        }
+        let barometer = [
+            sample(time: start + 1, altitude: 0, sessionID: firstSession),
+            sample(time: start + 11, altitude: 1, sessionID: firstSession),
+            sample(time: start + 19, altitude: 2, sessionID: firstSession),
+            sample(time: start + 101, altitude: 0, sessionID: secondSession),
+            sample(time: start + 111, altitude: 1, sessionID: secondSession),
+            sample(time: start + 119, altitude: 2, sessionID: secondSession)
+        ]
+        let ride = Ride(
+            id: "pause-resume-test",
+            name: nil,
+            startedAt: start,
+            endedAt: nil,
+            pausedMs: 80_000,
+            pauseStarted: nil,
+            status: "completed",
+            points: gps,
+            barometerSamples: barometer,
+            importedFromId: nil
+        )
+
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.reference == .gpsCalibrated, "both sensor sessions calibrate")
+        expect(result.gpsAnchorCount == 6, "anchors are counted per independent session")
+        expect(result.profile.count == 6, "both sessions remain in the profile")
+        expect(close(result.profile[0].altitudeM, to: 100), "first session uses its own offset")
+        expect(close(result.profile[2].altitudeM, to: 102), "first session endpoint stays calibrated")
+        expect(close(result.profile[3].altitudeM, to: 200), "resumed session uses a new offset")
+        expect(close(result.profile[5].altitudeM, to: 202), "resumed session endpoint stays calibrated")
+        expect(result.profile[2].segmentID != result.profile[3].segmentID, "pause/resume profile segments stay separate")
+    }
+
+    private static func testElevationOutlierAndRawDataIntegrity() {
+        let start = 1_700_000_000.0
+        let ride = Ride(
+            id: "outlier-test",
+            name: nil,
+            startedAt: start,
+            endedAt: nil,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [
+                gpsPoint(time: start, altitude: nil),
+                gpsPoint(time: start + 10, altitude: nil),
+                gpsPoint(time: start + 20, altitude: nil),
+                gpsPoint(time: start + 30, altitude: nil)
+            ],
+            barometerSamples: [
+                sample(time: start + 1, altitude: 0),
+                sample(time: start + 9, altitude: 2),
+                sample(time: start + 19, altitude: 40),
+                sample(time: start + 29, altitude: 4)
+            ],
+            importedFromId: nil
+        )
+        let originalGPS = ride.points
+        let originalBarometer = ride.barometerSamples
+        let result = RideElevationAnalysis(ride: ride)
+
+        expect(result.profile.count == 4, "outlier remains visible in derived profile")
+        expect(close(result.profile[2].altitudeM, to: 40), "outlier value is not rewritten")
+        expect(abs(result.ascentM - 2) < 0.001, "isolated elevation spike excluded from ascent")
+        expect(abs(result.descentM) < 0.001, "isolated elevation spike excluded from descent")
+        expect(result.rawBarometerCount == 4, "raw barometer sample count preserved")
+        expect(ride.points == originalGPS, "GPS raw observations remain unchanged")
+        expect(ride.barometerSamples == originalBarometer, "barometer raw observations remain unchanged")
     }
 
     private static func makeRide(
@@ -128,12 +211,16 @@ struct RideAnalysisValidation {
         )
     }
 
-    private static func sample(time: Double, altitude: Double) -> BarometerSample {
+    private static func sample(
+        time: Double,
+        altitude: Double,
+        sessionID: UUID? = defaultSessionID
+    ) -> BarometerSample {
         BarometerSample(
             pressureKPa: 100,
             relativeAltitudeM: altitude,
             timestampMs: Int64((time * 1_000).rounded()),
-            sessionID: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+            sessionID: sessionID
         )
     }
 
