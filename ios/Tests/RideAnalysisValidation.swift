@@ -55,6 +55,7 @@ struct RideAnalysisValidation {
         expect(result.reference == .barometerRelative, "unstable references do not calibrate")
         expect(result.calibrationOffsetM == nil, "unstable offset is not applied")
         expect((result.calibrationSpreadM ?? 0) > 10, "unstable spread is visible")
+        expect(result.profile.map(\.altitudeM) == [0, 1, 2], "unstable offset is not applied to profile")
     }
 
     private static func testGPSGapSplitsElevationTotals() {
