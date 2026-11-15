@@ -7,11 +7,11 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
 
-**Inhalt:** [Aktueller Stand](#aktueller-stand--version-098) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
+**Inhalt:** [Aktueller Stand](#aktueller-stand--version-099) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
 
 ---
 
-## Aktueller Stand – Version 0.9.8
+## Aktueller Stand – Version 0.9.9
 
 ### Aufzeichnung
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start auf der Startseite oder direkt auf der Track-Seite. Eine laufende Tour kann nicht versehentlich ein zweites Mal gestartet werden.
@@ -171,6 +171,8 @@ Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punk
 ---
 
 ## Versionsverlauf
+
+**0.9.9** – Versionsangleichung: Web-App, native iOS-Metadaten und aktuelle Dokumentation tragen jetzt dieselbe Versionsnummer. Keine Funktionsänderung.
 
 **0.9.8** – Fehlerbehebungen und Feinschliff (Details in [`CHANGELOG-0.9.8.md`](CHANGELOG-0.9.8.md)): behobener Startfehler der GPS-Aufzeichnung, kein Doppelstart, keine Geisterstrecken auf der Live-Karte, Stillstand trennt Routen nicht mehr, sicheres Speichern beim Pausieren/Beenden, funktionierendes Wetter für frische Fahrten, Wake Lock, geringere Rechenlast bei langen Touren, echtes Stale-While-Revalidate im Service Worker, iOS-Sicherheitsbereiche, Barometer-Zeitstempel-Toleranz, CI und Tests.
 
