@@ -211,6 +211,11 @@
         pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: false };
         continue;
       }
+      // When movement resumes after a stop or rejected interval, use the
+      // latest point as the new altitude baseline at the current route distance.
+      if (!pointMeta[index - 1] || pointMeta[index - 1].useAltitude !== true) {
+        pointMeta[index - 1] = { distanceM, segment: segmentNumber, useAltitude: true };
+      }
       segments.push({
         distanceM: segmentDistance,
         durationS,
