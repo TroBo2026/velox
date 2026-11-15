@@ -33,9 +33,9 @@
 - Der Recorder kann nach einem GPS-Sprung oder einer längeren Unterbrechung mit einem neuen Positionsanker weiterarbeiten.
 
 ## Qualitätssicherung
-- Node.js-Regressionstests für Ausreißer, Segmentgrenzen, schrittweisen Aufstieg, Zeitlücken und Offline-Modulreihenfolge ergänzt.
-- Native Swift-Validierungen decken stabile/instabile Kalibrierung, unzureichende Referenzen, GPS-Lücken, Barometer-Lücken, fehlende Route, unrealistische Geschwindigkeit und langsame GPS-Drift ab.
-- Web- und iOS-Prüfungen laufen getrennt in GitHub Actions.
+- Node.js-Regressionstests für Ausreißer, Segmentgrenzen, schrittweisen Aufstieg, Zeitlücken und Offline-Modulreihenfolge ergänzt (7/7 bestanden).
+- Native Swift-Validierungen decken stabile/instabile Kalibrierung, unzureichende Referenzen, GPS-Lücken, Barometer-Lücken, fehlende Route, unrealistische Geschwindigkeit, langsame GPS-Drift, Sensor-Sessions, Kalibrierung und Rohdatenintegrität ab (16/16 bestanden).
+- Xcode-Simulator-Build erfolgreich; Web- und iOS-Prüfungen laufen getrennt in GitHub Actions.
 
 ## Messgrenzen
 Die Web-/PWA-Version verwendet weiterhin GPS-Höhenwerte und keinen direkten Zugriff auf das iPhone-Barometer. Die native Barometerfusion ist eine eigenständige iOS-Messkette und benötigt weiterhin einen realen iPhone-Test mit echten Tourdaten. Automatisierte Tests ersetzen keine Feldmessung oder vermessene Höhenreferenz.
