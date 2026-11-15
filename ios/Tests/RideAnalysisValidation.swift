@@ -16,7 +16,8 @@ struct RideAnalysisValidation {
         testCalibratorAnchorsWithinOneSession()
         testCalibratorRejectsCrossSessionBaseline()
         testCalibratorRejectsEarlierSample()
-        print("VELOX elevation validation: 13/13 checks passed")
+        testProfileMedianFilterPreservesRawSamples()
+        print("VELOX elevation validation: 14/14 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -308,6 +309,35 @@ struct RideAnalysisValidation {
             rejected = true
         } catch {}
         expect(rejected, "calibrator rejects sample preceding its baseline")
+    }
+
+    private static func testProfileMedianFilterPreservesRawSamples() {
+        let start = 1_700_000_000.0
+        let altitudes: [Double] = [0, 1, 20, 3, 4, 5]
+        let gps = (0..<6).map { index in
+            gpsPoint(time: start + Double(index * 10), altitude: nil)
+        }
+        let samples = altitudes.enumerated().map { index, altitude in
+            sample(time: start + Double(index * 10) + 1, altitude: altitude)
+        }
+        let ride = Ride(
+            id: "profile-smoothing-test",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 60,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: gps,
+            barometerSamples: samples,
+            importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.count == 6, "smoothed profile retains the sample count")
+        expect(abs(result.profile[2].altitudeM - 3) < 0.001, "isolated barometer spike is median-filtered")
+        expect(abs(result.profile[3].altitudeM - 4) < 0.001, "neighboring profile point remains robust")
+        expect(result.rawBarometerCount == 6, "raw barometer count remains unchanged")
+        expect(ride.barometerSamples?.map(\\.relativeAltitudeM) == altitudes, "archived raw barometer values remain untouched")
     }
 
     private static func makeRide(
