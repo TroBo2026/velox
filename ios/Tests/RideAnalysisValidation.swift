@@ -314,11 +314,11 @@ struct RideAnalysisValidation {
     private static func testProfileMedianFilterPreservesRawSamples() {
         let start = 1_700_000_000.0
         let altitudes: [Double] = [0, 1, 20, 3, 4, 5]
-        let gps = (0..<6).map { index in
+        let gps = (0..<7).map { index in
             gpsPoint(time: start + Double(index * 10), altitude: nil)
         }
         let samples = altitudes.enumerated().map { index, altitude in
-            sample(time: start + Double(index * 10) + 1, altitude: altitude)
+            sample(time: start + Double(index + 1), altitude: altitude)
         }
         let ride = Ride(
             id: "profile-smoothing-test",
