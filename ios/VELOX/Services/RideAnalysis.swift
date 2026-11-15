@@ -175,7 +175,7 @@ struct RideElevationAnalysis: Equatable {
             }
         }
 
-        let computedProfile = plotted
+        let computedProfile = Self.smoothedProfile(plotted)
         let computedReference: Reference
         let computedCalibrationOffset: Double?
         let computedCalibrationSpread: Double?
@@ -323,6 +323,32 @@ struct RideElevationAnalysis: Equatable {
             return (values[middle - 1] + values[middle]) / 2
         }
         return values[middle]
+    }
+
+    /// Smooth only the derived profile, never the original archived sensor samples.
+    /// A three-point median removes isolated barometer spikes without joining sessions
+    /// or observations separated by a long sampling gap.
+    private static func smoothedProfile(_ points: [RideElevationProfilePoint]) -> [RideElevationProfilePoint] {
+        guard points.count >= 5 else { return points }
+        return points.enumerated().map { index, point in
+            guard index > 0, index + 1 < points.count else { return point }
+            let previous = points[index - 1]
+            let next = points[index + 1]
+            guard previous.segmentID == point.segmentID,
+                  next.segmentID == point.segmentID,
+                  point.timestampMs - previous.timestampMs <= 3_000,
+                  next.timestampMs - point.timestampMs <= 3_000,
+                  let altitude = Self.median([previous.altitudeM, point.altitudeM, next.altitudeM]) else {
+                return point
+            }
+            return RideElevationProfilePoint(
+                id: point.id,
+                timestampMs: point.timestampMs,
+                distanceM: point.distanceM,
+                altitudeM: altitude,
+                segmentID: point.segmentID
+            )
+        }
     }
 
     private static func elevationTotals(_ points: [RideElevationProfilePoint]) -> (ascent: Double, descent: Double) {
