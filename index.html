@@ -91,7 +91,7 @@
       </section>
 
       <section class="page" id="page-wrapped">
-        <div class="page-title"><span class="eyebrow">DEIN PERSÖNLICHER RÜCKBLICK</span><h1>Wrapped</h1><p>Deine Touren, Kennzahlen und persönlichen Rekorde.</p></div>
+        <div class="page-title"><button class="secondary-button compact" type="button" data-page="settings" aria-label="Zurück zu Mehr">← Zurück</button><span class="eyebrow">DEIN PERSÖNLICHER RÜCKBLICK</span><h1>Wrapped</h1><p>Deine Touren, Kennzahlen und persönlichen Rekorde.</p></div>
         <div id="wrappedContent" aria-live="polite"><div class="empty-state">Dein Wrapped wird aus deinen gespeicherten Touren berechnet.</div></div>
       </section>
 
@@ -106,6 +106,11 @@
         <details class="panel more-info"><summary>Speicherung, Export und Datenschutz</summary><div class="more-info-body"><h4>Lokale Tourdaten</h4><p>Die Web-Version speichert Fahrten lokal im Browser in IndexedDB. VELOX besitzt keinen eigenen Tourenserver und benötigt kein Konto. VELOX bittet den Browser um dauerhaften Speicher; ob iOS das zusagt, steht oben unter „Speicherschutz“. Vor dem Löschen von Browserdaten oder einer Neuinstallation solltest du unter „Daten exportieren“ eine JSON-Sicherung erstellen. Ab 14 Tagen ohne Sicherung erinnert dich die Startseite daran.</p><h4>Import</h4><p>Der JSON-v1-Import ergänzt Touren, ohne bestehende Datensätze zu überschreiben. Bei einer ID-Kollision wird die importierte Tour mit einer neuen ID gespeichert. GPX- und JSON-Dateien bleiben unabhängig von der späteren nativen App nutzbar.</p><h4>Karten und Wetter</h4><p>Kartenkacheln werden bei Bedarf von OpenStreetMap geladen, die Kartenbibliothek Leaflet von unpkg.com. Wetterdaten werden nur nach deiner Zustimmung mit Fahrtdatum und einer repräsentativen GPS-Position bei Open-Meteo abgefragt. Lehnst du ab, kannst du Angaben manuell ergänzen oder überspringen. Ohne Internetverbindung trägst du Wetter und Temperatur direkt nach der Fahrt selbst ein; nachträglich wird es nicht automatisch abgefragt.</p></div></details>
         <details class="panel more-info"><summary>App-Version, Offline-Nutzung und Grenzen</summary><div class="more-info-body"><h4>Web-/PWA-Version</h4><p>VELOX 0.10.0 bleibt bis zur getesteten Ablösung verfügbar. Die Offline-App-Shell speichert die wichtigsten App-Dateien; Karten und die Kartenbibliothek benötigen weiterhin eine Internetverbindung.</p><h4>Aufzeichnung unter iOS</h4><p>iOS kann Safari oder eine installierte Web-App im Hintergrund anhalten. VELOX hält den Bildschirm während der Aufzeichnung wach (Screen Wake Lock, iOS 16.4 oder neuer), eine zuverlässige GPS-Aufzeichnung bei gesperrtem Bildschirm wird für die PWA aber nicht zugesichert. Für einen Test VELOX im Vordergrund geöffnet lassen.</p><h4>Native Entwicklung</h4><p>Die native SwiftUI-Version wird getrennt vorbereitet und soll GPS, Barometer und lokale Sicherungen direkt über iOS-Frameworks nutzen. Ein Xcode-Build und ein echter iPhone-Test stehen noch aus. Die PWA bleibt bis dahin die nutzbare Version.</p><h4>Externe Dienste</h4><p>Es werden keine kostenpflichtigen APIs oder Abonnements vorausgesetzt. Die Karten- und optionalen Wetterdienste haben eigene Datenschutzbedingungen.</p></div></details>
         <div class="panel"><span class="eyebrow">VERSION 0.10.0</span><h3>VELOX – Your ride. Your world.</h3><p>Lokaler Fahrrad-Tracker · Web-/PWA-Version. Die native iOS-App befindet sich in Vorbereitung und ist noch nicht als lauffähige App bestätigt.</p></div>
+        <section class="panel" aria-labelledby="impressum-heading">
+          <span class="eyebrow">RECHTLICHE ANGABEN</span>
+          <h3 id="impressum-heading">Impressum</h3>
+          <p>Die Anbieter- und Kontaktdaten werden vor einer öffentlichen Veröffentlichung rechtlich geprüft und anschließend ergänzt. In dieser Entwicklungsversion sind keine privaten Kontaktdaten veröffentlicht.</p>
+        </section>
       </section>
     </main>
 
