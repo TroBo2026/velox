@@ -2,7 +2,7 @@
 # VELOX
 **YOUR RIDE. YOUR WORLD.**
 
-[![Web Check](https://github.com/TroBo2026/Velox/actions/workflows/web-check.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/web-check.yml)
+[![Web Check](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml)
 [![iOS Build](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml)
 
 VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
@@ -11,7 +11,7 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 
 ---
 
-## Aktueller Stand – Version 0.9.9
+## Aktueller Stand – Version 0.10.0
 
 ### Aufzeichnung
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start auf der Startseite oder direkt auf der Track-Seite. Eine laufende Tour kann nicht versehentlich ein zweites Mal gestartet werden.
@@ -97,7 +97,7 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 | `icon.svg` | VELOX-App-/Browser-Icon |
 | `tests/` | Logik-Tests (Node.js) für `app.js` und `sensor-core.js` |
 | `ios/` | Natives SwiftUI-Xcode-Projekt (siehe [`ios/README.md`](ios/README.md)) |
-| `.github/workflows/` | CI: `web-check.yml` (Web), `ios-build.yml` (iOS-Simulator) |
+| `.github/workflows/` | CI: `ci.yml` (Web), `ios-build.yml` (iOS-Simulator) |
 | `CHANGELOG-0.9.8.md` | Ausführliche Liste der Änderungen dieser Version |
 
 ## Kostenlos testen und bereitstellen
@@ -114,7 +114,7 @@ Empfohlene Cloudflare-Pages-Einstellungen:
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
 
-**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v27`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
+**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v28`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
 
 ## Entwicklung und Tests
 
@@ -122,11 +122,11 @@ Voraussetzung: Node.js 20 oder neuer. Es gibt keinen Build-Schritt.
 
 ```bash
 node --check app.js              # Syntax prüfen (analog für die übrigen .js-Dateien)
-node tests/sensor-core.test.js   # Barometer-Fusion und Zeitstempel-Regeln
-node tests/app-smoke.test.js     # App lädt ohne Fehler; Distanz, Stillstand, Cache, Robustheit
+node tests/core.test.js   # Barometer-Fusion und Zeitstempel-Regeln
+node tests/app.smoke.test.js     # App lädt ohne Fehler; Distanz, Stillstand, Cache, Robustheit
 ```
 
-Der Workflow `web-check.yml` führt dieselben Prüfungen bei jedem Push und Pull Request aus und kontrolliert zusätzlich `manifest.webmanifest` und die Offline-Cache-Liste. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator.
+Der Workflow `ci.yml` führt JavaScript-Syntaxprüfung, deterministische Rechenkern-Tests und den App-Rauchtest bei jedem Push und Pull Request aus. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator.
 
 ---
 
@@ -172,7 +172,7 @@ Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punk
 
 ## Versionsverlauf
 
-**0.9.9** – Versionsangleichung: Web-App, native iOS-Metadaten und aktuelle Dokumentation tragen jetzt dieselbe Versionsnummer. Keine Funktionsänderung.
+**0.10.0** – Versionsangleichung: Web-App, native iOS-Metadaten und aktuelle Dokumentation tragen jetzt dieselbe Versionsnummer. Keine Funktionsänderung.
 
 **0.9.8** – Fehlerbehebungen und Feinschliff (Details in [`CHANGELOG-0.9.8.md`](CHANGELOG-0.9.8.md)): behobener Startfehler der GPS-Aufzeichnung, kein Doppelstart, keine Geisterstrecken auf der Live-Karte, Stillstand trennt Routen nicht mehr, sicheres Speichern beim Pausieren/Beenden, funktionierendes Wetter für frische Fahrten, Wake Lock, geringere Rechenlast bei langen Touren, echtes Stale-While-Revalidate im Service Worker, iOS-Sicherheitsbereiche, Barometer-Zeitstempel-Toleranz, CI und Tests.
 
