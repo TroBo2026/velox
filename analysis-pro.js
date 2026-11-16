@@ -1,13 +1,9 @@
-/* VELOX Pro Analysis 0.8.1 — read-only ride analytics */
+/* VELOX Pro Analysis 0.9.0 — read-only ride analytics
+   Rechnet mit demselben Kern (ride-core.js) wie Tourdetail und Wrapped, damit alle Zahlen übereinstimmen. */
 (() => {
   "use strict";
   const DB_NAME = "velox-local";
   const STORE = "rides";
-  const MIN_SEGMENT_M = 0.8;
-  const MAX_SEGMENT_M = 150;
-  const MAX_GAP_S = 30;
-  const MAX_SPEED_KMH = 100;
-  const MIN_MOVING_KMH = 1.5;
   const $ = (id) => document.getElementById(id);
   const fmt = (value, digits = 1) => Number(value || 0).toLocaleString("de-DE", {
     minimumFractionDigits: digits,
@@ -23,256 +19,86 @@
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   })[char]);
-  function median(values) {
-    if (!values.length) return null;
-    const sorted = values.slice().sort((a, b) => a - b);
-    const middle = Math.floor(sorted.length / 2);
-    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-  }
-  function quantile(values, fraction) {
-    if (!values.length) return null;
-    const sorted = values.slice().sort((a, b) => a - b);
-    const position = (sorted.length - 1) * fraction;
-    const lower = Math.floor(position);
-    const upper = Math.ceil(position);
-    return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
-  }
-  function haversine(a, b) {
-    const radius = 6371000;
-    const radians = (degrees) => degrees * Math.PI / 180;
-    const lat1 = radians(a.lat), lat2 = radians(b.lat);
-    const dLat = lat2 - lat1, dLon = radians(b.lon - a.lon);
-    const value = Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-    return 2 * radius * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)));
-  }
-  function validCoordinate(point) {
-    return point && Number.isFinite(point.lat) && point.lat >= -90 && point.lat <= 90 &&
-      Number.isFinite(point.lon) && point.lon >= -180 && point.lon <= 180 &&
-      Number.isFinite(point.t);
-  }
-  function profileFromPoints(points, pointMeta) {
-    const raw=[];
-    for(let index=0;index<points.length;index++){
-      const point=points[index],metadata=pointMeta[index];
-      const accuracy=Number.isFinite(point.altAccuracy)?point.altAccuracy:null;
-      if(!metadata||metadata.useAltitude===false||!Number.isFinite(point.alt)||point.alt < -1000||point.alt>10000)continue;
-      if(accuracy!==null&&(accuracy<0||accuracy>35))continue;
-      raw.push({distanceM:metadata.distanceM,altitude:point.alt,time:point.t,segment:metadata.segment,
-        accuracy,source:point.altSource||"gps"});
-    }
-    const processed=window.VELOXElevation?window.VELOXElevation.process(raw):{
-      samples:raw.map(s=>({...s,elevationM:s.altitude})),gain:0,loss:0,min:null,max:null,
-      medianAccuracy:null,validCount:raw.length,quality:"unrated",spikesRejected:0
-    };
-    const smooth=processed.samples;
-    const grades=[];
-    for(let index=1;index<smooth.length;index++){
-      const first=smooth[index-1],last=smooth[index],distance=last.distanceM-first.distanceM;
-      const elapsed=(last.time-first.time)/1000;
-      if(first.segment!==last.segment||distance<8||distance>100||elapsed<=0||elapsed>60)continue;
-      const grade=(last.elevationM-first.elevationM)/distance*100;
-      if(Number.isFinite(grade)&&Math.abs(grade)<=35)grades.push({grade,distance});
-    }
-    let weightedGrade=0,weightedDistance=0;
-    const gradeBands=[
-      {label:"Starke Abfahrt (< −6 %)",min:-35,max:-6,distance:0},
-      {label:"Leichte Abfahrt (−6 bis −2 %)",min:-6,max:-2,distance:0},
-      {label:"Flach (−2 bis +2 %)",min:-2,max:2,distance:0},
-      {label:"Leichter Anstieg (+2 bis +6 %)",min:2,max:6,distance:0},
-      {label:"Steiler Anstieg (> +6 %)",min:6,max:35,distance:0}
-    ];
-    grades.forEach(item=>{
-      weightedGrade+=item.grade*item.distance;weightedDistance+=item.distance;
-      const band=gradeBands.find(candidate=>item.grade>=candidate.min&&
-        (item.grade<candidate.max||(candidate.max===35&&item.grade<=35)));
-      if(band)band.distance+=item.distance;
-    });
-    return {samples:smooth,gain:processed.gain,loss:processed.loss,min:processed.min,max:processed.max,
-      medianAccuracy:processed.medianAccuracy,validCount:processed.validCount,totalPoints:points.length,
-      averageGrade:weightedDistance?weightedGrade/weightedDistance:null,gradeBands,gradeDistance:weightedDistance,
-      quality:processed.quality,spikesRejected:processed.spikesRejected||0,
-      barometerCount:processed.barometerCount||0,climbThresholdM:processed.climbThresholdM||3};
-  }
-  function splitSegments(segments, splitLengthM) {
-    const runs = [];
-    let currentRun = [];
-    let previousToIndex = null;
-    segments.forEach((segment) => {
-      if (currentRun.length && previousToIndex !== segment.fromIndex) {
-        runs.push(currentRun);
-        currentRun = [];
-      }
-      currentRun.push(segment);
-      previousToIndex = segment.toIndex;
-    });
-    if (currentRun.length) runs.push(currentRun);
 
-    const result = [];
-    runs.forEach((run, runIndex) => {
-      const splits = new Map();
-      let distanceCursor = 0;
-      run.forEach((segment) => {
-        let remainingDistance = segment.distanceM;
-        let remainingTime = segment.moving ? segment.durationS : 0;
-        while (remainingDistance > 0.0001) {
-          const splitIndex = Math.floor((distanceCursor + 0.000001) / splitLengthM);
-          const offset = distanceCursor - splitIndex * splitLengthM;
-          const portion = Math.min(remainingDistance, splitLengthM - offset);
-          const timePortion = segment.distanceM ? remainingTime * portion / remainingDistance : 0;
-          let split = splits.get(splitIndex);
-          if (!split) {
-            split = { segment: runIndex + 1, number: splitIndex + 1, distanceM: 0, movingSeconds: 0, speeds: [] };
-            splits.set(splitIndex, split);
-          }
-          split.distanceM += portion;
-          split.movingSeconds += timePortion;
-          if (segment.moving) split.speeds.push(segment.speedKmh);
-          distanceCursor += portion;
-          remainingDistance -= portion;
-          remainingTime -= timePortion;
-        }
-      });
-      result.push(...Array.from(splits.values()));
-    });
-    return result.map((split) => Object.assign({}, split, {
-      averageSpeed: split.movingSeconds > 0 ? split.distanceM / split.movingSeconds * 3.6 : 0
-    }));
-  }
+  const GRADE_BANDS = [
+    { label: "Starke Abfahrt (< −6 %)", min: -35, max: -6 },
+    { label: "Leichte Abfahrt (−6 bis −2 %)", min: -6, max: -2 },
+    { label: "Flach (−2 bis +2 %)", min: -2, max: 2 },
+    { label: "Leichter Anstieg (+2 bis +6 %)", min: 2, max: 6 },
+    { label: "Steiler Anstieg (> +6 %)", min: 6, max: 35 }
+  ];
+  const SPEED_ZONES = [
+    { label: "0–10 km/h", min: 0, max: 10 },
+    { label: "10–20 km/h", min: 10, max: 20 },
+    { label: "20–30 km/h", min: 20, max: 30 },
+    { label: "Über 30 km/h", min: 30, max: Infinity }
+  ];
+
   function analyzeRide(ride, splitKm) {
+    const Core = window.VELOXCore;
+    if (!Core) throw new Error("Rechenkern (ride-core.js) nicht geladen.");
     const points = Array.isArray(ride.points) ? ride.points : [];
-    const segments = [], pointMeta = new Array(points.length).fill(null);
-    const rejected = { invalid: 0, clock: 0, gap: 0, jump: 0, speed: 0, accuracy: 0 };
-    let distanceM = 0, movingSeconds = 0, stoppedGpsSeconds = 0, gapSeconds = 0, acceptedIntervalCount = 0;
-    const speedValues = [], speedZones = [
-      { label: "0–10 km/h", min: 0, max: 10, seconds: 0 },
-      { label: "10–20 km/h", min: 10, max: 20, seconds: 0 },
-      { label: "20–30 km/h", min: 20, max: 30, seconds: 0 },
-      { label: "Über 30 km/h", min: 30, max: Infinity, seconds: 0 }
-    ];
-    let segmentNumber = 0;
-    for (let index = 0; index < points.length; index++) {
-      const point = points[index];
-      if (!validCoordinate(point)) {
-        rejected.invalid++;
-        segmentNumber++;
-        continue;
-      }
-      if (index === 0 || !validCoordinate(points[index - 1])) {
-        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: true };
-        continue;
-      }
-      const previous = points[index - 1];
-      const durationS = (point.t - previous.t) / 1000;
-      if (!Number.isFinite(durationS) || durationS <= 0) {
-        rejected.clock++;
-        segmentNumber++;
-        pointMeta[index] = { distanceM, segment: segmentNumber };
-        continue;
-      }
-      if (durationS > MAX_GAP_S) {
-        rejected.gap++;
-        gapSeconds += durationS;
-        segmentNumber++;
-        pointMeta[index] = { distanceM, segment: segmentNumber };
-        continue;
-      }
-      const horizontalAccuracy = [previous.accuracy, point.accuracy].filter(Number.isFinite);
-      if (horizontalAccuracy.some((value) => value > 80 || value < 0)) {
-        rejected.accuracy++;
-        segmentNumber++;
-        pointMeta[index] = { distanceM, segment: segmentNumber };
-        continue;
-      }
-      const segmentDistance = haversine(previous, point);
-      if (!Number.isFinite(segmentDistance) || segmentDistance > MAX_SEGMENT_M) {
-        rejected.jump++;
-        segmentNumber++;
-        pointMeta[index] = { distanceM, segment: segmentNumber };
-        continue;
-      }
-      if (segmentDistance < MIN_SEGMENT_M) {
-        acceptedIntervalCount++;
-        stoppedGpsSeconds += durationS;
-        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: false };
-        continue;
-      }
-      const speed = segmentDistance / durationS * 3.6;
-      if (!Number.isFinite(speed) || speed > MAX_SPEED_KMH) {
-        rejected.speed++;
-        segmentNumber++;
-        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: true };
-        continue;
-      }
-      acceptedIntervalCount++;
-      const moving = speed >= MIN_MOVING_KMH;
-      if (!moving) {
-        stoppedGpsSeconds += durationS;
-        pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: false };
-        continue;
-      }
-      segments.push({
-        distanceM: segmentDistance,
-        durationS,
-        speedKmh: speed,
-        moving: true,
-        fromIndex: index - 1,
-        toIndex: index
-      });
-      distanceM += segmentDistance;
-      movingSeconds += durationS;
-      speedValues.push(speed);
-      const zone = speedZones.find((item) => speed >= item.min && speed < item.max);
-      if (zone) zone.seconds += durationS;
-      pointMeta[index] = { distanceM, segment: segmentNumber, useAltitude: true };
-    }
-    const start = Number.isFinite(ride.startedAt) ? ride.startedAt : (points[0] && points[0].t) || Date.now();
-    const end = Number.isFinite(ride.endedAt) ? ride.endedAt : (points[points.length - 1] && points[points.length - 1].t) || start;
-    const paused = Math.max(0, Number(ride.pausedMs) || 0);
-    const elapsedSeconds = Math.max(0, (end - start - paused) / 1000);
-    const stoppedSeconds = Math.max(0, elapsedSeconds - movingSeconds);
-    const elevation = profileFromPoints(points, pointMeta);
+    const pauses = (Array.isArray(ride.pauseIntervals) ? ride.pauseIntervals : [])
+      .map((p) => ({ start: p && p.startedAt, end: p && p.endedAt }));
+    const c = Core.analyze(ride, { pauses });
+    const e = c.elevationProfile;
+
+    const gradeBands = GRADE_BANDS.map((band) => ({ ...band, distance: 0 }));
+    c.gradeSeries.forEach((item) => {
+      const band = gradeBands.find((b) => item.grade >= b.min && (item.grade < b.max || (b.max === 35 && item.grade <= 35)));
+      if (band) band.distance += item.weightM;
+    });
+    const speedZones = SPEED_ZONES.map((zone) => ({ ...zone, seconds: 0 }));
+    c.intervals.forEach((it) => {
+      const zone = speedZones.find((z) => it.speedKmh >= z.min && it.speedKmh < z.max);
+      if (zone) zone.seconds += it.durationS;
+    });
+
     const splitLengthM = Math.max(500, (Number(splitKm) || 5) * 1000);
-    const splits = splitSegments(segments.filter((segment) => segment.moving), splitLengthM);
-    const acceptedSegments = segments.length;
-    const intervalCount = Math.max(0, points.length - 1);
+    const splits = Core.splits(c.intervals, splitLengthM);
+
+    const intervalCount = c.scan.intervalCount;
+    const acceptedIntervalCount = c.scan.acceptedIntervals;
     const acceptedRatio = intervalCount ? acceptedIntervalCount / intervalCount : 0;
     const accuracyValues = points.map((point) => point && point.accuracy).filter((value) => Number.isFinite(value) && value >= 0);
     const goodAccuracyRatio = accuracyValues.length
       ? accuracyValues.filter((value) => value <= 20).length / accuracyValues.length
       : null;
+    const acceptedSegments = c.intervals.length;
     let quality = "Nicht ausreichend";
     if (acceptedRatio >= 0.8 && goodAccuracyRatio !== null && goodAccuracyRatio >= 0.7) quality = "Gut";
     else if (acceptedRatio >= 0.6 && (goodAccuracyRatio === null || goodAccuracyRatio >= 0.4)) quality = "Mittel";
     else if (acceptedSegments > 0) quality = "Eingeschränkt";
-    const movingAverage = movingSeconds ? distanceM / movingSeconds * 3.6 : 0;
-    const overallAverage = elapsedSeconds ? distanceM / elapsedSeconds * 3.6 : 0;
+
     return {
       ride,
       points,
-      segments,
-      distanceM,
-      movingSeconds,
-      elapsedSeconds,
-      stoppedSeconds,
-      stoppedGpsSeconds,
-      gapSeconds,
-      averageSpeed: movingAverage,
-      overallAverage,
-      maxSpeed: speedValues.length ? speedValues.reduce((value, current) => Math.max(value, current), 0) : 0,
-      p95Speed: quantile(speedValues, 0.95),
-      medianSpeed: median(speedValues),
+      distanceM: c.distanceM,
+      movingSeconds: c.movingSeconds,
+      elapsedSeconds: c.elapsedSeconds,
+      stoppedSeconds: c.stoppedSeconds,
+      stoppedGpsSeconds: c.stoppedGpsSeconds,
+      gapSeconds: c.gapSeconds,
+      averageSpeed: c.averageSpeed,
+      overallAverage: c.overallAverage,
+      maxSpeed: c.maxSpeed,
+      p95Speed: c.p95Speed,
+      medianSpeed: c.medianSpeed,
       speedZones,
-      elevation,
+      elevation: {
+        samples: e.samples, gain: e.gain, loss: e.loss, min: e.minimum, max: e.maximum,
+        medianAccuracy: e.medianAccuracy, validCount: e.validCount, totalPoints: points.length,
+        averageGrade: c.gradeAverage, gradeBands, gradeDistance: c.gradeDistanceM,
+        quality: e.quality, spikesRejected: e.spikesRejected || 0
+      },
       splits,
       quality,
       acceptedSegments,
       acceptedIntervalCount,
       intervalCount,
       acceptedRatio,
-      rejected,
-      goodAccuracyRatio,
-      speedValues
+      rejected: c.rejected,
+      goodAccuracyRatio
     };
   }
   function readRides() {
@@ -332,7 +158,7 @@
       card("Höchster / tiefster Punkt", e.max === null ? "–" : Math.round(e.max) + " / " + Math.round(e.min) + " m", "Aus geglätteten GPS-Höhenwerten"),
       card("Höhenqualität", e.quality==="high"?"Hoch":e.quality==="medium"?"Mittel":e.quality==="low"?"Begrenzt":"Nicht bewertet",
         e.medianAccuracy===null?"Keine verlässliche vertikale Genauigkeit gemeldet.": "Median der gemeldeten vertikalen Ungenauigkeit: "+fmt(e.medianAccuracy)+" m"),
-      card("Ø Steigung", e.averageGrade === null ? "–" : fmt(e.averageGrade) + " %", "Nur ausreichend lange Höhenabschnitte"),
+      card("Ø Steigung", e.averageGrade === null ? "–" : fmt(e.averageGrade) + " %", "Steigung über mindestens 50 m Strecke"),
       card("Höhen-Ausreißer", String(e.spikesRejected||0), "Robust erkannte GPS-Höhenspitzen ausgelassen")
     ].join("");
     const zoneRows = result.speedZones.map((zone) =>
@@ -349,7 +175,7 @@
     }).join("");
     const splitRows = result.splits.length
       ? result.splits.map((split) =>
-        '<tr><td>' + split.segment + ' / ' + split.number + '</td><td>' + fmt(split.distanceM / 1000, 2) + ' km</td><td>' +
+        '<tr><td>' + split.number + (split.complete ? '' : ' (Rest)') + '</td><td>' + fmt(split.distanceM / 1000, 2) + ' km</td><td>' +
         fmtTime(split.movingSeconds) + '</td><td>' + fmt(split.averageSpeed) + ' km/h</td></tr>'
       ).join("")
       : '<tr><td colspan="4">Nicht genügend gültige GPS-Daten für Splits.</td></tr>';
@@ -366,8 +192,8 @@
       '<div class="vx-pro-columns"><section class="vx-pro-subpanel"><h4>Tempoverteilung</h4>' + zoneRows +
       '</section><section class="vx-pro-subpanel"><h4>Steigungsverteilung</h4>' + gradeRows +
       '<p class="vx-pro-note">Aus GPS-Höhenwerten; ohne echte Höhenmessdaten werden keine Steigungen ergänzt.</p></section></div>' +
-      '<section class="vx-pro-subpanel"><div class="vx-pro-heading-row"><h4>' + fmt(splitKm, 0) + '-km-Splits</h4><span>Bewegungszeit je Abschnitt</span></div>' +
-      '<div class="vx-pro-table-wrap"><table class="vx-pro-table"><thead><tr><th>GPS-Abschnitt / Split</th><th>Distanz</th><th>Zeit</th><th>Ø Tempo</th></tr></thead><tbody>' + splitRows +
+      '<section class="vx-pro-subpanel"><div class="vx-pro-heading-row"><h4>' + fmt(splitKm, 0) + '-km-Splits</h4><span>Bewegungszeit je Abschnitt, fortlaufend über die gültige Strecke</span></div>' +
+      '<div class="vx-pro-table-wrap"><table class="vx-pro-table"><thead><tr><th>Split</th><th>Distanz</th><th>Zeit</th><th>Ø Tempo</th></tr></thead><tbody>' + splitRows +
       '</tbody></table></div></section>' +
       '<section class="vx-pro-subpanel"><h4>GPS-Datenprüfung</h4><div class="vx-pro-quality"><strong>' + result.quality +
       '</strong><span>' + fmt(result.acceptedRatio * 100, 0) + ' % der Zeit-/Punktintervalle akzeptiert · ' + qualityNote +
@@ -412,13 +238,9 @@
       ".vx-pro-panel{margin-top:14px}",
       ".vx-pro-controls{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}",
       ".vx-pro-controls label{display:flex;flex:1;min-width:170px;flex-direction:column;gap:6px;color:var(--muted);font-size:10px;font-weight:700}",
-      ".vx-pro-controls select,.vx-pro-refresh{min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:11px;background:#0b1925;color:var(--text);font:inherit;font-size:12px}",
-      ".vx-pro-refresh{font-weight:700;cursor:pointer;min-height:44px;touch-action:manipulation}",
-      ".vx-pro-controls select{min-height:44px;touch-action:manipulation}",
+      ".vx-pro-controls select,.vx-pro-refresh{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:11px;background:#0b1925;color:var(--text);font:inherit;font-size:12px;touch-action:manipulation}",
+      ".vx-pro-refresh{font-weight:700;cursor:pointer}",
       ".vx-pro-controls select:focus-visible,.vx-pro-refresh:focus-visible{outline:3px solid var(--teal);outline-offset:3px}",
-      ".vx-pro-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
-      ".vx-pro-table{width:100%;min-width:390px;border-collapse:collapse;font-variant-numeric:tabular-nums}",
-      ".vx-pro-table th,.vx-pro-table td{padding:9px 7px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}",
       "@media(prefers-reduced-motion:reduce){.vx-pro-panel *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}",
       ".vx-pro-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:13px 0}",
       ".vx-pro-card{min-width:0;padding:13px;border:1px solid var(--line);border-radius:14px;background:#0b1925}",
@@ -442,7 +264,7 @@
       ".vx-pro-grade-track i{display:block;height:100%;border-radius:99px;min-width:0;transition:width .25s ease}",
       ".vx-pro-grade-row strong{font-size:10px;white-space:nowrap}",
       "@media(prefers-reduced-motion:reduce){.vx-pro-grade-track i{transition:none}}",
-      ".vx-pro-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}",
+      ".vx-pro-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
       ".vx-pro-table{width:100%;min-width:340px;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}",
       ".vx-pro-table th,.vx-pro-table td{padding:9px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}",
       ".vx-pro-table th:first-child,.vx-pro-table td:first-child{text-align:left}",
@@ -517,7 +339,7 @@
     }
     host.innerHTML = renderSingle(analysesCache[index], splitKm);
   }
-  window.VELOXProAnalysis = Object.freeze({ version: "0.8.1", analyzeRide });
+  window.VELOXProAnalysis = Object.freeze({ version: "0.9.0", analyzeRide });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
   else init();
 })();

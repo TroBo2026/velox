@@ -1,0 +1,16 @@
+VELOX 0.10.0 – Update-Paket
+
+Enthalten sind nur neue oder geänderte Dateien (styles.css, icon.svg und README.md bleiben unverändert).
+Die Ordnerstruktur entspricht deinem Repository.
+
+So spielst du es ein (kostenlos, ohne Zusatzprogramme):
+1. ZIP entpacken.
+2. Auf GitHub: Repository TroBo2026/velox -> "Add file" -> "Upload files".
+3. Den INHALT des entpackten Ordners hineinziehen (Dateien UND die Ordner ".github" und "tests").
+   Tipp: Unter iOS/Windows sind Ordner mit Punkt am Anfang manchmal versteckt – ggf. versteckte Dateien anzeigen.
+4. Unten "Create a new branch for this commit" wählen (z. B. fix/analysis-and-charts) und "Propose changes".
+5. Pull Request prüfen -> "Merge pull request". Die Seite wird (bei GitHub Pages) neu ausgeliefert.
+6. Auf dem iPhone VELOX schließen und neu öffnen. Falls noch die alte Version erscheint: einmal die Seite in Safari
+   neu laden, dann wieder als Home-Bildschirm-App öffnen.
+
+Vorher die Touren sichern: VELOX -> Mehr -> Export. Rohdaten bleiben unverändert, nur die Auswertung wird neu berechnet.

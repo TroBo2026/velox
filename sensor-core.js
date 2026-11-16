@@ -18,12 +18,16 @@
   function getFreshNativeSample(now=Date.now()){
     return latestNative&&now-latestNative.timestamp>=0&&now-latestNative.timestamp<=MAX_AGE_MS?latestNative:null;
   }
+  /* GPS-Höhe: Eine gemeldete vertikale Genauigkeit wird immer mitgespeichert (auch eine schlechte über 100 m),
+     damit die Auswertung sie verwerfen kann. Negative Werte (iOS: „ungültig“) machen die GPS-Höhe unbrauchbar.
+     Früher wurden Genauigkeiten über 100 m zu „unbekannt“ und Höhen dadurch fälschlich akzeptiert. */
   function fuseAltitude(gpsAltitude,gpsAccuracy,now=Date.now()){
-    const gpsValid=finite(gpsAltitude,-1000,10000);
-    const gpsSigma=finite(gpsAccuracy,0.5,100)?gpsAccuracy:null;
+    const accuracyReported=Number.isFinite(gpsAccuracy);
+    const gpsValid=finite(gpsAltitude,-1000,10000)&&!(accuracyReported&&gpsAccuracy<0);
+    const gpsSigma=accuracyReported&&gpsAccuracy>=0?Math.max(0.5,gpsAccuracy):null;
     const native=getFreshNativeSample(now);
-    if(!native)return {altitudeM:gpsValid?gpsAltitude:null,accuracyM:gpsSigma,source:gpsValid?"gps":"unavailable",pressureKPa:null};
-    if(!gpsValid||gpsSigma===null)return {altitudeM:native.altitudeM,accuracyM:native.accuracyM,source:"barometer",pressureKPa:native.pressureKPa};
+    if(!native)return {altitudeM:gpsValid?gpsAltitude:null,accuracyM:gpsValid?gpsSigma:null,source:gpsValid?"gps":"unavailable",pressureKPa:null};
+    if(!gpsValid||gpsSigma===null||gpsSigma>100)return {altitudeM:native.altitudeM,accuracyM:native.accuracyM,source:"barometer",pressureKPa:native.pressureKPa};
     const gpsWeight=1/(gpsSigma*gpsSigma),barometerWeight=1/(native.accuracyM*native.accuracyM);
     const altitudeM=(gpsAltitude*gpsWeight+native.altitudeM*barometerWeight)/(gpsWeight+barometerWeight);
     return {altitudeM,accuracyM:Math.sqrt(1/(gpsWeight+barometerWeight)),source:"gps+barometer",pressureKPa:native.pressureKPa};
