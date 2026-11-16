@@ -10,12 +10,13 @@ private enum VELOXStyle {
 
 struct RootView: View {
     @StateObject private var recorder = RideRecorder()
+    @StateObject private var watch = WatchConnectivityService()
 
     private var barometer: BarometerService { recorder.barometer }
 
     var body: some View {
         TabView {
-            DashboardView(barometer: barometer, recorder: recorder)
+            DashboardView(barometer: barometer, recorder: recorder, watch: watch)
                 .tabItem { Label("Übersicht", systemImage: "speedometer") }
             SensorStatusView(barometer: barometer)
                 .tabItem { Label("Sensoren", systemImage: "waveform.path.ecg") }
@@ -30,6 +31,7 @@ struct RootView: View {
 private struct DashboardView: View {
     @ObservedObject var barometer: BarometerService
     @ObservedObject var recorder: RideRecorder
+    @ObservedObject var watch: WatchConnectivityService
     @State private var savedRideCount = 0
     @State private var archiveMessage = "Archiv wird geprüft …"
 
@@ -117,6 +119,33 @@ private struct DashboardView: View {
                         Text("GPS und Barometer starten erst nach deinem Tastendruck und erfolgreicher lokaler Touranlage. Die Aufzeichnung läuft derzeit nur im Vordergrund; App-Wechsel oder Display-Sperre können sie unterbrechen.")
                             .font(.caption2)
                             .foregroundStyle(VELOXStyle.muted)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VELOXStyle.panel, in: RoundedRectangle(cornerRadius: 18))
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Label("Apple Watch", systemImage: "applewatch").font(.headline)
+                            Spacer()
+                            Circle().fill(watch.isReachable ? VELOXStyle.accent : .orange).frame(width: 8, height: 8)
+                        }
+                        Text(watch.statusMessage).font(.subheadline).foregroundStyle(VELOXStyle.muted)
+                        if let bpm = watch.latestHeartRateBPM {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(String(format: "%.0f", bpm)).font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
+                                Text("BPM · Herzfrequenz von Watch").font(.caption).foregroundStyle(VELOXStyle.muted)
+                            }
+                            if let measuredAt = watch.lastHeartRateDate {
+                                Text("Empfangen: " + measuredAt.formatted(date: .omitted, time: .standard))
+                                    .font(.caption2).foregroundStyle(VELOXStyle.muted)
+                            }
+                        } else {
+                            Text("Noch keine Herzfrequenz von einer VELOX Watch-App empfangen.")
+                                .font(.caption).foregroundStyle(VELOXStyle.muted)
+                        }
+                        Text("Die iPhone-Verbindungsbasis ist vorbereitet. Eine eigenständige watchOS-App und echte Kopplungstests fehlen noch.")
+                            .font(.caption2).foregroundStyle(VELOXStyle.muted)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -229,6 +258,17 @@ private struct DashboardView: View {
                 } catch {
                     archiveMessage = error.localizedDescription
                 }
+                watch.refreshStatus()
+                watch.updateRideSnapshot(
+                    distanceMeters: recorder.distanceMeters,
+                    rideState: recorder.state.rawValue
+                )
+            }
+            .onChange(of: recorder.distanceMeters) { _, distance in
+                watch.updateRideSnapshot(distanceMeters: distance, rideState: recorder.state.rawValue)
+            }
+            .onChange(of: recorder.state) { _, state in
+                watch.updateRideSnapshot(distanceMeters: recorder.distanceMeters, rideState: state.rawValue)
             }
         }
     }
@@ -329,6 +369,9 @@ private struct AboutView: View {
                 }
                 Section("Kosten") {
                     Text("Entwicklung weiterhin ohne kostenpflichtige APIs, Build-Dienste oder Entwickler-Abonnements.")
+                }
+                Section("Impressum") {
+                    Text("Anbieter- und Kontaktdaten werden vor einer öffentlichen Veröffentlichung rechtlich geprüft und anschließend ergänzt. Private Kontaktdaten sind in diesem Entwicklungsstand nicht hinterlegt.")
                 }
             }
             .scrollContentBackground(.hidden)
