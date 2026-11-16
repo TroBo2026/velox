@@ -1,21 +1,33 @@
-/* VELOX offline shell — versioned, same-origin only */
-const CACHE = "velox-shell-v27";
+/* VELOX offline shell — versioned, same-origin only.
+   Netzwerk zuerst (kurzes Zeitlimit), sonst Cache: so ist nach einem Update nie eine Mischung aus alter und neuer
+   Version aktiv, und die App startet trotzdem offline. */
+const CACHE = "velox-shell-v28";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
+  "./velox-extras.css",
   "./sensor-core.js",
   "./elevation-core.js",
+  "./ride-core.js",
+  "./charts.js",
   "./app.js",
   "./analysis-pro.js",
   "./manifest.webmanifest",
-  "./icon.svg"
+  "./icon.svg",
+  "./icon-180.png",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
+const NETWORK_TIMEOUT_MS = 4000;
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(SHELL);
+    // einzeln ablegen: eine fehlende optionale Datei darf die Installation nicht verhindern
+    await Promise.all(SHELL.map(async path => {
+      try { await cache.add(path); } catch (error) { console.warn("SW: nicht gecacht:", path); }
+    }));
     await self.skipWaiting();
   })());
 });
@@ -31,6 +43,21 @@ self.addEventListener("activate", event => {
   })());
 });
 
+async function networkFirst(request, cacheKey) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await Promise.race([
+      fetch(request),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), NETWORK_TIMEOUT_MS))
+    ]);
+    if (response && response.ok) await cache.put(cacheKey || request, response.clone());
+    return response;
+  } catch {
+    return (await cache.match(cacheKey || request)) ||
+      (await cache.match(request, { ignoreSearch: true })) || null;
+  }
+}
+
 self.addEventListener("fetch", event => {
   const request = event.request;
   const url = new URL(request.url);
@@ -38,38 +65,20 @@ self.addEventListener("fetch", event => {
 
   if (request.mode === "navigate") {
     event.respondWith((async () => {
-      try {
-        const response = await fetch(request);
-        if (response && response.ok) {
-          const cache = await caches.open(CACHE);
-          await cache.put("./index.html", response.clone());
-        }
-        return response;
-      } catch {
-        return (await caches.match("./index.html")) ||
-          (await caches.match("./"));
-      }
+      const response = await networkFirst(request, "./index.html");
+      return response || (await caches.match("./")) || new Response("VELOX ist offline nicht verfügbar.", {
+        status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
+      });
     })());
     return;
   }
 
   event.respondWith((async () => {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-
-    try {
-      const response = await fetch(request);
-      if (response && response.ok) {
-        const cache = await caches.open(CACHE);
-        await cache.put(request, response.clone());
-      }
-      return response;
-    } catch {
-      return new Response("Diese Ressource ist offline nicht verfügbar.", {
-        status: 503,
-        statusText: "Offline",
-        headers: { "Content-Type": "text/plain; charset=utf-8" }
-      });
-    }
+    const response = await networkFirst(request);
+    return response || new Response("Diese Ressource ist offline nicht verfügbar.", {
+      status: 503,
+      statusText: "Offline",
+      headers: { "Content-Type": "text/plain; charset=utf-8" }
+    });
   })());
 });

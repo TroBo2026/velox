@@ -1,0 +1,50 @@
+/* VELOX 0.10.0 — Ergänzungen: interaktive Profil-Grafiken, Dialoge, Hinweise.
+   Nutzt die vorhandenen Farbvariablen aus styles.css (--teal, --line, --muted, --text). */
+
+/* ---------- Profil-Grafiken ---------- */
+.vx-plot{margin:8px 0 4px}
+.vx-chart{position:relative}
+.vx-svg{display:block;width:100%;height:auto;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;outline:none}
+.vx-svg:focus-visible{outline:3px solid var(--teal,#5bd6c5);outline-offset:3px;border-radius:10px}
+.vx-grid{stroke:var(--line,#203546);stroke-width:1;stroke-dasharray:3 4;opacity:.8}
+.vx-axis{stroke:#3a566b;stroke-width:1.2}
+.vx-tick{stroke:#3a566b;stroke-width:1}
+.vx-zero{stroke:#7b93a6;stroke-width:1.2}
+.vx-axis-label{fill:var(--muted,#8ea3b5);font-size:10px;font-variant-numeric:tabular-nums}
+.vx-axis-title{fill:var(--muted,#8ea3b5);font-size:10px;font-weight:700;letter-spacing:.04em}
+.vx-line{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.vx-band{fill:#e7bd75;opacity:.13}
+.vx-band-label{fill:#e7bd75;font-size:9.5px;font-weight:700}
+.vx-mark{fill:#f4f8fb;stroke:#08131f;stroke-width:1.6}
+.vx-mark-label{fill:#dfe9f1;font-size:10px;font-weight:700;paint-order:stroke;stroke:#08131f;stroke-width:3px;stroke-linejoin:round}
+.vx-end{stroke:#08131f;stroke-width:1.6}
+.vx-start{fill:#5bd6c5}
+.vx-finish{fill:#d9b879}
+.vx-cross{stroke:#f4f8fb;stroke-width:1;opacity:.7}
+.vx-dot{stroke:#f4f8fb;stroke-width:2}
+.vx-tip{position:absolute;top:4px;transform:translateX(-50%);display:grid;grid-template-columns:auto auto;gap:2px 10px;min-width:128px;padding:8px 11px;border:1px solid var(--line,#203546);border-radius:11px;background:rgba(11,25,37,.96);box-shadow:0 8px 22px rgba(0,0,0,.4);color:var(--text,#f4f8fb);font-size:11px;pointer-events:none;z-index:2;font-variant-numeric:tabular-nums}
+.vx-tip[hidden]{display:none}
+.vx-tip span{color:var(--muted,#8ea3b5)}
+.vx-tip strong{text-align:right}
+.vx-cursor[hidden]{display:none}
+@media(prefers-reduced-motion:no-preference){.vx-tip{transition:left .06s linear}}
+
+/* ---------- Dialoge (ersetzen prompt/confirm/alert) ---------- */
+dialog.vx-sheet{width:min(92vw,420px);max-height:86vh;overflow:auto;padding:20px;border:1px solid var(--line,#203546);border-radius:20px;background:#0b1925;color:var(--text,#f4f8fb);box-shadow:0 24px 60px rgba(0,0,0,.55)}
+dialog.vx-sheet::backdrop{background:rgba(3,8,14,.72);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.vx-sheet h3{margin:0 0 10px;font-size:18px}
+.vx-sheet-body p{margin:0 0 10px;color:var(--muted,#8ea3b5);font-size:13px;line-height:1.6}
+.vx-field{display:flex;flex-direction:column;gap:6px;margin:12px 0;color:var(--muted,#8ea3b5);font-size:11px;font-weight:700;letter-spacing:.03em}
+.vx-field input,.vx-field select{min-height:46px;padding:0 12px;border:1px solid var(--line,#203546);border-radius:12px;background:#102131;color:var(--text,#f4f8fb);font:inherit;font-size:16px}
+.vx-field input:focus-visible,.vx-field select:focus-visible{outline:3px solid var(--teal,#5bd6c5);outline-offset:2px}
+.vx-sheet-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.vx-sheet-actions button{width:100%;min-height:46px;justify-content:center}
+
+/* ---------- Hinweise & Bedienelemente ---------- */
+.vx-hint{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;padding:12px 14px;border:1px solid #6b5a33;border-radius:14px;background:rgba(217,184,121,.08)}
+.vx-hint[hidden]{display:none}
+.vx-hint>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.vx-hint strong{font-size:13px}
+.vx-hint span{color:var(--muted,#8ea3b5);font-size:11px;line-height:1.5}
+.map-wrap{position:relative}
+.vx-follow{position:absolute;right:10px;bottom:10px;z-index:500;min-height:38px;padding:0 14px;background:rgba(8,19,31,.88);touch-action:manipulation}
