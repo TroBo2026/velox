@@ -4,9 +4,9 @@ Stand: 16. November 2026 · Repository `TroBo2026/velox` · Branch `main`
 
 ## Aktueller Status
 
-Unter `ios/VELOX.xcodeproj` liegt ein eigenständiges natives SwiftUI-Projekt, keine WebView-Hülle. Am **16. November 2026** waren Projektvalidierung und ein echter `xcodebuild`-Build für den generischen iOS-Simulator in GitHub Actions erfolgreich (Xcode 16.4, iOS-Simulator-SDK 18.5, ohne Codesignierung). Die native App wurde damit kompiliert, aber noch nicht im Simulator gestartet und nicht auf einem iPhone installiert oder getestet.
+Unter `ios/VELOX.xcodeproj` liegt ein eigenständiges natives SwiftUI-Projekt, keine WebView-Hülle. Am **15. November 2026** waren Projektvalidierung und ein echter `xcodebuild`-Build für den generischen iOS-Simulator in GitHub Actions erfolgreich (Xcode 16.4, iOS-Simulator-SDK 18.5, ohne Codesignierung). Der neue Stand aus Commit `fe182961` wartet noch auf seinen eigenen iOS-CI-Lauf; er ist daher noch nicht erneut kompiliert. Die native App wurde im Simulator nicht gestartet und nicht auf einem iPhone installiert oder getestet.
 
-Zusätzlich besteht ein reproduzierbarer Swift-Validierungslauf für die Höhenanalyse. Der aktuelle Lauf hat **8/8 Prüfungen bestanden**: leere Daten, stabile Kalibrierung, zu wenige Referenzen, instabile Referenzen, GPS-Lücken, getrennte Barometersitzungen nach Pause/Fortsetzen sowie Ausreißer- und Rohdatenintegrität. Das ist ein eigenständiges Testprogramm, kein XCTest-Target. Die Tests verwenden synthetische Prüfdaten und ersetzen keine echte Sensor- oder Gerätetestfahrt.
+Zusätzlich besteht ein reproduzierbarer Swift-Validierungslauf für die Höhenanalyse mit jetzt **8 Prüffällen**. Der letzte abgeschlossene Lauf am 15. November bestand 7/7; der neue Fall zu ungültigen GPS-Koordinaten und extremen Zeitstempeln ist im CI-Lauf des aktuellen Commits noch ausstehend. Das ist ein eigenständiges Testprogramm, kein XCTest-Target. Die Tests verwenden synthetische Prüfdaten und ersetzen keine echte Sensor- oder Gerätetestfahrt.
 
 Die native Grundfunktion enthält eine vom Nutzer gestartete GPS-Aufzeichnung im Vordergrund, ein lokales versioniertes Tourenarchiv und echte zeitgestempelte Core-Motion-Barometerproben. Die Höhenprofil-Pipeline verwendet zeitnahe echte GPS-Höhenreferenzen mit vertikaler Genauigkeit bis 15 m. Je Barometersitzung sind mindestens drei unterschiedliche Referenzpaare und eine mediane absolute Abweichung von höchstens 10 m erforderlich. Der Barometerverlauf liefert die Profilform; GPS verankert jede Sitzung separat. Bei unzureichender Referenz bleibt die Sitzung ausdrücklich relativ. Die größte messbare Sitzungs-MAD bleibt als Qualitätsdiagnose sichtbar, auch wenn eine Kalibrierung abgelehnt wird. Lücken über 30 Sekunden und unplausible GPS-Sprünge werden nicht überbrückt; isolierte Höhenänderungen über 8 m werden aus den Auf-/Abstiegssummen ausgeschlossen, aber nicht aus den Rohdaten gelöscht.
 
@@ -60,7 +60,7 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 - `VELOX.xcodeproj/project.pbxproj`: minimales iOS-App-Projekt (iOS 17.0 als vorläufiges Deployment Target).
 - `VELOX/App/VELOXApp.swift`, `RootView.swift`: SwiftUI-App-Einstieg und erste native Oberfläche.
 - `VELOX/Models/*`: Tour-, GPS- und Barometer-Grundmodelle.
-- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec, `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz) und `RideRecorder.swift` (Core Location, Vordergrund-GPS, Core-Motion-Barometerproben, Pause/Fortsetzen/Stoppen) und `RideAnalysis.swift` (GPS-verankerte Barometerfusion, Qualitätsstatus und natives Distanz-Höhenprofil; synthetische CI-Checks 8/8 bestanden, reale Sensorprüfung offen).
+- `VELOX/Services/*`: Barometerdienst, Kalibrierungsbaustein, JSON-v1-Codec, `RideStore.swift` (lokales versioniertes Archiv mit atomarem Schreiben und ID-Kollisionsschutz) und `RideRecorder.swift` (Core Location, Vordergrund-GPS, Core-Motion-Barometerproben, Pause/Fortsetzen/Stoppen) und `RideAnalysis.swift` (GPS-verankerte Barometerfusion, Qualitätsstatus und natives Distanz-Höhenprofil; 8 synthetische CI-Prüffälle enthalten; aktueller Lauf ausstehend, reale Sensorprüfung offen).
 
 ## Noch offen
 
@@ -73,7 +73,7 @@ Wichtig: Eine kostenlose persönliche Signierung ist keine dauerhafte Veröffent
 
 ## Höhenfusion — automatisierte Validierung
 
-Der eigenständige CI-Validierungslauf `ios/Tests/RideAnalysisValidation.swift` wird mit `swiftc` kompiliert und auf dem macOS-Runner ausgeführt. Am 16. November 2026 wurden **8/8 Prüfungen bestanden**:
+Der eigenständige CI-Validierungslauf `ios/Tests/RideAnalysisValidation.swift` wird mit `swiftc` kompiliert und auf dem macOS-Runner ausgeführt. Der letzte abgeschlossene Lauf am 15. November 2026 bestand **7/7 Prüfungen**. Für den aktuellen Stand sind acht Fälle enthalten; die zusätzliche Prüfung ungültiger GPS-Koordinaten und nicht darstellbarer Zeitstempel wartet noch auf den CI-Lauf:
 
 - Leere Tour: Analyse bleibt ohne Höhendaten ausdrücklich nicht verfügbar.
 - Stabile Referenzen: mindestens drei zeitnahe GPS-/Barometerpaare erzeugen einen Median-Offset.
