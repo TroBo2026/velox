@@ -6,19 +6,66 @@ struct RideAnalysisValidation {
 
     static func main() {
         testEmptyRide()
+        testMalformedGPSIsIgnoredWithoutCrashing()
         testStableGPSCalibration()
         testInsufficientAnchorsStayRelative()
         testUnstableAnchorsStayRelative()
         testGPSGapSplitsElevationTotals()
         testPauseResumeSessionsCalibrateIndependently()
         testElevationOutlierAndRawDataIntegrity()
-        print("VELOX elevation validation: 7/7 checks passed")
+        print("VELOX elevation validation: 8/8 checks passed")
     }
 
     private static func testEmptyRide() {
         let result = RideElevationAnalysis(ride: nil)
         expect(result.reference == .unavailable, "nil ride reference")
         expect(result.profile.isEmpty && result.ascentM == 0 && result.descentM == 0, "nil ride values")
+    }
+
+    private static func testMalformedGPSIsIgnoredWithoutCrashing() {
+        let start = 1_700_000_000.0
+        let invalidTimestamp = RidePoint(
+            lat: 51, lon: 13, t: 1e300, alt: 900, altAccuracy: 1,
+            altSource: "coreLocation", pressureKPa: nil, accuracy: 5
+        )
+        let invalidLatitude = RidePoint(
+            lat: 91, lon: 13, t: start + 5, alt: 500, altAccuracy: 1,
+            altSource: "coreLocation", pressureKPa: nil, accuracy: 5
+        )
+        let invalidLongitude = RidePoint(
+            lat: 51, lon: 181, t: start + 6, alt: 500, altAccuracy: 1,
+            altSource: "coreLocation", pressureKPa: nil, accuracy: 5
+        )
+        let points = [
+            gpsPoint(time: start, altitude: nil),
+            gpsPoint(time: start + 10, altitude: nil),
+            invalidTimestamp,
+            invalidLatitude,
+            invalidLongitude
+        ]
+        let ride = Ride(
+            id: "malformed-gps-test",
+            name: nil,
+            startedAt: start,
+            endedAt: nil,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: points,
+            barometerSamples: [
+                sample(time: start + 1, altitude: 0),
+                sample(time: start + 9, altitude: 1)
+            ],
+            importedFromId: nil
+        )
+        let originalGPS = ride.points
+        let result = RideElevationAnalysis(ride: ride)
+
+        expect(result.reference == .barometerRelative, "invalid GPS references are not trusted")
+        expect(result.profile.count == 2, "valid route points still support the profile")
+        expect(result.usableGPSAltitudeCount == 0, "invalid coordinates and extreme time are excluded")
+        expect(result.rawBarometerCount == 2, "barometer observations remain available")
+        expect(ride.points == originalGPS, "malformed source observations are not rewritten")
     }
 
     private static func testStableGPSCalibration() {

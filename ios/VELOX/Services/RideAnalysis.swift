@@ -49,8 +49,12 @@ struct RideElevationAnalysis: Equatable {
 
         let gps = ride.points
             .filter {
-                $0.t.isFinite && $0.lat.isFinite && $0.lon.isFinite &&
-                $0.accuracy.map { $0 >= 0 && $0 <= 35 } == true
+                guard Self.timestampMilliseconds(from: $0.t) != nil,
+                      $0.lat.isFinite, (-90.0...90.0).contains($0.lat),
+                      $0.lon.isFinite, (-180.0...180.0).contains($0.lon) else {
+                    return false
+                }
+                return $0.accuracy.map { $0 >= 0 && $0 <= 35 } == true
             }
             .sorted { $0.t < $1.t }
 
@@ -77,8 +81,8 @@ struct RideElevationAnalysis: Equatable {
         for (sessionKey, sessionSamples) in barometerSessions {
             var usedBarometerTimestamps = Set<Int64>()
             let offsets: [Double] = trustedGPS.compactMap { point in
-                let timestamp = Int64((point.t * 1_000).rounded())
-                guard let sample = Self.nearestBarometer(
+                guard let timestamp = Self.timestampMilliseconds(from: point.t),
+                      let sample = Self.nearestBarometer(
                     to: timestamp,
                     in: sessionSamples,
                     maxDifferenceMs: 10_000
@@ -146,7 +150,9 @@ struct RideElevationAnalysis: Equatable {
         } else {
             // Explicit GPS-only fallback; never label this as barometer fusion.
             for point in trustedGPS {
-                guard let altitude = point.alt, let position = Self.distance(at: Int64((point.t * 1_000).rounded()), on: route) else { continue }
+                guard let altitude = point.alt,
+                      let timestamp = Self.timestampMilliseconds(from: point.t),
+                      let position = Self.distance(at: timestamp, on: route) else { continue }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
                     distanceM: position.distanceM,
@@ -230,18 +236,32 @@ struct RideElevationAnalysis: Equatable {
         let segmentID: Int
     }
 
+    /// Converts Unix seconds to positive Int64 milliseconds without trapping on
+    /// malformed or extreme imported timestamps.
+    private static func timestampMilliseconds(from seconds: Double) -> Int64? {
+        guard seconds.isFinite else { return nil }
+        let milliseconds = (seconds * 1_000).rounded()
+        // Double(Int64.max) rounds to 2^63, the first value outside Int64.
+        guard milliseconds.isFinite,
+              milliseconds > 0,
+              milliseconds < Double(Int64.max) else { return nil }
+        return Int64(milliseconds)
+    }
+
     private static func makeRoute(_ points: [RidePoint]) -> [RoutePoint] {
         var result: [RoutePoint] = []
         var distance = 0.0
         var segmentID = 0
         var previous: RidePoint?
         for point in points {
-            guard let previousPoint = previous else {
-                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
+            guard let timestamp = Self.timestampMilliseconds(from: point.t) else { continue }
+            guard let previousPoint = previous,
+                  let previousTimestamp = Self.timestampMilliseconds(from: previousPoint.t) else {
+                result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
-            let elapsedMs = Int64(((point.t - previousPoint.t) * 1_000).rounded())
+            let elapsedMs = timestamp - previousTimestamp
             guard elapsedMs > 0 else { continue }
             let a = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
             let b = CLLocation(latitude: point.lat, longitude: point.lon)
@@ -249,12 +269,12 @@ struct RideElevationAnalysis: Equatable {
             guard elapsedMs <= 30_000, segment.isFinite, segment >= 0, segment <= 120 else {
                 // Start a new segment; never connect or total elevation across this gap.
                 segmentID += 1
-                result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
+                result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
             distance += segment
-            result.append(RoutePoint(timestampMs: Int64((point.t * 1_000).rounded()), distanceM: distance, segmentID: segmentID))
+            result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
             previous = point
         }
         return result
