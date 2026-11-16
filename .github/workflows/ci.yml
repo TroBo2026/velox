@@ -1,0 +1,36 @@
+name: VELOX Web CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  web-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check analysis-pro.js
+          node --check charts.js
+          node --check elevation-core.js
+          node --check ride-core.js
+          node --check sensor-core.js
+          node --check sw.js
+          node --check tests/core.test.js
+          node --check tests/app.smoke.test.js
+      - name: Run deterministic calculation tests
+        run: node tests/core.test.js
+      - name: Run application smoke test
+        run: node tests/app.smoke.test.js
