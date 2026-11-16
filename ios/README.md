@@ -89,3 +89,16 @@ Der eigenständige CI-Validierungslauf `ios/Tests/RideAnalysisValidation.swift` 
 ## Kosten
 
 Ziel bleibt 0 €. Xcode und die lokalen Apple-Frameworks sind kostenlos. App-Store-Veröffentlichung und kostenpflichtige Apple-Developer-Mitgliedschaft sind ausdrücklich nicht Teil dieses Plans.
+
+
+## Apple Watch — iPhone-Verbindungsbasis (16. November 2026)
+
+`WatchConnectivityService.swift` ist jetzt im bestehenden iOS-App-Target registriert. Die iPhone-App aktiviert `WCSession`, liest den Kopplungs-, Installations- und Erreichbarkeitsstatus, übermittelt den jeweils aktuellen Tourstatus und die kumulierte Distanz über `updateApplicationContext` und akzeptiert eine empfangene Herzfrequenznachricht (`heartRateBPM`, optionaler Unix-Zeitstempel `timestamp`) nach Plausibilitätsprüfung. Die native Übersicht zeigt den Verbindungsstatus und — nur falls tatsächlich empfangen — den letzten BPM-Wert.
+
+**Noch keine fertige Apple-Watch-App:** Das Projekt besitzt weiterhin nur ein iOS-App-Target. Es gibt noch kein watchOS-Target, keine Watch-Oberfläche, keine Watch-seitige Sensorerfassung, keine HealthKit-Freigabe und keinen Ende-zu-Ende-Test. Deshalb kann die iPhone-App aktuell keine Herzfrequenz von einer VELOX-Watch-App beziehen. Die Transportbasis ist vorbereitet, nicht die vollständige Watch-Funktion.
+
+**Trainingsanalyse:** Herzfrequenz soll als eigener physiologischer Analysekanal geführt werden — getrennt von GPS-/Barometer-Höhenfusion. Nach Implementierung der Watch-App und expliziter Freigabe können echte zeitgestempelte Herzfrequenzproben für Durchschnitt, Maximum und Zeitverteilung ausgewertet werden. Individuelle Trainingszonen werden nicht geraten; sie benötigen später eine vom Nutzer bestätigte Konfiguration. Ohne echte Proben bleiben diese Kennzahlen leer.
+
+## Navigation und Impressum
+
+Die PWA-Wrapped-Seite hat nun einen direkten Zurück-Button zu „Mehr“, der die vorhandene zentrale Navigation nutzt. Im unteren Bereich von „Mehr“ wurde ein Impressum-Platzhalter ergänzt. Die native „Mehr“-Ansicht enthält ebenfalls einen Impressum-Abschnitt. Private Anbieter-Kontaktdaten sind in dieser öffentlichen Entwicklungsfassung bewusst nicht eingetragen; sie müssen vor Veröffentlichung rechtlich und mit Zustimmung eines Erziehungsberechtigten geprüft werden.
