@@ -152,3 +152,34 @@ Rohdaten des Beschleunigungssensors und Gyroskops werden nicht standardmäßig d
 - PWA und bestehende Tourendaten bleiben unangetastet, bis die native Migration mit echten Testdaten nachweislich sicher ist.
 
 Die CI enthält nun zusätzlich einen eigenständigen Swift-Prüflauf für das Watch-Datenformat. Der Lauf muss auf dem aktuellen Commit noch vollständig durchlaufen; ein erfolgreicher Xcode-Build allein beweist keine Watch-Hardwarefunktion.
+
+
+## Native iPhone- und Apple-Watch-Ausbau (17. November 2026)
+
+### Neu integrierte native Funktionen
+
+- Das Xcode-Projekt enthält jetzt neben dem iOS-Target ein eingebettetes **VELOXWatch-watchOS-Target**. Die Watch-App wird als Companion-App in das iPhone-Projekt eingebunden.
+- Die Watch-Oberfläche bietet Start, Pause, Fortsetzen und Beenden einer HealthKit-Rad-Workout-Session. Sie verlangt eine aktive iPhone-Tour mit passender `rideID`, damit Proben eindeutig zugeordnet werden.
+- Die Watch kann verfügbare HealthKit-Werte für Herzfrequenz, aktive Energie, Raddistanz sowie — sofern passende Sensoren gekoppelt und Daten verfügbar sind — Geschwindigkeit, Trittfrequenz und Leistung erfassen.
+- Core Motion `CMAltimeter` liefert relative Höhenänderungen. Diese Werte sind ausdrücklich keine absolute Meereshöhe.
+- Watch-Steuerbefehle für Pause, Fortsetzen und Stopp werden mit Tour-ID und Zeitstempel an das iPhone übertragen. Die iPhone-App akzeptiert sie nur für die aktuell zugehörige Tour.
+- Die native iPhone-App besitzt jetzt einen eigenen Touren-Tab mit Detailansicht, GPS-/Höhenübersicht sowie JSON-v1-Import und -Export.
+- Der Import validiert die gesamte Sicherung vor dem Schreiben und speichert sie als einen atomaren Archivschritt. Bereits vorhandene Touren werden nicht überschrieben; kollidierende IDs werden remapped und Watch-Sample-Referenzen entsprechend angepasst.
+- Der iOS-CI-Workflow baut nun sowohl die iPhone-App als auch das watchOS-Target für Simulatoren.
+
+### Sensorgrenzen und Datenschutz
+
+- Herzfrequenz, Energie, Distanz und optionale Fahrradsensorwerte stammen ausschließlich aus HealthKit. Trittfrequenz und Leistung können zusätzliche gekoppelte Fahrradsensoren benötigen; ohne Quelle bleiben sie leer.
+- Geschwindigkeit und andere Werte werden nicht aus fehlenden Daten erfunden. Die Datenquelle und der Originalzeitstempel bleiben Teil jedes Watch-Samples.
+- Die Watch fragt HealthKit erst beim ausdrücklichen Start einer Aufzeichnung an. Der Nutzer kann die angefragten Berechtigungen ablehnen; dann stehen die entsprechenden Werte nicht zur Verfügung.
+- Der Watch-Workout wird in HealthKit gespeichert. Die App fordert nur die für den Fahrrad-Workout und die angezeigten Kennzahlen vorgesehenen Datentypen an.
+- Watch-Pause und -Stopp steuern auch die zugehörige iPhone-Tour, sobald der Befehl zugestellt wird. Bei unterbrochener Verbindung können Steuerbefehle verzögert ankommen; deshalb müssen echte Gerätetests die Synchronisierung und den Umgang mit Verzögerungen prüfen.
+- Die HealthKit-Entitlement-Datei ist im Watch-Target hinterlegt. Für einen echten Gerätebetrieb muss die lokale Xcode-Signierung die benötigte HealthKit-Fähigkeit unterstützen.
+
+### Noch offen
+
+- Der aktuelle Commit wurde noch nicht durch den vollständigen iOS- und watchOS-Simulator-CI-Lauf bestätigt.
+- Es wurde kein echtes iPhone und keine echte Apple Watch gekoppelt oder für eine Fahrt getestet.
+- Sensorverfügbarkeit hängt vom Watch-Modell, watchOS, Berechtigungen und eventuell gekoppelten externen Fahrradsensoren ab.
+- Hintergrundverhalten, Akkuverbrauch, Unterbrechung/Wiederaufnahme, verspätete Nachrichten, HealthKit-Datenschutzdialoge und die Watch-Installation müssen auf realer Hardware getestet werden.
+- Die PWA, ihre Web-Oberfläche und ihre bestehenden Daten werden durch diese nativen Änderungen nicht ersetzt.
