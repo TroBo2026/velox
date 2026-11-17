@@ -19,6 +19,12 @@
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   })[char]);
+  const formatPace = (speedKmh) => {
+    if (!Number.isFinite(speedKmh) || speedKmh <= 0) return "–";
+    const seconds = Math.max(1, Math.round(3600 / speedKmh));
+    return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+  };
+  const isRunning = (ride) => ride && ride.activityType === "running";
 
   const GRADE_BANDS = [
     { label: "Starke Abfahrt (< −6 %)", min: -35, max: -6 },
@@ -48,7 +54,13 @@
       const band = gradeBands.find((b) => item.grade >= b.min && (item.grade < b.max || (b.max === 35 && item.grade <= 35)));
       if (band) band.distance += item.weightM;
     });
-    const speedZones = SPEED_ZONES.map((zone) => ({ ...zone, seconds: 0 }));
+    const running = isRunning(ride);
+    const zoneDefinitions = running ? [
+      { label: "Über 7:30 min/km", min: 0, max: 8 },
+      { label: "5:00–7:30 min/km", min: 8, max: 12 },
+      { label: "Unter 5:00 min/km", min: 12, max: Infinity }
+    ] : SPEED_ZONES;
+    const speedZones = zoneDefinitions.map((zone) => ({ ...zone, seconds: 0 }));
     c.intervals.forEach((it) => {
       const zone = speedZones.find((z) => it.speedKmh >= z.min && it.speedKmh < z.max);
       if (zone) zone.seconds += it.durationS;
@@ -72,6 +84,7 @@
 
     return {
       ride,
+      activityType: running ? "running" : "cycling",
       points,
       distanceM: c.distanceM,
       movingSeconds: c.movingSeconds,
@@ -142,6 +155,8 @@
   }
   function renderSingle(result, splitKm) {
     const e = result.elevation;
+    const running = result.activityType === "running";
+    const speedValue = value => running ? (formatPace(value) + " min/km") : (fmt(value) + " km/h");
     const qualityNote = result.goodAccuracyRatio === null
       ? "GPS-Genauigkeit wurde vom Gerät nicht für alle Punkte gemeldet."
       : fmt(result.goodAccuracyRatio * 100, 0) + " % der gemeldeten Positionsgenauigkeiten liegen bei höchstens 20 m.";
@@ -150,10 +165,10 @@
       card("Bewegungszeit", fmtTime(result.movingSeconds), "Nur gültige Fahrintervalle"),
       card("Gesamtzeit", fmtTime(result.elapsedSeconds), "Aufzeichnungszeit abzüglich Pausen"),
       card("Stand- / Lückenzeit", fmtTime(result.stoppedSeconds), "Nicht als Fahrzeit gewertet"),
-      card("Ø während der Fahrt", fmt(result.averageSpeed) + " km/h", "Distanz ÷ Bewegungszeit"),
-      card("Ø über Gesamtzeit", fmt(result.overallAverage) + " km/h", "Distanz ÷ Gesamtzeit"),
-      card("Max. gültiges Tempo", fmt(result.maxSpeed) + " km/h", "Ausreißer oberhalb 100 km/h ausgeschlossen"),
-      card("95. Perzentil", result.p95Speed === null ? "–" : fmt(result.p95Speed) + " km/h", "Robuster Vergleichswert des Tempos"),
+      card(running ? "Ø Laufpace" : "Ø Fahrtempo", speedValue(result.averageSpeed), "Distanz ÷ Bewegungszeit"),
+      card(running ? "Ø Pace über Gesamtzeit" : "Ø über Gesamtzeit", speedValue(result.overallAverage), "Distanz ÷ Gesamtzeit"),
+      card(running ? "Schnellste Pace" : "Max. gültiges Tempo", speedValue(result.maxSpeed), "Aus gültigen GPS-Intervallen"),
+      card(running ? "Pace-95. Perzentil" : "95. Perzentil", result.p95Speed === null ? "–" : speedValue(result.p95Speed), "Robuster Vergleichswert"),
       card("Aufstieg / Abstieg", "+" + Math.round(e.gain) + " / −" + Math.round(e.loss) + " m", e.validCount + " gültige Höhenpunkte"),
       card("Höchster / tiefster Punkt", e.max === null ? "–" : Math.round(e.max) + " / " + Math.round(e.min) + " m", "Aus geglätteten GPS-Höhenwerten"),
       card("Höhenqualität", e.quality==="high"?"Hoch":e.quality==="medium"?"Mittel":e.quality==="low"?"Begrenzt":"Nicht bewertet",
@@ -176,7 +191,7 @@
     const splitRows = result.splits.length
       ? result.splits.map((split) =>
         '<tr><td>' + split.number + (split.complete ? '' : ' (Rest)') + '</td><td>' + fmt(split.distanceM / 1000, 2) + ' km</td><td>' +
-        fmtTime(split.movingSeconds) + '</td><td>' + fmt(split.averageSpeed) + ' km/h</td></tr>'
+        fmtTime(split.movingSeconds) + '</td><td>' + speedValue(split.averageSpeed) + '</td></tr>'
       ).join("")
       : '<tr><td colspan="4">Nicht genügend gültige GPS-Daten für Splits.</td></tr>';
     const rejected = result.rejected;
@@ -202,7 +217,7 @@
       fmt(result.gapSeconds / 60, 1) + ' min. Erkannte Standzeit aus kurzen GPS-Schritten: ' +
       fmt(result.stoppedGpsSeconds / 60, 1) + ' min.</p></section>';
   }
-  function renderArchive(rides, analyses) {
+  function renderArchive(rides, analyses, sport) {
     const total = analyses.reduce((sum, item) => ({
       distance: sum.distance + item.distanceM,
       moving: sum.moving + item.movingSeconds,
@@ -210,25 +225,37 @@
       gain: sum.gain + item.elevation.gain,
       loss: sum.loss + item.elevation.loss
     }), { distance: 0, moving: 0, elapsed: 0, gain: 0, loss: 0 });
+    const running = sport === "running";
+    const bikes = analyses.filter(item => item.activityType !== "running");
+    const runs = analyses.filter(item => item.activityType === "running");
+    const avgSpeed = list => {
+      const distance = list.reduce((sum, item) => sum + item.distanceM, 0);
+      const moving = list.reduce((sum, item) => sum + item.movingSeconds, 0);
+      return moving > 0 ? distance / moving * 3.6 : 0;
+    };
+    const bikeAvg = avgSpeed(bikes), runAvg = avgSpeed(runs);
     const longest = analyses.filter(item => item.distanceM > 0).sort((a, b) => b.distanceM - a.distanceM)[0];
-    const fastest = analyses.filter(item => item.movingSeconds > 0).sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
+    const fastestBike = bikes.filter(item => item.movingSeconds > 0).sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
+    const fastestRun = runs.filter(item => item.movingSeconds > 0).sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
     const climbing = analyses.filter(item => item.elevation.validCount >= 2).sort((a, b) => b.elevation.gain - a.elevation.gain)[0];
     const records = [
-      ["Längste Tour", longest, longest ? fmt(longest.distanceM / 1000) + " km" : "–"],
+      ["Längste Aktivität", longest, longest ? fmt(longest.distanceM / 1000) + " km" : "–"],
       ["Höchster Aufstieg", climbing, climbing ? "+" + Math.round(climbing.elevation.gain) + " m" : "–"],
-      ["Höchstes Ø-Fahrtempo", fastest, fastest ? fmt(fastest.averageSpeed) + " km/h" : "–"]
+      ...(!running ? [["Höchstes Ø-Radfahrtempo", fastestBike, fastestBike ? fmt(fastestBike.averageSpeed) + " km/h" : "–"]] : []),
+      ...(sport !== "cycling" ? [["Schnellste Ø-Laufpace", fastestRun, fastestRun ? formatPace(fastestRun.averageSpeed) + " min/km" : "–"]] : [])
     ].map((row) => '<div class="vx-pro-record"><span>' + row[0] + '</span><strong>' + row[2] +
-      '</strong><small>' + (row[1] ? escapeHtml(row[1].ride.name || "Fahrradtour") + " · " + dateLabel(row[1].ride.startedAt) : "Noch keine Tour") +
+      '</strong><small>' + (row[1] ? escapeHtml(row[1].ride.name || (isRunning(row[1].ride) ? "Laufrunde" : "Fahrradtour")) + " · " + dateLabel(row[1].ride.startedAt) : "Noch keine Aktivität") +
       '</small></div>').join("");
     return '<div class="vx-pro-cards">' +
-      card("Touren", rides.length, "Lokal gespeicherte Fahrten") +
+      card("Aktivitäten", rides.length, "Lokal gespeicherte Datensätze") +
       card("Gesamtdistanz", fmt(total.distance / 1000) + " km", "Nur plausible GPS-Abschnitte") +
-      card("Bewegungszeit", fmtTime(total.moving), "Summe der erkannten Fahrintervalle") +
+      card("Bewegungszeit", fmtTime(total.moving), "Summe der erkannten Bewegungsintervalle") +
       card("Aufstieg / Abstieg", "+" + Math.round(total.gain) + " / −" + Math.round(total.loss) + " m", "Gefilterte GPS-Höhenwerte") +
-      card("Ø Fahrtempo", total.moving > 0 ? fmt(total.distance / total.moving * 3.6) + " km/h" : "–", "Gesamtdistanz ÷ Bewegungszeit") +
+      (!running ? card("Ø Radfahrtempo", bikes.length && bikeAvg ? fmt(bikeAvg) + " km/h" : "–", "Radfahren separat ausgewertet") : "") +
+      (sport !== "cycling" ? card("Ø Laufpace", runs.length && runAvg ? formatPace(runAvg) + " min/km" : "–", "Laufen separat ausgewertet") : "") +
       card("Gesamtzeit", fmtTime(total.elapsed), "Pausen abgezogen") +
       '</div><section class="vx-pro-subpanel"><h4>Deine Archiv-Rekorde</h4><div class="vx-pro-record-grid">' + records +
-      '</div></section><p class="vx-pro-note">Die Archivsumme wird aus allen gespeicherten Touren neu berechnet. Fehlende oder unplausible GPS-Abschnitte werden nicht als Strecke gezählt.</p>';
+      '</div></section><p class="vx-pro-note">Die Archivsumme wird nur aus der oben gewählten Sportart gebildet. Fehlende oder unplausible GPS-Abschnitte werden nicht als Strecke gezählt.</p>';
   }
   function init() {
     const page = $("page-stats");
@@ -285,7 +312,8 @@
       '<section class="panel vx-pro-panel" id="veloxProAnalysis" aria-labelledby="vxProHeading">' +
       '<span class="eyebrow">VELOX PRO ANALYSE</span><h3 id="vxProHeading">Touren im Detail</h3>' +
       '<p>Zusätzliche Auswertung aus deinen lokal gespeicherten GPS-Daten. Die Analyse verändert keine Tour.</p>' +
-      '<div class="vx-pro-controls"><label>TOUR AUSWÄHLEN<select id="vxProRide" aria-label="Tour für die Analyse auswählen"><option value="all">Alle Touren · Archiv</option></select></label>' +
+      '<div class="vx-pro-controls"><label>SPORTART<select id="vxProSport" aria-label="Sportart für die Analyse auswählen"><option value="all">Alle Aktivitäten</option><option value="cycling">Radfahren</option><option value="running">Laufen</option></select></label>' +
+      '<label>AKTIVITÄT AUSWÄHLEN<select id="vxProRide" aria-label="Aktivität für die Analyse auswählen"><option value="all">Alle Aktivitäten · Archiv</option></select></label>' +
       '<label>SPLIT-LÄNGE<select id="vxProSplit" aria-label="Länge der Streckenabschnitte"><option value="1">1 Kilometer</option><option value="5" selected>5 Kilometer</option><option value="10">10 Kilometer</option></select></label>' +
       '<button class="vx-pro-refresh" id="vxProRefresh" type="button" aria-label="Tourenanalyse neu berechnen">Neu berechnen</button></div>' +
       '<div id="vxProResult" role="status" aria-live="polite" aria-atomic="true"><div class="vx-pro-empty">Tourdaten werden lokal eingelesen …</div></div>' +
@@ -294,6 +322,7 @@
     );
     $("vxProRefresh").addEventListener("click", loadAndRender);
     $("vxProRide").addEventListener("change", renderSelected);
+    $("vxProSport").addEventListener("change", () => { updateRideOptions(); renderSelected(); });
     $("vxProSplit").addEventListener("change", renderSelected);
     document.addEventListener("click", (event) => {
       if (event.target.closest('[data-page="stats"]')) setTimeout(loadAndRender, 250);
@@ -302,18 +331,19 @@
   }
   let ridesCache = [];
   let analysesCache = [];
+  function updateRideOptions(){
+    const select=$("vxProRide"),sport=$("vxProSport").value,previous=select.value;
+    const list=ridesCache.filter(ride=>sport==="all"||(sport==="running"?isRunning(ride):!isRunning(ride)));
+    select.innerHTML='<option value="all">Alle Aktivitäten · Archiv</option>'+list.map(ride=>'<option value="'+escapeHtml(String(ride.id))+'">'+escapeHtml(ride.name||(isRunning(ride)?"Laufrunde":"Fahrradtour"))+" · "+dateLabel(ride.startedAt)+'</option>').join("");
+    if(list.some(ride=>String(ride.id)===previous))select.value=previous;
+  }
   async function loadAndRender() {
     const host = $("vxProResult");
     if (!host) return;
     host.innerHTML = '<div class="vx-pro-empty">Tourdaten werden lokal ausgewertet …</div>';
     try {
       ridesCache = await readRides();
-      const select = $("vxProRide");
-      const previous = select.value;
-      select.innerHTML = '<option value="all">Alle Touren · Archiv</option>' +
-        ridesCache.map((ride) => '<option value="' + escapeHtml(String(ride.id)) + '">' +
-          escapeHtml(ride.name || "Fahrradtour") + " · " + dateLabel(ride.startedAt) + '</option>').join("");
-      if (ridesCache.some((ride) => String(ride.id) === previous)) select.value = previous;
+      updateRideOptions();
       renderSelected();
     } catch (error) {
       console.error(error);
@@ -325,19 +355,22 @@
     if (!host) return;
     const splitKm = Number($("vxProSplit").value) || 5;
     analysesCache = ridesCache.map((ride) => analyzeRide(ride, splitKm));
+    const sport = $("vxProSport").value;
+    const selectedRides = ridesCache.filter(ride => sport==="all"||(sport==="running"?isRunning(ride):!isRunning(ride)));
+    const selectedAnalyses = analysesCache.filter(item => sport==="all"||(sport==="running"?item.activityType==="running":item.activityType!=="running"));
     const selectedId = $("vxProRide").value;
     if (selectedId === "all") {
-      host.innerHTML = ridesCache.length
-        ? renderArchive(ridesCache, analysesCache)
-        : '<div class="vx-pro-empty">Noch keine Touren gespeichert. Nach deiner ersten Fahrt erscheinen hier Splits, Tempoverteilung, Höhenwerte und Datenqualität.</div>';
+      host.innerHTML = selectedRides.length
+        ? renderArchive(selectedRides, selectedAnalyses, sport)
+        : '<div class="vx-pro-empty">Für diese Sportart sind noch keine Aktivitäten gespeichert. Nach deiner ersten Aufzeichnung erscheinen hier die passenden Kennzahlen.</div>';
       return;
     }
-    const index = ridesCache.findIndex((ride) => String(ride.id) === selectedId);
+    const index = selectedRides.findIndex((ride) => String(ride.id) === selectedId);
     if (index < 0) {
-      host.innerHTML = '<div class="vx-pro-empty">Diese Tour ist nicht mehr im Archiv vorhanden. Bitte die Auswahl neu laden.</div>';
+      host.innerHTML = '<div class="vx-pro-empty">Diese Aktivität ist nicht mehr in der gewählten Sportart vorhanden. Bitte die Auswahl neu laden.</div>';
       return;
     }
-    host.innerHTML = renderSingle(analysesCache[index], splitKm);
+    host.innerHTML = renderSingle(selectedAnalyses[index], splitKm);
   }
   window.VELOXProAnalysis = Object.freeze({ version: "0.9.0", analyzeRide });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
