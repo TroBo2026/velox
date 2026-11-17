@@ -54,6 +54,19 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Build Apple Watch app (Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/VELOX.xcodeproj \
+            -scheme VELOXWatch \
+            -configuration Debug \
+            -sdk watchsimulator \
+            -destination 'generic/platform=watchOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/VELOX-Watch-DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
       - name: Validate elevation analysis
         run: |
           set -o pipefail
