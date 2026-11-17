@@ -49,6 +49,7 @@ jobs:
             -scheme VELOX \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
+            -arch arm64 \
             -derivedDataPath "$RUNNER_TEMP/VELOX-DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             build
@@ -61,6 +62,7 @@ jobs:
             -scheme VELOXWatch \
             -configuration Debug \
             -destination 'generic/platform=watchOS Simulator' \
+            -arch arm64 \
             -derivedDataPath "$RUNNER_TEMP/VELOX-Watch-DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             build
