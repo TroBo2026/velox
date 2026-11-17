@@ -32,7 +32,7 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
     }
 
     let id: String
-    let rideID: String
+    var rideID: String
     let kind: Kind
     let timestampMs: Int64
     let value: Double
@@ -63,6 +63,13 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         self.timestampMs = timestamp
         self.value = value
         self.source = source
+    }
+
+    func isValidObservation() -> Bool {
+        !id.isEmpty && id.count <= 128 &&
+        !rideID.isEmpty && rideID.count <= 128 &&
+        timestampMs > 0 && value.isFinite &&
+        Self.isValid(value, for: kind, source: source)
     }
 
     /// Dictionary representation used by WCSession.transferUserInfo.
