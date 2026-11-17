@@ -16,6 +16,8 @@ struct RootView: View {
         TabView {
             DashboardView(barometer: recorder.barometer, recorder: recorder, watch: watch)
                 .tabItem { Label("Übersicht", systemImage: "speedometer") }
+            RideArchiveView()
+                .tabItem { Label("Touren", systemImage: "bicycle") }
             SensorStatusView(barometer: recorder.barometer)
                 .tabItem { Label("Sensoren", systemImage: "waveform.path.ecg") }
             AboutView()
