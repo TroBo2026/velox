@@ -204,7 +204,7 @@
       ["Ungültiger GPS-Punkt", rejected.invalid]
     ].map((row) => '<div class="vx-pro-audit-row"><span>' + row[0] + '</span><strong>' + row[1] + '</strong></div>').join("");
     return '<div class="vx-pro-cards">' + cards + '</div>' +
-      '<div class="vx-pro-columns"><section class="vx-pro-subpanel"><h4>Tempoverteilung</h4>' + zoneRows +
+      '<div class="vx-pro-columns"><section class="vx-pro-subpanel"><h4>'+(running?"Paceverteilung":"Tempoverteilung")+'</h4>' + zoneRows +
       '</section><section class="vx-pro-subpanel"><h4>Steigungsverteilung</h4>' + gradeRows +
       '<p class="vx-pro-note">Aus GPS-Höhenwerten; ohne echte Höhenmessdaten werden keine Steigungen ergänzt.</p></section></div>' +
       '<section class="vx-pro-subpanel"><div class="vx-pro-heading-row"><h4>' + fmt(splitKm, 0) + '-km-Splits</h4><span>Bewegungszeit je Abschnitt, fortlaufend über die gültige Strecke</span></div>' +
