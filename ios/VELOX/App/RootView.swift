@@ -26,6 +26,9 @@ struct RootView: View {
         .onReceive(watch.$latestSample.compactMap { $0 }) { sample in
             recorder.acceptWatchSample(sample)
         }
+        .onReceive(watch.$latestCommand.compactMap { $0 }) { command in
+            recorder.handleWatchCommand(command)
+        }
     }
 }
 
