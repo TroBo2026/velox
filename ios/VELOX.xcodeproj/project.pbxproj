@@ -25,6 +25,7 @@
   A10000000000000000000018 = {isa = PBXBuildFile; fileRef = B10000000000000000000018; };
   A10000000000000000000019 = {isa = PBXBuildFile; fileRef = B10000000000000000000015; };
   A10000000000000000000020 = {isa = PBXBuildFile; fileRef = B10000000000000000000020; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+  A10000000000000000000021 = {isa = PBXBuildFile; fileRef = B10000000000000000000021; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +49,7 @@
   B10000000000000000000018 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkoutManager.swift; sourceTree = "<group>"; };
   B10000000000000000000019 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
   B10000000000000000000020 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VELOXWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+  B10000000000000000000021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSensorSample.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -56,7 +58,7 @@
   C10000000000000000000003 = {isa = PBXGroup; children = (B10000000000000000000003, B10000000000000000000004, B10000000000000000000005, B10000000000000000000015, ); name = Models; path = VELOX/Models; sourceTree = "<group>"; };
   C10000000000000000000004 = {isa = PBXGroup; children = (B10000000000000000000006, B10000000000000000000007, B10000000000000000000008, B10000000000000000000011, B10000000000000000000012, B10000000000000000000013, B10000000000000000000014, ); name = Services; path = VELOX/Services; sourceTree = "<group>"; };
   C10000000000000000000005 = {isa = PBXGroup; children = (B10000000000000000000010, B10000000000000000000020, ); name = Products; sourceTree = "<group>"; };
-  C10000000000000000000006 = {isa = PBXGroup; children = (B10000000000000000000016, B10000000000000000000017, B10000000000000000000018, B10000000000000000000019, B10000000000000000000015, ); name = VELOXWatch; path = VELOXWatch; sourceTree = "<group>"; };
+  C10000000000000000000006 = {isa = PBXGroup; children = (B10000000000000000000016, B10000000000000000000017, B10000000000000000000018, B10000000000000000000019, B10000000000000000000021, ); name = VELOXWatch; path = VELOXWatch; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -73,7 +75,7 @@
   F10000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000010, A10000000000000000000012, A10000000000000000000013, A10000000000000000000014, A10000000000000000000015, ); runOnlyForDeploymentPostprocessing = 0; };
   F10000000000000000000002 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
   F10000000000000000000003 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-  F10000000000000000000004 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000016, A10000000000000000000017, A10000000000000000000018, A10000000000000000000019, ); runOnlyForDeploymentPostprocessing = 0; };
+  F10000000000000000000004 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000016, A10000000000000000000017, A10000000000000000000018, A10000000000000000000019, A10000000000000000000021, ); runOnlyForDeploymentPostprocessing = 0; };
   F10000000000000000000005 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
   F10000000000000000000006 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
   F10000000000000000000007 = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 16; files = (A10000000000000000000020, ); name = "Embed Watch Content"; runOnlyForDeploymentPostprocessing = 0; };
