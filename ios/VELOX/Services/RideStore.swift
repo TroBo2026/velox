@@ -90,7 +90,7 @@ actor RideStore {
         let existing = try loadAll()
         let result = try RideBackupCodec.importBackup(
             from: data,
-            existingIDs: Set(existing.map(\\.id))
+            existingIDs: Set(existing.map(\.id))
         )
         guard !result.rides.isEmpty else { return result }
         try persist(existing + result.rides)
