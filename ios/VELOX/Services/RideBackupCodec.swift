@@ -64,6 +64,11 @@ enum RideBackupCodec {
                 }
                 ride.id = candidate
                 ride.importedFromId = originalID
+                ride.watchSamples = ride.watchSamples?.map { sourceSample in
+                    var sample = sourceSample
+                    sample.rideID = candidate
+                    return sample
+                }
                 remappedCount += 1
             }
 
@@ -112,6 +117,18 @@ enum RideBackupCodec {
                   point.accuracy?.isFinite ?? true,
                   point.pressureKPa?.isFinite ?? true else {
                 throw BackupError.invalidRide(index: index, reason: "Messwert ist nicht endlich")
+            }
+        }
+
+        let watchSamples = ride.watchSamples ?? []
+        guard Set(watchSamples.map(\.id)).count == watchSamples.count else {
+            throw BackupError.invalidRide(index: index, reason: "Watch-Sample-IDs sind doppelt")
+        }
+        for sample in watchSamples {
+            guard sample.isValidObservation(),
+                  (sample.timestampMs >= Int64(max(0, (ride.startedAt - 10) * 1_000))),
+                  ride.endedAt.map({ Double(sample.timestampMs) <= ($0 + 10) * 1_000 }) ?? true else {
+                throw BackupError.invalidRide(index: index, reason: "Watch-Messwert ist ungültig oder liegt außerhalb der Tour")
             }
         }
 
