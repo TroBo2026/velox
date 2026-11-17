@@ -127,6 +127,19 @@ final class RideRecorder: NSObject, ObservableObject {
         lastAcceptedLocation = nil
     }
 
+    /// Applies a Watch control only when it references the currently active ride.
+    func handleWatchCommand(_ command: WatchRideCommand) {
+        guard currentRide?.id == command.rideID else { return }
+        switch command.action {
+        case .pause:
+            if state == .recording { pause() }
+        case .resume:
+            if state == .paused { resume() }
+        case .stop:
+            if state == .recording || state == .paused { stop() }
+        }
+    }
+
     /// Persists a real Watch observation to its exact tour ID. Delayed Watch
     /// deliveries can still be attached after the ride has ended.
     func acceptWatchSample(_ sample: WatchSensorSample) {
