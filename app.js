@@ -9,7 +9,7 @@
   const DB_NAME = "velox-local";
   const DB_VERSION = 1;
   const STORE = "rides";
-  const APP_VERSION = "0.11.0";
+  const APP_VERSION = "0.12.0";
   const Core = window.VELOXCore;
   const Charts = window.VELOXCharts;
   const $ = (id) => document.getElementById(id);
@@ -223,14 +223,19 @@
     const terrain={uphill:0,flat:0,downhill:0},speed=[0,0,0];
     entries.forEach(({calc})=>{(calc.gradeDistribution||[]).forEach(x=>terrain[x.key]+=x.distanceM);(calc.speedZones||[]).forEach((x,i)=>speed[i]+=x.seconds);});
     const terrainTotal=terrain.uphill+terrain.flat+terrain.downhill,movingHours=totals.movingSeconds/3600;
-    const avgSpeed=movingHours?totals.distanceM/totals.movingSeconds*3.6:0,speedTotal=speed.reduce((sum,x)=>sum+x,0);
-    const avgSpeedLabel=movingHours?fmt(avgSpeed)+" km/h":"–";
+    const cyclingEntries=entries.filter(x=>!isRunning(x.ride)),runningEntries=entries.filter(x=>isRunning(x.ride));
+    const avgFor=list=>{const seconds=list.reduce((sum,x)=>sum+x.calc.movingSeconds,0),distance=list.reduce((sum,x)=>sum+x.calc.distanceM,0);return seconds?distance/seconds*3.6:0;};
+    const cyclingAvg=avgFor(cyclingEntries),runningAvg=avgFor(runningEntries),speedTotal=speed.reduce((sum,x)=>sum+x,0);
+    const avgSpeedLabel=cyclingAvg?fmt(cyclingAvg)+" km/h":"–",avgPaceLabel=runningAvg?formatPace(runningAvg)+" min/km":"–";
+    const avgLabels=[cyclingEntries.length?"Rad Ø "+avgSpeedLabel:null,runningEntries.length?"Lauf Ø "+avgPaceLabel:null].filter(Boolean).join(" · ")||"Noch keine Bewegungsdaten";
     const vamEntries=entries.filter(x=>x.calc.gradeSamples>0&&x.calc.movingSeconds>0);
     const vamMovingSeconds=vamEntries.reduce((sum,x)=>sum+x.calc.movingSeconds,0);
     const vamGain=vamEntries.reduce((sum,x)=>sum+x.calc.elevationGain,0);
     const pick=(get,valid=()=>true)=>entries.filter(x=>valid(x.calc)).reduce((best,x)=>!best||get(x.calc)>get(best.calc)?x:best,null);
     const longest=pick(c=>c.distanceM,c=>c.distanceM>0),mostClimb=pick(c=>c.elevationGain,c=>c.elevationProfile.validCount>=2);
-    const fastestAvg=pick(c=>c.averageSpeed,c=>c.movingSeconds>0),topSpeed=pick(c=>c.maxSpeed,c=>c.maxSpeed>0);
+    const fastestAvg=cyclingEntries.filter(x=>x.calc.movingSeconds>0).reduce((best,x)=>!best||x.calc.averageSpeed>best.calc.averageSpeed?x:best,null);
+    const fastestRunAvg=runningEntries.filter(x=>x.calc.movingSeconds>0).reduce((best,x)=>!best||x.calc.averageSpeed>best.calc.averageSpeed?x:best,null);
+    const topSpeed=pick(c=>c.maxSpeed,c=>c.maxSpeed>0);
     const longestTime=pick(c=>c.movingSeconds,c=>c.movingSeconds>0),highPoint=pick(c=>c.elevationMax,c=>c.elevationMax!==null);
     const bestVam=pick(c=>c.vam,c=>c.movingSeconds>0&&c.elevationGain>0);
     const climb=entries.filter(x=>x.calc.longestClimb).reduce((best,x)=>!best||x.calc.longestClimb.distanceM>best.calc.longestClimb.distanceM?x:best,null);
@@ -239,7 +244,8 @@
       wrappedRecord("Längste Aktivität",longest,fmt((longest?.calc.distanceM||0)/1000,2)+" km"),
       wrappedRecord("Meiste Höhenmeter auf einer Tour",mostClimb,"+"+Math.round(mostClimb?.calc.elevationGain||0)+" m"),
       wrappedRecord("Längster zusammenhängender Anstieg",climb,climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m · "+fmt(climb.calc.longestClimb.averageGrade)+" %":""),
-      wrappedRecord("Höchste Durchschnittsgeschwindigkeit",fastestAvg,fmt(fastestAvg?.calc.averageSpeed||0)+" km/h"),
+      wrappedRecord("Höchste Ø-Radfahrgeschwindigkeit",fastestAvg,fastestAvg?fmt(fastestAvg.calc.averageSpeed)+" km/h":""),
+      wrappedRecord("Schnellste Ø-Laufpace",fastestRunAvg,fastestRunAvg?formatPace(fastestRunAvg.calc.averageSpeed)+" min/km":""),
       wrappedRecord("Höchstes GPS-Tempo",topSpeed,fmt(topSpeed?.calc.maxSpeed||0)+" km/h"),
       wrappedRecord("Längste Bewegungszeit",longestTime,fmtTime(longestTime?.calc.movingSeconds||0)),
       wrappedRecord("Höchster aufgezeichneter Punkt",highPoint,highPoint?Math.round(highPoint.calc.elevationMax)+" m":""),
@@ -253,10 +259,10 @@
     ].join(""):'<p class="small-note">Keine auswertbaren GPS-Höhenabschnitte.</p>';
     const speedBars='<p class="small-note">Tempozonen werden in den einzelnen Aktivitäten sportartspezifisch ausgewertet. Im gemischten Gesamtarchiv werden deshalb keine unterschiedlichen Pace- und Geschwindigkeitsgrenzen zusammengerechnet.</p>';
     host.innerHTML='<section class="wrapped-hero"><span class="eyebrow">DEIN VELOX WRAPPED</span><h2>Deine Kilometer. Deine Höhenmeter. Deine Geschichte.</h2>'+
-      '<p>Aus <strong>'+entries.length+' gespeicherten Touren</strong> ergibt sich dein persönlicher VELOX-Rückblick: <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> ausgewertete Strecke, <strong>'+fmtTime(totals.movingSeconds)+'</strong> erkannte Bewegungszeit und <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' m</strong> kumulierter GPS-Höhengewinn. Dein durchschnittliches Tempo während gültiger Bewegungsintervalle lag bei <strong>'+avgSpeedLabel+'</strong>.</p>'+
+      '<p>Aus <strong>'+entries.length+' gespeicherten Aktivitäten</strong> ergibt sich dein persönlicher VELOX-Rückblick: <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> ausgewertete Strecke, <strong>'+fmtTime(totals.movingSeconds)+'</strong> erkannte Bewegungszeit und <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' m</strong> kumulierter GPS-Höhengewinn. Die sportartspezifischen Durchschnittswerte: <strong>'+avgLabels+'</strong>.</p>'+
       '<div class="wrapped-story-grid"><div><span>Deine längste Tour</span><strong>'+(longest?fmt(longest.calc.distanceM/1000,2)+" km":"Noch keine auswertbare Strecke")+'</strong></div><div><span>Dein schnellster voller Kilometer</span><strong>'+(fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):"Noch nicht ermittelt")+'</strong></div><div><span>Dein längster Anstieg</span><strong>'+(climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m":"Noch kein zusammenhängender Anstieg")+'</strong></div></div>'+
       '<p class="wrapped-hero-note">Jede Zahl entsteht neu aus deinem lokalen Tourenarchiv. Tempo und Distanz nutzen akzeptierte GPS-Abschnitte; fehlende oder unplausible Messpunkte werden nicht künstlich ergänzt.</p></section>'+
-      '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Aktivitäten",String(entries.length))+metric("Ø Streckenlänge",fmt(totals.distanceM/1000/entries.length)+" km")+metric("Höhengewinn je Bewegungsstunde",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Geschwindigkeit",avgSpeedLabel)+'</div>'+
+      '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Aktivitäten",String(entries.length))+metric("Ø Streckenlänge",fmt(totals.distanceM/1000/entries.length)+" km")+metric("Höhengewinn je Bewegungsstunde",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Radfahrgeschwindigkeit",avgSpeedLabel)+metric("Ø Laufpace",avgPaceLabel)+'</div>'+
       '<section class="panel wrapped-panel"><span class="eyebrow">DEINE BESTLEISTUNGEN</span><h3>Persönliche Rekorde</h3><div class="wrapped-record-grid">'+(records||'<p class="small-note">Noch keine Rekorde berechenbar.</p>')+'</div></section>'+
       '<section class="panel wrapped-panel"><span class="eyebrow">DEIN FAHRPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="wrapped-context">'+(terrainTotal?fmt(terrainTotal/1000,2)+' km auswertbare Steigungsabschnitte bilden die Grundlage dieser Verteilung.':'Für diese Verteilung liegen keine ausreichend verlässlichen Höhenabschnitte vor.')+'</p><h3>Tempo-Zonen</h3>'+speedBars+'<p class="wrapped-context">'+(speedTotal?fmtTime(speedTotal)+' erkannte Bewegungszeit bilden die Grundlage der Tempoanteile.':'Für die Tempoverteilung liegen keine gültigen Bewegungsintervalle vor.')+'</p><p class="wrapped-context">„Höhengewinn je Fahrstunde“ teilt den gesamten Aufstieg durch die Bewegungszeit (kein klassisches VAM, das nur Anstiege zählt) und nutzt nur Touren mit auswertbaren Steigungsdaten.</p></section>'+
       '<p class="wrapped-refresh-note">Dein Rückblick wird beim Öffnen und nach jeder gespeicherten oder importierten Tour frisch aus dem lokalen Archiv berechnet.</p>';
@@ -685,16 +691,20 @@
   }
   function syncTrackStartButton(){
     const button=$("trackStartRide"),picker=$("activityModePicker");
+    const running=activeRide?isRunning(activeRide):selectedActivityType==="running";
     if(button){
       button.hidden=!!activeRide;
-      const running=selectedActivityType==="running";
       const label=button.querySelector("[data-start-label]");
       if(label)label.textContent=running?"Lauf starten":"Fahrt starten";
     }
     if(picker)picker.hidden=!!activeRide;
+    const title=$("trackPageTitle"),eyebrow=$("trackPageEyebrow"),intro=$("trackModeDescription");
+    if(title)title.textContent=running?"Dein Lauf":"Deine Fahrt";
+    if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
+    if(intro)intro.textContent=running?"GPS-Lauftracking mit Pace, Laufzeit und Höhenprofil.":"GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.";
     const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");
-    if(runButton){runButton.classList.toggle("selected",selectedActivityType==="running");runButton.setAttribute("aria-pressed",String(selectedActivityType==="running"));}
-    if(bikeButton){bikeButton.classList.toggle("selected",selectedActivityType==="cycling");bikeButton.setAttribute("aria-pressed",String(selectedActivityType==="cycling"));}
+    if(runButton){runButton.classList.toggle("selected",running);runButton.setAttribute("aria-pressed",String(running));}
+    if(bikeButton){bikeButton.classList.toggle("selected",!running);bikeButton.setAttribute("aria-pressed",String(!running));}
   }
   async function pauseRide(){
     if(!activeRide)return;
@@ -765,8 +775,8 @@
   }
   async function collectRideWeather(ride){
     const first=await openSheet({
-      title:"Wetter zur Tour",
-      body:'<p>Soll VELOX das Wetter automatisch ermitteln? Dafür sendet die App das Fahrtdatum und eine ungefähre GPS-Position dieser Fahrt an den kostenlosen Dienst Open-Meteo. Alternativ kannst du Wetter und Temperatur selbst eintragen.</p>',
+      title:"Wetter zur Aktivität",
+      body:'<p>Soll VELOX das Wetter automatisch ermitteln? Dafür sendet die App das Aktivitätsdatum und eine ungefähre GPS-Position an den kostenlosen Dienst Open-Meteo. Alternativ kannst du Wetter und Temperatur selbst eintragen.</p>',
       actions:[{id:"auto",label:"Automatisch ermitteln",primary:true},{id:"manual",label:"Selbst eintragen"},{id:"skip",label:"Überspringen",skip:true}]
     });
     if(first.action==="auto"){
@@ -779,8 +789,9 @@
   }
   async function stopRide(){
     if(!activeRide)return;
+    const running=isRunning(activeRide);
     const confirmStop=await openSheet({
-      title:"Tour beenden?",
+      title:running?"Lauf beenden?":"Fahrt beenden?",
       body:'<p>Die Aufzeichnung wird beendet und lokal gespeichert.</p>',
       actions:[{id:"stop",label:"Beenden und speichern",primary:true},{id:"cancel",label:"Weiter fahren",skip:true}]
     });
@@ -797,7 +808,7 @@
     activeRide.status="completed";activeRide.endedAt=Date.now();
     const c=calcRide(activeRide);
     $("stopRide").disabled=true;$("pauseRide").disabled=true;
-    $("trackingStatus").textContent="Tour wird lokal gesichert …";
+    $("trackingStatus").textContent="Aktivität wird lokal gesichert …";
     try{
       await persistActiveRide();
       $("trackingStatus").textContent="Wetter wird ergänzt …";
@@ -811,7 +822,7 @@
     activeRide=null;calcCache.clear();
     liveMetricsCache=null;liveMetricsRideId=null;syncTrackStartButton();
     $("trackingStatus").textContent="Tour gespeichert";$("trackingDot").style.background="var(--teal)";
-    showToast(c.distanceM>0?"Tour lokal gespeichert.":"Tour ohne ausreichende GPS-Daten gespeichert.");
+    showToast(c.distanceM>0?"Aktivität lokal gespeichert.":"Aktivität ohne ausreichende GPS-Daten gespeichert.");
     await refresh();setPage("rides");
   }
 
@@ -820,6 +831,7 @@
     const r=(await allRides()).find(x=>x.id===id);if(!r)return;
     lastDetailRide=r;
     const c=calcRide(r),stops=c.stops,date=new Date(r.startedAt).toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),startTime=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),endTime=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"–",weather=r.weather||null;
+    const running=isRunning(r);
     detailRows=c.elevationProfile.samples.map(s=>({x:s.distanceM,y:s.elevationM,segment:s.segment,lat:s.lat,lon:s.lon}));
     const elevationCards=
       metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+
@@ -844,7 +856,6 @@
       metric(running?"Schnellster Kilometer":"Schnellster voller Kilometer",c.fastestKilometerSeconds===null?"–":fmtTime(c.fastestKilometerSeconds))+
       metric("Erkannte Stopps",stops.count===null?"–":String(stops.count))+
       metric("Längster Stopp",stops.longestSeconds===null?"–":fmtTime(stops.longestSeconds));
-    const running=isRunning(r);
     const speedCards=running
       ?metric("Ø Pace",c.movingSeconds?formatPace(c.averageSpeed)+" min/km":"–")+
        metric("Schnellste Pace",c.movingSeconds?formatPace(c.maxSpeed)+" min/km":"–")+
@@ -980,8 +991,8 @@
       '<div class="vx-plot" id="speedPlot"></div>'+
       '<div class="elevation-legend"><span>'+(running?"Schneller":"Langsamer")+'</span><i aria-hidden="true"></i><span>'+(running?"Langsamer":"Schneller")+'</span><span class="legend-context">Farbe relativ zu dieser Aktivität</span></div>'+
       '<p class="elevation-footnote">'+c.intervals.length+' gültige GPS-Bewegungsintervalle'+(gaps>0?', '+gaps+' GPS-Lücke(n) werden nicht überbrückt':'')+'. Die Kurve zeigt den Median über 5 Intervalle; einzelne GPS-Ausreißer werden dadurch gedämpft.</p>';
-    const yMin=running?Math.max(0,Math.floor(lo/30)*30):0;
-    const yMax=running?Math.ceil(hi/30)*30:undefined;
+    const yMin=running?Math.max(0,Math.floor((lo-30)/30)*30):0;
+    const yMax=running?Math.max(yMin+60,Math.ceil((hi+30)/30)*30):undefined;
     Charts.profileChart($("speedPlot"),{
       rows,xMax:Math.max(1,c.elevationProfile.distanceM||rows[rows.length-1].x),yTitle:running?"min/km":"km/h",unit:running?"min/km":"km/h",height:180,
       ...(running?{yMin,yMax,yFormat:v=>formatPaceSeconds(v)}:{yMin:0,snapMin:true,minPad:2}),
@@ -1101,6 +1112,7 @@
     dopplerSeen=(unfinished.points||[]).some(p=>p&&Number.isFinite(p.speed)&&p.speed>=1);
     unfinished.pauseIntervals.push({startedAt:now,endedAt:null});
     activeRide=unfinished;
+    selectedActivityType=isRunning(unfinished)?"running":"cycling";
     await persistActiveRide();syncTrackStartButton();
     $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Fortsetzen";
     $("trackingStatus").textContent="Unterbrochene Tour wiederhergestellt · pausiert";$("trackingDot").style.background="#d9b879";
