@@ -108,3 +108,36 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         }
     }
 }
+
+
+/// A user-initiated Watch control action for the active iPhone ride.
+struct WatchRideCommand: Equatable {
+    enum Action: String {
+        case pause
+        case resume
+        case stop
+    }
+
+    let id: String
+    let rideID: String
+    let action: Action
+    let timestampMs: Int64
+
+    init?(payload: [String: Any]) {
+        guard
+            (payload["schemaVersion"] as? Int) == 1,
+            (payload["messageType"] as? String) == "rideCommand",
+            let id = payload["id"] as? String, !id.isEmpty, id.count <= 128,
+            let rideID = payload["rideID"] as? String, !rideID.isEmpty, rideID.count <= 128,
+            let actionRaw = payload["action"] as? String,
+            let action = Action(rawValue: actionRaw),
+            let timestamp = payload["timestampMs"] as? NSNumber
+        else { return nil }
+        let milliseconds = timestamp.int64Value
+        guard milliseconds > 0 else { return nil }
+        self.id = id
+        self.rideID = rideID
+        self.action = action
+        self.timestampMs = milliseconds
+    }
+}
