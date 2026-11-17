@@ -102,3 +102,53 @@ Ziel bleibt 0 €. Xcode und die lokalen Apple-Frameworks sind kostenlos. App-St
 ## Navigation und Impressum
 
 Die PWA-Wrapped-Seite hat nun einen direkten Zurück-Button zu „Mehr“, der die vorhandene zentrale Navigation nutzt. Im unteren Bereich von „Mehr“ wurde ein Impressum-Platzhalter ergänzt. Die native „Mehr“-Ansicht enthält ebenfalls einen Impressum-Abschnitt. Private Anbieter-Kontaktdaten sind in dieser öffentlichen Entwicklungsfassung bewusst nicht eingetragen; sie müssen vor Veröffentlichung rechtlich und mit Zustimmung eines Erziehungsberechtigten geprüft werden.
+
+
+## Native-App- und Apple-Watch-Vorbereitung (17. November 2026)
+
+### Ergebnis der Codeprüfung
+
+- Das vorhandene **VELOX.xcodeproj** ist ein natives SwiftUI-iOS-Projekt und keine WebView-Hülle.
+- Das Projekt besitzt derzeit **nur ein iOS-Target**. Ein watchOS-App-Target, Watch-Oberfläche, HealthKit-Capabilities und echte Watch-Sensorerfassung sind weiterhin nicht vorhanden.
+- **WatchConnectivityService** läuft auf dem iPhone und unterstützt den Empfang von unmittelbaren Nachrichten sowie zuverlässigen **transferUserInfo**-Übertragungen.
+- **WatchSensorSample** definiert ein versioniertes, timestamp-pflichtiges Datenformat. Unbekannte Sensortypen, fehlende Zeitstempel, nicht endliche Werte, unplausible Wertebereiche und unpassende Sensorquellen werden abgewiesen.
+- Watch-Proben werden über ihre **rideID** der richtigen Tour zugeordnet. Die lokale Ablage sortiert nach Originalzeitstempel und ignoriert doppelte Sample-IDs. Verspätet eintreffende Proben können noch an eine bereits beendete Tour angehängt werden.
+- Das neue Feld **watchSamples** ist optional. Bestehende Ride-Datensätze ohne dieses Feld bleiben damit weiterhin decodierbar; die bisherigen GPS- und Barometerfelder werden nicht ersetzt.
+
+### Vorgesehene Watch-Sensorkanäle
+
+| Messwert | Geplante Apple-Technologie | Hinweis |
+|---|---|---|
+| Herzfrequenz | HealthKit Workout / HKLiveWorkoutBuilder | Nur mit ausdrücklicher Berechtigung |
+| Aktive Energie | HealthKit | Watch-Schätzung, nicht als exakte Labormessung behandeln |
+| Trittfrequenz | HealthKit, sofern für das Training verfügbar | Fehlende Werte bleiben leer |
+| Geschwindigkeit / Distanz | HealthKit und/oder Core Location | Zeitstempel und Quelle werden gespeichert |
+| Relative Höhenänderung | Core Motion CMAltimeter | Kein automatischer Ersatz für absolute Meereshöhe |
+| Schritte | HealthKit | Ergänzender Kontext, bei Radfahrten nicht immer relevant |
+
+Rohdaten des Beschleunigungssensors und Gyroskops werden nicht standardmäßig dauerhaft gesammelt. Das wäre für eine Tourenaufzeichnung unnötig datenintensiv und könnte Akku sowie Datenschutz belasten. Falls später ein konkreter Analysezweck entsteht, sollte eine optionale, sparsame Erfassung separat begründet und getestet werden.
+
+### Noch nicht implementiert / nicht behaupten
+
+- Es existiert noch kein Watch-App-Target, das diese Proben tatsächlich erzeugt und überträgt.
+- HealthKit-Berechtigungsdialoge, Workout-Session-Lifecycle, Watch-Hintergrundmodus und Watch-seitige Core-Motion-Erfassung fehlen noch.
+- Es wurde kein echtes iPhone oder keine echte Apple Watch gekoppelt oder getestet.
+- Die neue Transport- und Speicherschicht ist eine vorbereitete Schnittstelle, keine bereits funktionierende Ende-zu-Ende-Watch-Integration.
+
+### Nächste native Entwicklungsschritte
+
+1. Eigenständiges watchOS-Target im vorhandenen Xcode-Projekt ergänzen und Bundle-/Companion-IDs sauber konfigurieren.
+2. Watch-Workout mit HealthKit starten, pausieren, fortsetzen und beenden; Berechtigungen einzeln und verständlich anfragen.
+3. Watch-Sensorproben mit WatchSensorSample.transferPayload über transferUserInfo zuverlässig übertragen; Live-Nachrichten nur für aktuelle Anzeige verwenden.
+4. Watch- und iPhone-Tourstatus über rideID synchron halten und Konflikte bei Start/Stop auf beiden Geräten verhindern.
+5. Herzfrequenz, Geschwindigkeit, Trittfrequenz und Höhe in der Analyse zeitlich ausrichten. Keine Werte interpolieren oder ergänzen, wenn Messungen fehlen.
+6. Erst nach Simulator-Build, Tests und einem echten gekoppelten Gerätetest die Watch-Funktion als verfügbar markieren.
+
+### Allgemeine native App-Verbesserungen
+
+- Als nächstes sollten RideStore-Persistenz, JSON-v1-Kompatibilität und Import-/Export-Rundläufe mit XCTest abgedeckt werden.
+- Danach folgen native Tourenliste und Detailansicht, Fehler-/Berechtigungszustände, Barrierefreiheit, App-Lifecycle und ein expliziter Offline-Test.
+- Hintergrundaufzeichnung auf dem iPhone wird nicht einfach pauschal aktiviert. Für die Watch ist ein korrekt gestarteter HealthKit-Workout-Lifecycle vorgesehen; dessen Hintergrundverarbeitung folgt Apples Workout-Regeln.
+- PWA und bestehende Tourendaten bleiben unangetastet, bis die native Migration mit echten Testdaten nachweislich sicher ist.
+
+Die CI enthält nun zusätzlich einen eigenständigen Swift-Prüflauf für das Watch-Datenformat. Der Lauf muss auf dem aktuellen Commit noch vollständig durchlaufen; ein erfolgreicher Xcode-Build allein beweist keine Watch-Hardwarefunktion.
