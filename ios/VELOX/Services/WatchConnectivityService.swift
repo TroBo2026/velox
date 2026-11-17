@@ -11,18 +11,20 @@ final class WatchConnectivityService: NSObject, ObservableObject {
     @Published private(set) var isWatchAppInstalled = false
     @Published private(set) var isReachable = false
     @Published private(set) var latestSample: WatchSensorSample?
+    @Published private(set) var latestSamples: [WatchSensorSample.Kind: WatchSensorSample] = [:]
+    @Published private(set) var latestCommand: WatchRideCommand?
     @Published private(set) var statusMessage = "Apple Watch wird geprüft."
 
     var latestHeartRateBPM: Double? {
-        guard latestSample?.kind == .heartRateBPM else { return nil }
-        return latestSample?.value
+        latestSamples[.heartRateBPM]?.value
     }
 
     var lastHeartRateDate: Date? {
-        guard let sample = latestSample, sample.kind == .heartRateBPM else { return nil }
+        guard let sample = latestSamples[.heartRateBPM] else { return nil }
         return Date(timeIntervalSince1970: Double(sample.timestampMs) / 1_000)
     }
 
+    private var handledCommandIDs = Set<String>()
     private let session: WCSession? = WCSession.isSupported() ? WCSession.default : nil
 
     override init() {
@@ -75,9 +77,21 @@ final class WatchConnectivityService: NSObject, ObservableObject {
     }
 
     private func accept(payload: [String: Any]) {
+        if let command = WatchRideCommand(payload: payload) {
+            guard handledCommandIDs.insert(command.id).inserted else { return }
+            if handledCommandIDs.count > 256 {
+                handledCommandIDs.removeAll(keepingCapacity: true)
+                handledCommandIDs.insert(command.id)
+            }
+            DispatchQueue.main.async {
+                self.latestCommand = command
+            }
+            return
+        }
         guard let sample = WatchSensorSample(payload: payload) else { return }
         DispatchQueue.main.async {
             self.latestSample = sample
+            self.latestSamples[sample.kind] = sample
         }
     }
 }
