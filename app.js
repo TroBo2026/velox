@@ -198,7 +198,7 @@
   function wrappedDate(ride){return new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"long",year:"numeric"});}
   function wrappedRecord(label,entry,value){
     if(!entry)return "";
-    return '<article class="wrapped-record"><span>'+label+'</span><strong>'+value+'</strong><small>'+escapeHtml(entry.ride.name||"Fahrradtour")+'</small><small>'+wrappedDate(entry.ride)+'</small></article>';
+    return '<article class="wrapped-record"><span>'+label+'</span><strong>'+value+'</strong><small>'+escapeHtml(entry.ride.name||(isRunning(entry.ride)?"Laufrunde":"Fahrradtour"))+'</small><small>'+wrappedDate(entry.ride)+'</small></article>';
   }
   function wrappedBar(label,percent,value,key){
     const width=Math.max(0,Math.min(100,Number(percent)||0));
@@ -267,7 +267,7 @@
       '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Aktivitäten",String(entries.length))+metric("Ø Streckenlänge",fmt(totals.distanceM/1000/entries.length)+" km")+metric("Höhengewinn je Bewegungsstunde",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Radfahrgeschwindigkeit",avgSpeedLabel)+metric("Ø Laufpace",avgPaceLabel)+'</div>'+
       '<section class="panel wrapped-panel"><span class="eyebrow">DEINE BESTLEISTUNGEN</span><h3>Persönliche Rekorde</h3><div class="wrapped-record-grid">'+(records||'<p class="small-note">Noch keine Rekorde berechenbar.</p>')+'</div></section>'+
       '<section class="panel wrapped-panel"><span class="eyebrow">DEIN BEWEGUNGSPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="wrapped-context">'+(terrainTotal?fmt(terrainTotal/1000,2)+' km auswertbare Steigungsabschnitte bilden die Grundlage dieser Verteilung.':'Für diese Verteilung liegen keine ausreichend verlässlichen Höhenabschnitte vor.')+'</p><h3>Tempo-Zonen</h3>'+speedBars+'<p class="wrapped-context">'+(speedTotal?fmtTime(speedTotal)+' erkannte Bewegungszeit bilden die Grundlage der Tempoanteile.':'Für die Tempoverteilung liegen keine gültigen Bewegungsintervalle vor.')+'</p><p class="wrapped-context">„Höhengewinn je Bewegungsstunde“ teilt den gesamten Aufstieg durch die Bewegungszeit (kein klassisches VAM, das nur Anstiege zählt) und nutzt nur Aktivitäten mit auswertbaren Steigungsdaten.</p></section>'+
-      '<p class="wrapped-refresh-note">Dein Rückblick wird beim Öffnen und nach jeder gespeicherten oder importierten Tour frisch aus dem lokalen Archiv berechnet.</p>';
+      '<p class="wrapped-refresh-note">Dein Rückblick wird beim Öffnen und nach jeder gespeicherten oder importierten Aktivität frisch aus dem lokalen Archiv berechnet.</p>';
   }
 
   /* ---------- Navigation, Karten ---------- */
@@ -441,7 +441,7 @@
   }
   function renderRideComparison(rides){
     const host=$("rideComparison");if(!host)return;
-    if(rides.length<2){host.innerHTML='<p class="small-note">Mindestens zwei gespeicherte Aktivitäten erforderlich. Deine Fahrten bleiben lokal auf diesem Gerät.</p>';return;}
+    if(rides.length<2){host.innerHTML='<p class="small-note">Mindestens zwei gespeicherte Aktivitäten erforderlich. Deine Aktivitäten bleiben lokal auf diesem Gerät.</p>';return;}
     const columns=rides.map(ride=>({ride,calc:calcRide(ride)}));
     const rows=[
       ["Distanz",c=>fmt(c.distanceM/1000)+" km"],
@@ -468,7 +468,7 @@
     host.innerHTML=rides.map(ride=>{
       const id=String(ride.id),checked=personalVisibility.get(id)!==false,color=mapColors[personalRidesCache.indexOf(ride)%mapColors.length];
       const date=new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"});
-      return '<label class="map-ride-toggle"><input type="checkbox" data-map-ride="'+escapeHtml(id)+'" '+(checked?'checked':'')+'><span class="map-ride-swatch" style="--ride-color:'+color+'"></span><span class="map-ride-name">'+escapeHtml(ride.name||"Fahrradtour")+'</span><small>'+date+'</small></label>';
+      return '<label class="map-ride-toggle"><input type="checkbox" data-map-ride="'+escapeHtml(id)+'" '+(checked?'checked':'')+'><span class="map-ride-swatch" style="--ride-color:'+color+'"></span><span class="map-ride-name">'+escapeHtml(ride.name||(isRunning(ride)?"Laufrunde":"Fahrradtour"))+'</span><small>'+date+'</small></label>';
     }).join("");
     host.querySelectorAll("[data-map-ride]").forEach(input=>input.addEventListener("change",()=>{
       personalVisibility.set(input.dataset.mapRide,input.checked);
@@ -900,9 +900,9 @@
       try{await dbRequest("readwrite","put",{...r,name});calcCache.clear();showToast("Name gespeichert.");await openDetail(id);}catch(error){console.error(error);showToast("Umbenennen fehlgeschlagen.");}
     };
     $("deleteRide").onclick=async()=>{
-      const result=await openSheet({title:"Aktivität löschen?",body:'<p>Diese Tour wird dauerhaft von diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.</p>',actions:[{id:"delete",label:"Endgültig löschen",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
+      const result=await openSheet({title:"Aktivität löschen?",body:'<p>Diese Aktivität wird dauerhaft von diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.</p>',actions:[{id:"delete",label:"Endgültig löschen",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
       if(result.action!=="delete")return;
-      await dbRequest("readwrite","delete",r.id);calcCache.clear();showToast("Tour gelöscht.");setPage("rides");
+      await dbRequest("readwrite","delete",r.id);calcCache.clear();showToast("Aktivität gelöscht.");setPage("rides");
     };
   }
   const nearRow=(rows,x,tolerance)=>{
@@ -1011,7 +1011,7 @@
     if(!segments.length){showToast("Keine gültigen GPS-Punkte zum Export vorhanden.");return;}
     const esc=s=>String(s).replace(/[<>&'"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c]));
     const trk=segments.map(segment=>'<trkseg>'+segment.map(p=>'<trkpt lat="'+p.lat+'" lon="'+p.lon+'">'+(Number.isFinite(p.alt)?'<ele>'+p.alt+'</ele>':'')+'<time>'+new Date(p.t).toISOString()+'</time></trkpt>').join("")+'</trkseg>').join("");
-    downloadFile("velox-"+r.id+".gpx",'<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="VELOX" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>'+esc(r.name||"VELOX Tour")+'</name>'+trk+'</trk></gpx>',"application/gpx+xml");
+    downloadFile("velox-"+r.id+".gpx",'<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="VELOX" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>'+esc(r.name||"VELOX Aktivität")+'</name>'+trk+'</trk></gpx>',"application/gpx+xml");
   }
   function downloadFile(name,content,type){
     const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -1055,9 +1055,9 @@
       await dbAddMany(imported);
       calcCache.clear();
       await refresh();
-      const parts=[imported.length+" Tour(en) hinzugefügt."];
+      const parts=[imported.length+" Aktivität(en) hinzugefügt."];
       if(remapped)parts.push(remapped+" doppelte ID(s) angepasst");
-      if(skipped)parts.push(skipped+" ungültige Tour(en) übersprungen");
+      if(skipped)parts.push(skipped+" ungültige Aktivitäten übersprungen");
       showToast(parts.join(" "));
     }catch(e){
       console.error(e);showToast("Import fehlgeschlagen. Vorhandene Touren wurden nicht überschrieben.");
@@ -1091,7 +1091,7 @@
   $("importBackup").addEventListener("click",()=>$("backupFile").click());
   $("backupFile").addEventListener("change",e=>{if(e.target.files[0])importBackup(e.target.files[0]);e.target.value="";});
   $("deleteAll").addEventListener("click",async()=>{
-    const result=await openSheet({title:"Alle Touren löschen?",body:'<p>Alle lokal gespeicherten VELOX-Touren werden unwiderruflich von diesem Gerät entfernt. Erstelle vorher eine Sicherung, wenn du die Daten behalten möchtest.</p>',actions:[{id:"delete",label:"Alles löschen",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
+    const result=await openSheet({title:"Alle Aktivitäten löschen?",body:'<p>Alle lokal gespeicherten VELOX-Aktivitäten werden unwiderruflich von diesem Gerät entfernt. Erstelle vorher eine Sicherung, wenn du die Daten behalten möchtest.</p>',actions:[{id:"delete",label:"Alles löschen",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
     if(result.action!=="delete")return;
     await dbRequest("readwrite","clear");calcCache.clear();await refresh();showToast("Alle lokalen Tourdaten gelöscht.");
   });
@@ -1117,13 +1117,13 @@
     selectedActivityType=isRunning(unfinished)?"running":"cycling";
     await persistActiveRide();syncTrackStartButton();
     $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Fortsetzen";
-    $("trackingStatus").textContent="Unterbrochene Tour wiederhergestellt · pausiert";$("trackingDot").style.background="#d9b879";
+    $("trackingStatus").textContent="Unterbrochene Aktivität wiederhergestellt · pausiert";$("trackingDot").style.background="#d9b879";
     setPage("track");drawLive(activeRide.points,true);updateLive(true);
-    showToast("Eine nicht abgeschlossene Tour wurde wiederhergestellt.");
+    showToast("Eine nicht abgeschlossene Aktivität wurde wiederhergestellt.");
   }
   function setStorageStatus(ok){
     const el=$("storageStatus");if(!el)return;
-    el.textContent=ok===true?"Dauerhafter Speicher: aktiv – der Browser räumt deine Touren nicht von selbst auf."
+    el.textContent=ok===true?"Dauerhafter Speicher: aktiv – der Browser räumt deine Aktivitäten nicht von selbst auf."
       :ok===false?"Dauerhafter Speicher: vom Browser nicht zugesagt. Bitte regelmäßig eine Sicherung exportieren."
       :"Dauerhafter Speicher: wird von diesem Browser nicht unterstützt. Bitte regelmäßig eine Sicherung exportieren.";
   }
