@@ -127,6 +127,31 @@ final class RideRecorder: NSObject, ObservableObject {
         lastAcceptedLocation = nil
     }
 
+    /// Persists a real Watch observation to its exact tour ID. Delayed Watch
+    /// deliveries can still be attached after the ride has ended.
+    func acceptWatchSample(_ sample: WatchSensorSample) {
+        let previousWrite = persistenceTask
+        persistenceTask = Task { [weak self] in
+            await previousWrite?.value
+            guard let self else { return }
+            do {
+                try await store.appendWatchSample(sample)
+                if var ride = currentRide, ride.id == sample.rideID {
+                    var samples = ride.watchSamples ?? []
+                    if !samples.contains(where: { $0.id == sample.id }) {
+                        samples.append(sample)
+                        samples.sort { $0.timestampMs < $1.timestampMs }
+                        ride.watchSamples = samples
+                        currentRide = ride
+                    }
+                }
+                persistenceError = nil
+            } catch {
+                persistenceError = "Watch-Messwert konnte nicht gespeichert werden: \(error.localizedDescription)"
+            }
+        }
+    }
+
     private func beginNewRide() {
         let now = Date().timeIntervalSince1970
         let ride = Ride(
