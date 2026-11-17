@@ -102,6 +102,7 @@ actor RideStore {
     /// Appends a validated Watch sample to the exact ride. Duplicate sample IDs are ignored.
     /// Delayed Watch deliveries can therefore be attached after a ride has ended.
     func appendWatchSample(_ sample: WatchSensorSample) throws {
+        guard sample.isValidObservation() else { throw StoreError.invalidArchive }
         var rides = try loadAll()
         guard let index = rides.firstIndex(where: { $0.id == sample.rideID }) else {
             throw StoreError.rideNotFound(sample.rideID)
