@@ -10,6 +10,9 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     @Published private(set) var heartRateBPM: Double?
     @Published private(set) var activeEnergyKcal: Double?
     @Published private(set) var distanceMeters: Double?
+    @Published private(set) var cyclingCadenceRPM: Double?
+    @Published private(set) var cyclingPowerWatts: Double?
+    @Published private(set) var cyclingSpeedMetersPerSecond: Double?
     @Published private(set) var relativeAltitudeM: Double?
     @Published private(set) var isRunning = false
     @Published private(set) var isPaused = false
@@ -20,7 +23,6 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     private var workoutSession: HKWorkoutSession?
     private var workoutBuilder: HKLiveWorkoutBuilder?
     private var rideID: String?
-    private var previousDistance: (meters: Double, timestampMs: Int64)?
     private var wcSession: WCSession?
 
     func activateConnectivity() {
@@ -209,7 +211,6 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
             let timestampMs = Int64(interval.end.timeIntervalSince1970 * 1_000)
             distanceMeters = meters
             sendSample(kind: .distanceMeters, value: meters, timestamp: Double(timestampMs), source: .healthKit)
-            previousDistance = (meters, timestampMs)
         }
 
         if let type = HKObjectType.quantityType(forIdentifier: .cyclingCadence),
@@ -218,6 +219,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
            let quantity = statistics.mostRecentQuantity(),
            let interval = statistics.mostRecentQuantityDateInterval() {
             let rpm = quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+            cyclingCadenceRPM = rpm
             sendSample(kind: .cadenceRPM, value: rpm, timestamp: interval.end.timeIntervalSince1970 * 1_000, source: .healthKit)
         }
 
@@ -227,6 +229,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
            let quantity = statistics.mostRecentQuantity(),
            let interval = statistics.mostRecentQuantityDateInterval() {
             let watts = quantity.doubleValue(for: .watt())
+            cyclingPowerWatts = watts
             sendSample(kind: .cyclingPowerWatts, value: watts, timestamp: interval.end.timeIntervalSince1970 * 1_000, source: .healthKit)
         }
 
@@ -236,6 +239,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
            let quantity = statistics.mostRecentQuantity(),
            let interval = statistics.mostRecentQuantityDateInterval() {
             let metersPerSecond = quantity.doubleValue(for: HKUnit.meter().unitDivided(by: .second()))
+            cyclingSpeedMetersPerSecond = metersPerSecond
             sendSample(kind: .speedMetersPerSecond, value: metersPerSecond, timestamp: interval.end.timeIntervalSince1970 * 1_000, source: .healthKit)
         }
     }
