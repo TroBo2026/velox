@@ -217,7 +217,7 @@
   }
   function renderWrapped(rides){
     const host=$("wrappedContent");if(!host)return;
-    if(!rides.length){host.innerHTML='<div class="empty-state">Noch keine gespeicherten Fahrten. Nach deiner ersten Tour erstellt VELOX hier automatisch deinen persönlichen Wrapped-Rückblick.</div>';return;}
+    if(!rides.length){host.innerHTML='<div class="empty-state">Noch keine gespeicherten Aktivitäten. Nach deiner ersten Aktivität erstellt VELOX hier automatisch deinen persönlichen Wrapped-Rückblick.</div>';return;}
     const entries=rides.map(ride=>({ride,calc:calcRide(ride)}));
     const totals=entries.reduce((sum,item)=>({distanceM:sum.distanceM+item.calc.distanceM,movingSeconds:sum.movingSeconds+item.calc.movingSeconds,gain:sum.gain+item.calc.elevationGain,loss:sum.loss+item.calc.elevationLoss}),{distanceM:0,movingSeconds:0,gain:0,loss:0});
     const terrain={uphill:0,flat:0,downhill:0},speed=[0,0,0];
@@ -235,18 +235,20 @@
     const longest=pick(c=>c.distanceM,c=>c.distanceM>0),mostClimb=pick(c=>c.elevationGain,c=>c.elevationProfile.validCount>=2);
     const fastestAvg=cyclingEntries.filter(x=>x.calc.movingSeconds>0).reduce((best,x)=>!best||x.calc.averageSpeed>best.calc.averageSpeed?x:best,null);
     const fastestRunAvg=runningEntries.filter(x=>x.calc.movingSeconds>0).reduce((best,x)=>!best||x.calc.averageSpeed>best.calc.averageSpeed?x:best,null);
-    const topSpeed=pick(c=>c.maxSpeed,c=>c.maxSpeed>0);
+    const topSpeedBike=cyclingEntries.filter(x=>x.calc.maxSpeed>0).reduce((best,x)=>!best||x.calc.maxSpeed>best.calc.maxSpeed?x:best,null);
+    const topSpeedRun=runningEntries.filter(x=>x.calc.maxSpeed>0).reduce((best,x)=>!best||x.calc.maxSpeed>best.calc.maxSpeed?x:best,null);
     const longestTime=pick(c=>c.movingSeconds,c=>c.movingSeconds>0),highPoint=pick(c=>c.elevationMax,c=>c.elevationMax!==null);
     const bestVam=pick(c=>c.vam,c=>c.movingSeconds>0&&c.elevationGain>0);
     const climb=entries.filter(x=>x.calc.longestClimb).reduce((best,x)=>!best||x.calc.longestClimb.distanceM>best.calc.longestClimb.distanceM?x:best,null);
     const fastestKm=entries.filter(x=>x.calc.fastestKilometerSeconds!==null).reduce((best,x)=>!best||x.calc.fastestKilometerSeconds<best.calc.fastestKilometerSeconds?x:best,null);
     const records=[
       wrappedRecord("Längste Aktivität",longest,fmt((longest?.calc.distanceM||0)/1000,2)+" km"),
-      wrappedRecord("Meiste Höhenmeter auf einer Tour",mostClimb,"+"+Math.round(mostClimb?.calc.elevationGain||0)+" m"),
+      wrappedRecord("Meiste Höhenmeter bei einer Aktivität",mostClimb,"+"+Math.round(mostClimb?.calc.elevationGain||0)+" m"),
       wrappedRecord("Längster zusammenhängender Anstieg",climb,climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m · "+fmt(climb.calc.longestClimb.averageGrade)+" %":""),
       wrappedRecord("Höchste Ø-Radfahrgeschwindigkeit",fastestAvg,fastestAvg?fmt(fastestAvg.calc.averageSpeed)+" km/h":""),
       wrappedRecord("Schnellste Ø-Laufpace",fastestRunAvg,fastestRunAvg?formatPace(fastestRunAvg.calc.averageSpeed)+" min/km":""),
-      wrappedRecord("Höchstes GPS-Tempo",topSpeed,fmt(topSpeed?.calc.maxSpeed||0)+" km/h"),
+      wrappedRecord("Höchste GPS-Geschwindigkeit",topSpeedBike,topSpeedBike?fmt(topSpeedBike.calc.maxSpeed)+" km/h":""),
+      wrappedRecord("Schnellste GPS-Pace",topSpeedRun,topSpeedRun?formatPace(topSpeedRun.calc.maxSpeed)+" min/km":""),
       wrappedRecord("Längste Bewegungszeit",longestTime,fmtTime(longestTime?.calc.movingSeconds||0)),
       wrappedRecord("Höchster aufgezeichneter Punkt",highPoint,highPoint?Math.round(highPoint.calc.elevationMax)+" m":""),
       wrappedRecord("Schnellster voller Kilometer",fastestKm,fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):""),
@@ -260,11 +262,11 @@
     const speedBars='<p class="small-note">Tempozonen werden in den einzelnen Aktivitäten sportartspezifisch ausgewertet. Im gemischten Gesamtarchiv werden deshalb keine unterschiedlichen Pace- und Geschwindigkeitsgrenzen zusammengerechnet.</p>';
     host.innerHTML='<section class="wrapped-hero"><span class="eyebrow">DEIN VELOX WRAPPED</span><h2>Deine Kilometer. Deine Höhenmeter. Deine Geschichte.</h2>'+
       '<p>Aus <strong>'+entries.length+' gespeicherten Aktivitäten</strong> ergibt sich dein persönlicher VELOX-Rückblick: <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> ausgewertete Strecke, <strong>'+fmtTime(totals.movingSeconds)+'</strong> erkannte Bewegungszeit und <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' m</strong> kumulierter GPS-Höhengewinn. Die sportartspezifischen Durchschnittswerte: <strong>'+avgLabels+'</strong>.</p>'+
-      '<div class="wrapped-story-grid"><div><span>Deine längste Tour</span><strong>'+(longest?fmt(longest.calc.distanceM/1000,2)+" km":"Noch keine auswertbare Strecke")+'</strong></div><div><span>Dein schnellster voller Kilometer</span><strong>'+(fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):"Noch nicht ermittelt")+'</strong></div><div><span>Dein längster Anstieg</span><strong>'+(climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m":"Noch kein zusammenhängender Anstieg")+'</strong></div></div>'+
-      '<p class="wrapped-hero-note">Jede Zahl entsteht neu aus deinem lokalen Tourenarchiv. Tempo und Distanz nutzen akzeptierte GPS-Abschnitte; fehlende oder unplausible Messpunkte werden nicht künstlich ergänzt.</p></section>'+
+      '<div class="wrapped-story-grid"><div><span>Deine längste Aktivität</span><strong>'+(longest?fmt(longest.calc.distanceM/1000,2)+" km":"Noch keine auswertbare Strecke")+'</strong></div><div><span>Dein schnellster voller Kilometer</span><strong>'+(fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):"Noch nicht ermittelt")+'</strong></div><div><span>Dein längster Anstieg</span><strong>'+(climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m":"Noch kein zusammenhängender Anstieg")+'</strong></div></div>'+
+      '<p class="wrapped-hero-note">Jede Zahl entsteht neu aus deinem lokalen Aktivitätenarchiv. Tempo und Distanz nutzen akzeptierte GPS-Abschnitte; fehlende oder unplausible Messpunkte werden nicht künstlich ergänzt.</p></section>'+
       '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Aktivitäten",String(entries.length))+metric("Ø Streckenlänge",fmt(totals.distanceM/1000/entries.length)+" km")+metric("Höhengewinn je Bewegungsstunde",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Radfahrgeschwindigkeit",avgSpeedLabel)+metric("Ø Laufpace",avgPaceLabel)+'</div>'+
       '<section class="panel wrapped-panel"><span class="eyebrow">DEINE BESTLEISTUNGEN</span><h3>Persönliche Rekorde</h3><div class="wrapped-record-grid">'+(records||'<p class="small-note">Noch keine Rekorde berechenbar.</p>')+'</div></section>'+
-      '<section class="panel wrapped-panel"><span class="eyebrow">DEIN FAHRPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="wrapped-context">'+(terrainTotal?fmt(terrainTotal/1000,2)+' km auswertbare Steigungsabschnitte bilden die Grundlage dieser Verteilung.':'Für diese Verteilung liegen keine ausreichend verlässlichen Höhenabschnitte vor.')+'</p><h3>Tempo-Zonen</h3>'+speedBars+'<p class="wrapped-context">'+(speedTotal?fmtTime(speedTotal)+' erkannte Bewegungszeit bilden die Grundlage der Tempoanteile.':'Für die Tempoverteilung liegen keine gültigen Bewegungsintervalle vor.')+'</p><p class="wrapped-context">„Höhengewinn je Fahrstunde“ teilt den gesamten Aufstieg durch die Bewegungszeit (kein klassisches VAM, das nur Anstiege zählt) und nutzt nur Touren mit auswertbaren Steigungsdaten.</p></section>'+
+      '<section class="panel wrapped-panel"><span class="eyebrow">DEIN BEWEGUNGSPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="wrapped-context">'+(terrainTotal?fmt(terrainTotal/1000,2)+' km auswertbare Steigungsabschnitte bilden die Grundlage dieser Verteilung.':'Für diese Verteilung liegen keine ausreichend verlässlichen Höhenabschnitte vor.')+'</p><h3>Tempo-Zonen</h3>'+speedBars+'<p class="wrapped-context">'+(speedTotal?fmtTime(speedTotal)+' erkannte Bewegungszeit bilden die Grundlage der Tempoanteile.':'Für die Tempoverteilung liegen keine gültigen Bewegungsintervalle vor.')+'</p><p class="wrapped-context">„Höhengewinn je Bewegungsstunde“ teilt den gesamten Aufstieg durch die Bewegungszeit (kein klassisches VAM, das nur Anstiege zählt) und nutzt nur Aktivitäten mit auswertbaren Steigungsdaten.</p></section>'+
       '<p class="wrapped-refresh-note">Dein Rückblick wird beim Öffnen und nach jeder gespeicherten oder importierten Tour frisch aus dem lokalen Archiv berechnet.</p>';
   }
 
@@ -391,7 +393,7 @@
       L.circleMarker([last.lat,last.lon],{radius:6,color:"#07131f",weight:2,fillColor:"#d9b879",fillOpacity:1}).addTo(detailMap).bindPopup("Ende des aufgezeichneten Abschnitts");
       if(bounds.length)detailMap.fitBounds(bounds,{padding:[20,20]});
     }else{
-      $("detailMap").innerHTML='<div class="empty-state">Für diese Fahrt liegen keine ausreichend zusammenhängenden GPS-Abschnitte vor.</div>';
+      $("detailMap").innerHTML='<div class="empty-state">Für diese Aktivität liegen keine ausreichend zusammenhängenden GPS-Abschnitte vor.</div>';
     }
     setTimeout(()=>detailMap&&detailMap.invalidateSize(),80);
     return true;
@@ -439,7 +441,7 @@
   }
   function renderRideComparison(rides){
     const host=$("rideComparison");if(!host)return;
-    if(rides.length<2){host.innerHTML='<p class="small-note">Mindestens zwei gespeicherte Touren erforderlich. Deine Fahrten bleiben lokal auf diesem Gerät.</p>';return;}
+    if(rides.length<2){host.innerHTML='<p class="small-note">Mindestens zwei gespeicherte Aktivitäten erforderlich. Deine Fahrten bleiben lokal auf diesem Gerät.</p>';return;}
     const columns=rides.map(ride=>({ride,calc:calcRide(ride)}));
     const rows=[
       ["Distanz",c=>fmt(c.distanceM/1000)+" km"],
@@ -453,7 +455,7 @@
     ];
     const header='<div class="comparison-scroll"><table class="comparison-table"><thead><tr><th>Messwert</th>'+columns.map(({ride})=>'<th>'+escapeHtml(new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}))+'</th>').join("")+'</tr></thead><tbody>';
     const body=rows.map(([label,format])=>'<tr><th>'+label+'</th>'+columns.map(({ride,calc})=>'<td>'+format(calc,ride)+'</td>').join("")+'</tr>').join("");
-    host.innerHTML=header+body+'</tbody></table></div><p class="small-note">Verglichen werden die letzten '+columns.length+' gespeicherten Touren. Nur tatsächlich vorhandene GPS-Daten werden berücksichtigt.</p>';
+    host.innerHTML=header+body+'</tbody></table></div><p class="small-note">Verglichen werden die letzten '+columns.length+' gespeicherten Aktivitäten. Nur tatsächlich vorhandene GPS-Daten werden berücksichtigt.</p>';
   }
   function selectedMapRides(){
     const filter=$("mapDateFilter")?.value||"all",now=Date.now();
@@ -462,7 +464,7 @@
   }
   function renderMapRideFilters(rides){
     const host=$("personalRideFilters");if(!host)return;
-    if(!rides.length){host.innerHTML='<p class="map-filter-empty">Keine Touren im gewählten Zeitraum.</p>';return;}
+    if(!rides.length){host.innerHTML='<p class="map-filter-empty">Keine Aktivitäten im gewählten Zeitraum.</p>';return;}
     host.innerHTML=rides.map(ride=>{
       const id=String(ride.id),checked=personalVisibility.get(id)!==false,color=mapColors[personalRidesCache.indexOf(ride)%mapColors.length];
       const date=new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"});
@@ -545,7 +547,7 @@
     if(points.length)personalMap.fitBounds(L.latLngBounds(points),{padding:[24,24],maxZoom:15});
   }
   function renderRideList(container,rides){
-    if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Touren gespeichert.</div>';return;}
+    if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Aktivitäten gespeichert.</div>';return;}
     container.innerHTML=rides.map(r=>{
       const c=calcRide(r),date=new Date(r.startedAt).toLocaleDateString("de-DE",{dateStyle:"medium"}),start=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}),end=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"–";
       const running=isRunning(r),sport=running?"Laufen":"Radfahren";
@@ -771,7 +773,7 @@
     });
     if(result.action!=="save")return {condition:"Nicht angegeben",source:"user-skipped",sourceLabel:"Keine Wetterangabe"};
     const raw=String(result.values.temperature||"").replace(",","."),value=raw===""?NaN:Number(raw);
-    return {condition:String(result.values.condition||"Nicht angegeben").slice(0,100),temperatureC:Number.isFinite(value)&&value>=-30&&value<=55?value:null,source:"user-estimate",sourceLabel:"Manuell vom Fahrer angegeben",fetchedAt:Date.now()};
+    return {condition:String(result.values.condition||"Nicht angegeben").slice(0,100),temperatureC:Number.isFinite(value)&&value>=-30&&value<=55?value:null,source:"user-estimate",sourceLabel:"Manuell angegeben",fetchedAt:Date.now()};
   }
   async function collectRideWeather(ride){
     const first=await openSheet({
@@ -821,7 +823,7 @@
     }
     activeRide=null;calcCache.clear();
     liveMetricsCache=null;liveMetricsRideId=null;syncTrackStartButton();
-    $("trackingStatus").textContent="Tour gespeichert";$("trackingDot").style.background="var(--teal)";
+    $("trackingStatus").textContent="Aktivität gespeichert";$("trackingDot").style.background="var(--teal)";
     showToast(c.distanceM>0?"Aktivität lokal gespeichert.":"Aktivität ohne ausreichende GPS-Daten gespeichert.");
     await refresh();setPage("rides");
   }
@@ -868,7 +870,7 @@
     $("rideDetail").innerHTML=
       '<div class="detail-header"><span class="eyebrow">'+(running?"LAUFDETAIL":"FAHRDETAIL")+'</span><h1>'+escapeHtml(r.name||(running?"Laufrunde":"Fahrradtour"))+'</h1><p class="muted">'+date+'</p><div class="ride-time-strip"><div><span>START</span><strong>'+startTime+' Uhr</strong></div><div><span>ENDE</span><strong>'+endTime+' Uhr</strong></div></div></div>'+
       '<section class="detail-route-section"><div class="detail-section-heading"><span class="eyebrow">DEINE STRECKE</span><span class="detail-map-distance">'+fmt(c.distanceM/1000,2)+' km</span></div><div class="detail-map detail-map-primary" id="detailMap" role="img" aria-label="Karte der aufgezeichneten Strecke"></div><div class="detail-route-legend"><span>● Start</span><span>● Ziel</span><span>'+validRouteSegments(r.points).length+' GPS-Abschnitte</span></div></section>'+
-      '<section class="detail-section"><div class="panel detail-panel weather-panel"><span class="eyebrow">WETTER WÄHREND DIESER AKTIVITÄT</span><h3>'+(weather?escapeHtml(weather.condition||"Wetter erfasst"):"Keine Wetterangabe")+'</h3><div class="metric-grid detail-metrics">'+metric("Temperatur",weather&&Number.isFinite(weather.temperatureC)?fmt(weather.temperatureC,1)+" °C":"–")+metric("Niederschlag",weather&&Number.isFinite(weather.precipitationMm)?fmt(weather.precipitationMm,1)+" mm":"Nicht verfügbar")+metric("Bewölkung",weather&&Number.isFinite(weather.cloudCoverPct)?fmt(weather.cloudCoverPct,0)+" %":"Nicht verfügbar")+metric("Quelle",weather?escapeHtml(weather.sourceLabel||"Fahrerangabe"):"Keine Angabe")+'</div><p>'+(autoWeather?"Wetterdaten am nächstgelegenen Stundenwert und an einer repräsentativen GPS-Position der Fahrt.":"Wetterangabe für diese einzelne Fahrt; Temperatur ist eine ungefähre Fahrerangabe.")+'</p></div></section>'+
+      '<section class="detail-section"><div class="panel detail-panel weather-panel"><span class="eyebrow">WETTER WÄHREND DIESER AKTIVITÄT</span><h3>'+(weather?escapeHtml(weather.condition||"Wetter erfasst"):"Keine Wetterangabe")+'</h3><div class="metric-grid detail-metrics">'+metric("Temperatur",weather&&Number.isFinite(weather.temperatureC)?fmt(weather.temperatureC,1)+" °C":"–")+metric("Niederschlag",weather&&Number.isFinite(weather.precipitationMm)?fmt(weather.precipitationMm,1)+" mm":"Nicht verfügbar")+metric("Bewölkung",weather&&Number.isFinite(weather.cloudCoverPct)?fmt(weather.cloudCoverPct,0)+" %":"Nicht verfügbar")+metric("Quelle",weather?escapeHtml(weather.sourceLabel||"Fahrerangabe"):"Keine Angabe")+'</div><p>'+(autoWeather?"Wetterdaten am nächstgelegenen Stundenwert und an einer repräsentativen GPS-Position der Aktivität.":"Wetterangabe für diese Aktivität; Temperatur ist eine ungefähre Angabe.")+'</p></div></section>'+
       '<section class="detail-section"><span class="eyebrow">AUF EINEN BLICK</span><div class="metric-grid detail-metrics">'+
       metric("Distanz",fmt(c.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(c.movingSeconds))+
       (running?metric("Ø Pace",c.movingSeconds?formatPace(c.averageSpeed)+" min/km":"–"):metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–"))+
@@ -879,8 +881,8 @@
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">GELÄNDE</span><h3>Steigungsprofil</h3><div class="chart-box" id="gradeChart"></div><div class="metric-grid detail-metrics">'+elevationCards+'</div>'+renderRideBreakdowns(c)+'</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ROUTE</span><h3>Entfernung und Streckenform</h3><div class="metric-grid detail-metrics">'+routeCards+'</div><p>Geradlinigkeit wird nur angezeigt, wenn die Route ohne GPS-Lücken aufgezeichnet wurde. Bei einer Rundtour liegt sie naturgemäß nahe 0 %.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ZEIT & AUFZEICHNUNG</span><h3>Bewegungs- und Standzeiten</h3><div class="metric-grid detail-metrics">'+timeCards+'</div><p>Bewegungszeit wird aus akzeptierten GPS-Intervallen berechnet. Ein Stopp zählt ab 10 Sekunden Stillstand (unter 1,5 km/h oder laut GPS-Geschwindigkeit stehend); GPS-Lücken werden nicht als Stopp gewertet, sind aber in der Stand- und Lückenzeit enthalten. Die Erkennung ist eine GPS-Näherung.</p></div></section>'+
-      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">DATENQUELLEN & SENSORSTATUS</span><h3>Was wurde tatsächlich gemessen?</h3><div class="detail-source-list"><div><span>GPS-Positionen</span><strong>'+r.points.length+' gespeicherte Punkte</strong></div><div><span>GPS-Höhe</span><strong>'+c.elevationProfile.validCount+' verwertbare Höhenpunkte</strong></div><div><span>Barometer</span><strong>Keine nativen Barometerdaten in dieser Tour</strong></div><div><span>Kompass / Magnetometer</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Gyroskop / Beschleunigung</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Herzfrequenz / Leistung / Kadenz</span><strong>Keine Datenquelle vorhanden</strong></div></div><p>Das iPhone XR besitzt zusätzliche Sensorhardware. Safari/PWA kann sie jedoch nicht wie eine native iOS-App vollständig über Core Motion auslesen. VELOX zeigt daher nur Daten, die wirklich in dieser Tour gespeichert wurden.</p></div></section>'+
-      '<div class="tracking-actions"><button class="secondary-button" id="renameRide">Umbenennen</button><button class="secondary-button" id="exportGpx">GPX exportieren</button><button class="danger-outline" id="deleteRide">Tour löschen</button></div>';
+      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">DATENQUELLEN & SENSORSTATUS</span><h3>Was wurde tatsächlich gemessen?</h3><div class="detail-source-list"><div><span>GPS-Positionen</span><strong>'+r.points.length+' gespeicherte Punkte</strong></div><div><span>GPS-Höhe</span><strong>'+c.elevationProfile.validCount+' verwertbare Höhenpunkte</strong></div><div><span>Barometer</span><strong>Keine nativen Barometerdaten in dieser Aktivität</strong></div><div><span>Kompass / Magnetometer</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Gyroskop / Beschleunigung</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Herzfrequenz / Leistung / Kadenz</span><strong>Keine Datenquelle vorhanden</strong></div></div><p>Das iPhone XR besitzt zusätzliche Sensorhardware. Safari/PWA kann sie jedoch nicht wie eine native iOS-App vollständig über Core Motion auslesen. VELOX zeigt daher nur Daten, die wirklich in dieser Tour gespeichert wurden.</p></div></section>'+
+      '<div class="tracking-actions"><button class="secondary-button" id="renameRide">Umbenennen</button><button class="secondary-button" id="exportGpx">GPX exportieren</button><button class="danger-outline" id="deleteRide">Aktivität löschen</button></div>';
     setPage("detail");
     setTimeout(()=>{
       if(detailMap){detailMap.remove();detailMap=null;detailHoverMarker=null;}
@@ -892,13 +894,13 @@
     },180);
     $("exportGpx").onclick=()=>exportGPX(r);
     $("renameRide").onclick=async()=>{
-      const result=await openSheet({title:"Tour umbenennen",body:'<label class="vx-field">Name<input name="name" type="text" maxlength="80" required value="'+escapeHtml(r.name||"Fahrradtour")+'"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
+      const result=await openSheet({title:"Aktivität umbenennen",body:'<label class="vx-field">Name<input name="name" type="text" maxlength="80" required value="'+escapeHtml(r.name||(running?"Laufrunde":"Fahrradtour"))+'"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
       const name=String(result.values.name||"").trim().slice(0,80);
       if(result.action!=="save"||!name)return;
       try{await dbRequest("readwrite","put",{...r,name});calcCache.clear();showToast("Name gespeichert.");await openDetail(id);}catch(error){console.error(error);showToast("Umbenennen fehlgeschlagen.");}
     };
     $("deleteRide").onclick=async()=>{
-      const result=await openSheet({title:"Tour löschen?",body:'<p>Diese Tour wird dauerhaft von diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.</p>',actions:[{id:"delete",label:"Endgültig löschen",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
+      const result=await openSheet({title:"Aktivität löschen?",body:'<p>Diese Tour wird dauerhaft von diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.</p>',actions:[{id:"delete",label:"Endgültig löschen",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
       if(result.action!=="delete")return;
       await dbRequest("readwrite","delete",r.id);calcCache.clear();showToast("Tour gelöscht.");setPage("rides");
     };
