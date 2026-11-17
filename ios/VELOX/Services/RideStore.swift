@@ -99,6 +99,30 @@ actor RideStore {
         try persist(rides)
     }
 
+    /// Appends a validated Watch sample to the exact ride. Duplicate sample IDs are ignored.
+    /// Delayed Watch deliveries can therefore be attached after a ride has ended.
+    func appendWatchSample(_ sample: WatchSensorSample) throws {
+        var rides = try loadAll()
+        guard let index = rides.firstIndex(where: { $0.id == sample.rideID }) else {
+            throw StoreError.rideNotFound(sample.rideID)
+        }
+        var ride = rides[index]
+        let lowerBound = (ride.startedAt - 10) * 1_000
+        let upperBound = ((ride.endedAt ?? Date().timeIntervalSince1970) + 10) * 1_000
+        guard lowerBound.isFinite, upperBound.isFinite,
+              Double(sample.timestampMs) >= lowerBound,
+              Double(sample.timestampMs) <= upperBound else {
+            throw StoreError.invalidArchive
+        }
+        var samples = ride.watchSamples ?? []
+        guard !samples.contains(where: { $0.id == sample.id }) else { return }
+        samples.append(sample)
+        samples.sort { $0.timestampMs < $1.timestampMs }
+        ride.watchSamples = samples
+        rides[index] = ride
+        try persist(rides)
+    }
+
     /// Deletes only the exact requested ID.
     func delete(id: String) throws {
         var rides = try loadAll()
