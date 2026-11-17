@@ -51,21 +51,25 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Wrapped
  docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"wrapped"}})},preventDefault(){}}));await sleep(300);
  ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN|undefined/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
- // Live-Aufzeichnung simulieren
- await els.startRide.listeners.click[0]();await sleep(100);
+ // Laufmodus vor der Aufzeichnung auswählen und die sportartspezifische Oberfläche prüfen.
+ els.startRide.listeners.click[0]();
+ els.activityRunChoice.listeners.click[0]();
+ ok(els.trackPageTitle.textContent==="Dein Lauf","Laufmodus stellt die passende Oberfläche ein");
+ await els.trackStartRide.listeners.click[0]();await sleep(100);
  ok(geoCbs.ok,"GPS-Watch gestartet (kein liveLine-Fehler)");
  let t=Date.now()-130000,d=0;
  for(let i=0;i<120;i++){t+=1000;d+=5;await geoCbs.ok({timestamp:t,coords:{latitude:LAT,longitude:13.7+d*M_LON,accuracy:5,altitude:200+d*0.03,altitudeAccuracy:6,speed:5}});}
  await sleep(3200);
  ok(/^0?,?\d/.test(els.liveDistance.textContent)&&parseFloat(els.liveDistance.textContent.replace(",","."))>0.5,"Live-Distanz: "+els.liveDistance.textContent+" km");
- ok(/km\/h/.test(els.liveSpeed.innerHTML)&&/18,0|18/.test(els.liveSpeed.innerHTML),"Live-Tempo (Doppler 5 m/s ≈ 18): "+els.liveSpeed.innerHTML);
+ ok(/min\/km/.test(els.liveSpeed.innerHTML)&&/3:20/.test(els.liveSpeed.innerHTML),"Live-Pace (Doppler 5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);
+ ok(els.liveSpeedLabel.textContent==="Aktuelle Pace"&&els.liveAverageLabel.textContent==="Ø Pace"&&els.liveDurationLabel.textContent==="Laufzeit","Lauf-spezifische Live-Bezeichnungen");
  ok(els.trackingStatus.textContent==="Aufzeichnung läuft","Status: "+els.trackingStatus.textContent);
  ok(els.sensorWakeStatus.textContent==="Bildschirm bleibt an","Wake Lock: "+els.sensorWakeStatus.textContent);
  // Tour beenden: Bestätigung "stop", Wetter "skip"
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
  ok(data.size===4,"Tour gespeichert (4 in DB): "+data.size);
  const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
- ok(saved&&saved.status==="completed"&&saved.points.length===120&&saved.points[5].speed===5,"gespeicherte Tour vollständig inkl. Doppler-Tempo");
+ ok(saved&&saved.status==="completed"&&saved.activityType==="running"&&saved.name==="Laufrunde"&&saved.points.length===120&&saved.points[5].speed===5,"Laufaktivität vollständig inkl. Sportart und Doppler-Tempo");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const same=(a,b)=>Math.abs(a-b)<1e-6;
  ok(same(pro.distanceM,core.distanceM)&&same(pro.movingSeconds,core.movingSeconds),"Pro = Detail: Distanz/Fahrzeit ("+(pro.distanceM/1000).toFixed(3)+" km)");
