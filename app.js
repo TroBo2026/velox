@@ -1,4 +1,4 @@
-/* VELOX 0.11.0 — local-first running + cycling tracker */
+/* VELOX 0.13.0 — local-first running + cycling tracker */
 (() => {
   "use strict";
   if(!window.VELOXCore||!window.VELOXCharts){
@@ -739,9 +739,11 @@
     $("liveMovingRatio").innerHTML=fmt(elapsed?Math.min(100,c.movingSeconds/elapsed*100):0,0)+' <small>%</small>';
     const stepCard=$("liveStepsCard");if(stepCard)stepCard.hidden=!running;
     if(running){
-      const count=Number(activeRide.steps)||0;$("liveSteps").textContent=count.toLocaleString("de-DE");
+      const count=Number(activeRide.steps)||0;
+      const sensorAvailable=activeRide.stepCountSource==="device-motion";
+      $("liveSteps").textContent=sensorAvailable?count.toLocaleString("de-DE"):"–";
       const stride=activeRide.heightCm&&window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(activeRide.heightCm):null;
-      $("liveStepsNote").textContent=stride?("Schrittdistanz ca. "+fmt(count*stride/1000,2)+" km"):"Körpergröße nicht hinterlegt";
+      $("liveStepsNote").textContent=!sensorAvailable?"Bewegungssensor nicht freigegeben":stride?("Schrittdistanz ca. "+fmt(count*stride/1000,2)+" km"):"Körpergröße nicht hinterlegt";
     }
     $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":elevation.quality==="unrated"?"Nicht bewertet":"Begrenzt";
     updateSensorStatus(last);
@@ -931,7 +933,7 @@
       :metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–")+
        metric("Max. GPS-Tempo",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–")+
        metric("Tempo-Median",c.movingSeconds?fmt(c.medianSpeed)+" km/h":"–");
-    const savedSteps=running&&Number.isFinite(r.steps)?r.steps:null;
+    const savedSteps=running&&r.stepCountSource==="device-motion"&&Number.isFinite(r.steps)?r.steps:null;
     const strideHeight=Number.isFinite(r.heightCm)?r.heightCm:getProfileHeight();
     const estimatedStride=running&&strideHeight&&window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(strideHeight):null;
     const stepCards=running
