@@ -8,6 +8,7 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         case relativeAltitudeM
         case speedMetersPerSecond
         case cadenceRPM
+        case cyclingPowerWatts
         case activeEnergyKcal
         case distanceMeters
         case stepCount
@@ -18,6 +19,7 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
             case .relativeAltitudeM: return "m"
             case .speedMetersPerSecond: return "m/s"
             case .cadenceRPM: return "rpm"
+            case .cyclingPowerWatts: return "W"
             case .activeEnergyKcal: return "kcal"
             case .distanceMeters: return "m"
             case .stepCount: return "count"
@@ -102,6 +104,7 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         case .relativeAltitudeM: return (-1_000...10_000).contains(value)
         case .speedMetersPerSecond: return (0...35).contains(value)
         case .cadenceRPM: return (0...240).contains(value)
+        case .cyclingPowerWatts: return (0...2_500).contains(value)
         case .activeEnergyKcal: return (0...10_000).contains(value)
         case .distanceMeters: return (0...1_000_000).contains(value)
         case .stepCount: return (0...200_000).contains(value) && value.rounded() == value
