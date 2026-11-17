@@ -25,6 +25,9 @@ struct WatchRideView: View {
                 .background(.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
 
                 metric("Distanz", workout.distanceMeters.map { String(format: "%.2f km", $0 / 1_000) } ?? "–")
+                metric("Geschwindigkeit", workout.cyclingSpeedMetersPerSecond.map { String(format: "%.1f km/h", $0 * 3.6) } ?? "–")
+                metric("Trittfrequenz", workout.cyclingCadenceRPM.map { String(format: "%.0f rpm", $0) } ?? "–")
+                metric("Leistung", workout.cyclingPowerWatts.map { String(format: "%.0f W", $0) } ?? "–")
                 metric("Aktive Energie", workout.activeEnergyKcal.map { String(format: "%.0f kcal", $0) } ?? "–")
                 metric("Relative Höhe", workout.relativeAltitudeM.map { String(format: "%+.1f m", $0) } ?? "–")
 
