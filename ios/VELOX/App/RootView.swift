@@ -25,6 +25,9 @@ struct RootView: View {
         }
         .tint(VELOXStyle.accent)
         .preferredColorScheme(.dark)
+        .onReceive(watch.$latestSample.compactMap { $0 }) { sample in
+            recorder.acceptWatchSample(sample)
+        }
     }
 }
 
