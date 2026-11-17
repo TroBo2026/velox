@@ -65,6 +65,19 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         self.source = source
     }
 
+    /// Dictionary representation used by WCSession.transferUserInfo.
+    var transferPayload: [String: Any] {
+        [
+            "schemaVersion": 1,
+            "id": id,
+            "rideID": rideID,
+            "kind": kind.rawValue,
+            "timestampMs": timestampMs,
+            "value": value,
+            "source": source.rawValue
+        ]
+    }
+
     private static func isValid(_ value: Double, for kind: Kind, source: Source) -> Bool {
         let sourceIsAllowed: Bool
         switch kind {
