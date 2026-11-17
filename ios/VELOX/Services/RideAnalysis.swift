@@ -180,8 +180,8 @@ struct RideElevationAnalysis: Equatable {
 
         let computedProfile = plotted
         let computedSlopeProfile = Self.makeSlopeProfile(computedProfile)
-        let computedMaxUphillGrade = computedSlopeProfile.map(\\.gradePercent).filter { $0 > 0 }.max()
-        let computedMaxDownhillGrade = computedSlopeProfile.map(\\.gradePercent).filter { $0 < 0 }.min()
+        let computedMaxUphillGrade = computedSlopeProfile.map { $0.gradePercent }.filter { $0 > 0 }.max()
+        let computedMaxDownhillGrade = computedSlopeProfile.map { $0.gradePercent }.filter { $0 < 0 }.min()
         let computedReference: Reference
         let computedCalibrationOffset: Double?
         let computedCalibrationSpread: Double?
