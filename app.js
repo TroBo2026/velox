@@ -1,4 +1,4 @@
-/* VELOX 0.10.0 — local-first cycling tracker */
+/* VELOX 0.11.0 — local-first running + cycling tracker */
 (() => {
   "use strict";
   if(!window.VELOXCore||!window.VELOXCharts){
@@ -9,7 +9,7 @@
   const DB_NAME = "velox-local";
   const DB_VERSION = 1;
   const STORE = "rides";
-  const APP_VERSION = "0.10.0";
+  const APP_VERSION = "0.11.0";
   const Core = window.VELOXCore;
   const Charts = window.VELOXCharts;
   const $ = (id) => document.getElementById(id);
@@ -137,7 +137,12 @@
     const zones=activityType==="running"
       ?[{key:"slow",label:"Unter 8 km/h",seconds:0},{key:"medium",label:"8–12 km/h",seconds:0},{key:"fast",label:"Über 12 km/h",seconds:0}]
       :[{key:"slow",label:"Unter 15 km/h",seconds:0},{key:"medium",label:"15–25 km/h",seconds:0},{key:"fast",label:"Über 25 km/h",seconds:0}];
-    intervals.forEach(item=>{const zone=item.speedKmh<15?zones[0]:item.speedKmh<=25?zones[1]:zones[2];zone.seconds+=item.durationS;});
+    intervals.forEach(item=>{
+      const zone=activityType==="running"
+        ?(item.speedKmh<8?zones[0]:item.speedKmh<=12?zones[1]:zones[2])
+        :(item.speedKmh<15?zones[0]:item.speedKmh<=25?zones[1]:zones[2]);
+      zone.seconds+=item.durationS;
+    });
     const total=zones.reduce((sum,zone)=>sum+zone.seconds,0);
     zones.forEach(zone=>zone.percent=total?zone.seconds/total*100:0);return zones;
   }
@@ -228,11 +233,7 @@
       wrappedBar("Flach",terrain.flat/terrainTotal*100,fmt(terrain.flat/1000,1)+" km","flat"),
       wrappedBar("Gefälle",terrain.downhill/terrainTotal*100,fmt(terrain.downhill/1000,1)+" km","downhill")
     ].join(""):'<p class="small-note">Keine auswertbaren GPS-Höhenabschnitte.</p>';
-    const speedBars=speedTotal?[
-      wrappedBar("Unter 15 km/h",speed[0]/speedTotal*100,fmtTime(speed[0]),"slow"),
-      wrappedBar("15–25 km/h",speed[1]/speedTotal*100,fmtTime(speed[1]),"medium"),
-      wrappedBar("Über 25 km/h",speed[2]/speedTotal*100,fmtTime(speed[2]),"fast")
-    ].join(""):'<p class="small-note">Keine gültigen Bewegungsintervalle.</p>';
+    const speedBars='<p class="small-note">Tempozonen werden in den einzelnen Aktivitäten sportartspezifisch ausgewertet. Im gemischten Gesamtarchiv werden deshalb keine unterschiedlichen Pace- und Geschwindigkeitsgrenzen zusammengerechnet.</p>';
     host.innerHTML='<section class="wrapped-hero"><span class="eyebrow">DEIN VELOX WRAPPED</span><h2>Deine Kilometer. Deine Höhenmeter. Deine Geschichte.</h2>'+
       '<p>Aus <strong>'+entries.length+' gespeicherten Touren</strong> ergibt sich dein persönlicher VELOX-Rückblick: <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> ausgewertete Strecke, <strong>'+fmtTime(totals.movingSeconds)+'</strong> erkannte Bewegungszeit und <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' m</strong> kumulierter GPS-Höhengewinn. Dein durchschnittliches Tempo während gültiger Bewegungsintervalle lag bei <strong>'+avgSpeedLabel+'</strong>.</p>'+
       '<div class="wrapped-story-grid"><div><span>Deine längste Tour</span><strong>'+(longest?fmt(longest.calc.distanceM/1000,2)+" km":"Noch keine auswertbare Strecke")+'</strong></div><div><span>Dein schnellster voller Kilometer</span><strong>'+(fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):"Noch nicht ermittelt")+'</strong></div><div><span>Dein längster Anstieg</span><strong>'+(climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m":"Noch kein zusammenhängender Anstieg")+'</strong></div></div>'+
