@@ -51,16 +51,18 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Wrapped
  docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"wrapped"}})},preventDefault(){}}));await sleep(300);
  ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN|undefined/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
- // Live-Laufaufzeichnung simulieren: Sportart muss vor dem GPS-Start gewählt werden.
- dialogAnswers.push("running");
- await els.startRide.listeners.click[0]();await sleep(100);
+ // Laufmodus vor der Aufzeichnung auswählen und die sportartspezifische Oberfläche prüfen.
+ els.startRide.listeners.click[0]();
+ els.activityRunChoice.listeners.click[0]();
+ ok(els.trackPageTitle.textContent==="Dein Lauf"&&els.activityRunChoice.getAttribute("aria-pressed")==="true","Laufmodus stellt die passende Oberfläche ein");
+ await els.trackStartRide.listeners.click[0]();await sleep(100);
  ok(geoCbs.ok,"GPS-Watch gestartet (kein liveLine-Fehler)");
  let t=Date.now()-130000,d=0;
  for(let i=0;i<120;i++){t+=1000;d+=5;await geoCbs.ok({timestamp:t,coords:{latitude:LAT,longitude:13.7+d*M_LON,accuracy:5,altitude:200+d*0.03,altitudeAccuracy:6,speed:5}});}
  await sleep(3200);
  ok(/^0?,?\d/.test(els.liveDistance.textContent)&&parseFloat(els.liveDistance.textContent.replace(",","."))>0.5,"Live-Distanz: "+els.liveDistance.textContent+" km");
  ok(/min\/km/.test(els.liveSpeed.innerHTML)&&/3:20/.test(els.liveSpeed.innerHTML),"Live-Pace (Doppler 5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);
- ok(els.liveSpeedLabel.textContent==="Aktuelle Pace"&&els.liveAverageLabel.textContent==="Ø Pace","Lauf-spezifische Live-Bezeichnungen");
+ ok(els.liveSpeedLabel.textContent==="Aktuelle Pace"&&els.liveAverageLabel.textContent==="Ø Pace"&&els.liveDurationLabel.textContent==="Laufzeit","Lauf-spezifische Live-Bezeichnungen");
  ok(els.trackingStatus.textContent==="Aufzeichnung läuft","Status: "+els.trackingStatus.textContent);
  ok(els.sensorWakeStatus.textContent==="Bildschirm bleibt an","Wake Lock: "+els.sensorWakeStatus.textContent);
  // Tour beenden: Bestätigung "stop", Wetter "skip"
