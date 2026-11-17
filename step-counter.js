@@ -17,7 +17,8 @@
       const source=direct&&[direct.x,direct.y,direct.z].every(Number.isFinite)?direct:gravity;
       if(!source||![source.x,source.y,source.z].every(Number.isFinite))return 0;
       const magnitude=Math.sqrt(source.x*source.x+source.y*source.y+source.z*source.z);
-      if(!Number.isFinite(magnitude)||magnitude<0.1||magnitude>40)return 0;
+      if(!Number.isFinite(magnitude)||magnitude>40)return 0;
+      if(magnitude<0.1){this.above=false;return 0;}
       let signal;
       if(source===direct)signal=magnitude;
       else{
