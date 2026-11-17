@@ -13,11 +13,13 @@ struct Ride: Codable, Identifiable, Equatable {
     var status: String
     var points: [RidePoint]
     var barometerSamples: [BarometerSample]?
+    /// Timestamped Apple Watch observations. Missing in legacy JSON-v1 rides.
+    var watchSamples: [WatchSensorSample]?
     /// Original ID when an imported ride had to be remapped to avoid a collision.
     var importedFromId: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, startedAt, endedAt, pausedMs, pauseStarted
-        case status, points, barometerSamples, importedFromId
+        case status, points, barometerSamples, watchSamples, importedFromId
     }
 }
