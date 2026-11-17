@@ -49,8 +49,8 @@ jobs:
             -scheme VELOX \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
-            -arch arm64 \
             -derivedDataPath "$RUNNER_TEMP/VELOX-DerivedData" \
+            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO \
             build
 
