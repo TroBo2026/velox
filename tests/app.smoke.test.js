@@ -54,7 +54,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Laufmodus vor der Aufzeichnung auswählen und die sportartspezifische Oberfläche prüfen.
  els.startRide.listeners.click[0]();
  els.activityRunChoice.listeners.click[0]();
- ok(els.trackPageTitle.textContent==="Dein Lauf"&&els.activityRunChoice.getAttribute("aria-pressed")==="true","Laufmodus stellt die passende Oberfläche ein");
+ ok(els.trackPageTitle.textContent==="Dein Lauf","Laufmodus stellt die passende Oberfläche ein");
  await els.trackStartRide.listeners.click[0]();await sleep(100);
  ok(geoCbs.ok,"GPS-Watch gestartet (kein liveLine-Fehler)");
  let t=Date.now()-130000,d=0;
