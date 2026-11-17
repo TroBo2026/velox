@@ -85,6 +85,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
 
     func pause() {
         guard isRunning else { return }
+        sendCommand(.pause)
         workoutSession?.pause()
         altimeter.stopRelativeAltitudeUpdates()
         isRunning = false
@@ -94,6 +95,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
 
     func resume() {
         guard isPaused else { return }
+        sendCommand(.resume)
         workoutSession?.resume()
         isRunning = true
         isPaused = false
@@ -102,6 +104,11 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     }
 
     func stop() {
+        sendCommand(.stop)
+        finishWorkout()
+    }
+
+    private func finishWorkout() {
         guard workoutSession != nil else { return }
         altimeter.stopRelativeAltitudeUpdates()
         workoutSession?.end()
@@ -117,6 +124,22 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
                     self?.workoutBuilder = nil
                 }
             }
+        }
+    }
+
+    private func sendCommand(_ action: WatchRideCommand.Action) {
+        guard let rideID, let session = wcSession, session.activationState == .activated else { return }
+        let payload: [String: Any] = [
+            "schemaVersion": 1,
+            "messageType": "rideCommand",
+            "id": UUID().uuidString,
+            "rideID": rideID,
+            "action": action.rawValue,
+            "timestampMs": Int64(Date().timeIntervalSince1970 * 1_000)
+        ]
+        session.transferUserInfo(payload)
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
         }
     }
 
@@ -261,9 +284,23 @@ extension WatchWorkoutManager: WCSessionDelegate {
 
     private func updateRideContext(_ context: [String: Any]) {
         let incomingRideID = context["rideID"] as? String
-        rideID = incomingRideID
         let rideState = context["rideState"] as? String ?? "idle"
+
+        if let existingRideID = rideID, existingRideID != incomingRideID,
+           workoutSession != nil {
+            finishWorkout()
+        }
+        rideID = incomingRideID
         canStart = incomingRideID != nil && rideState == "recording"
+
+        if rideState == "paused" && isRunning {
+            pauseFromPhone()
+        } else if rideState == "recording" && isPaused {
+            resumeFromPhone()
+        } else if rideState != "recording" && rideState != "paused" && workoutSession != nil {
+            finishWorkout()
+        }
+
         if canStart {
             statusMessage = "iPhone-Tour erkannt. Watch-Aufzeichnung kann gestartet werden."
         } else if incomingRideID == nil {
@@ -271,6 +308,20 @@ extension WatchWorkoutManager: WCSessionDelegate {
         } else {
             statusMessage = "iPhone-Tour ist nicht aktiv."
         }
+    }
+
+    private func pauseFromPhone() {
+        workoutSession?.pause()
+        altimeter.stopRelativeAltitudeUpdates()
+        isRunning = false
+        isPaused = true
+    }
+
+    private func resumeFromPhone() {
+        workoutSession?.resume()
+        isRunning = true
+        isPaused = false
+        startAltimeter()
     }
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) { }
