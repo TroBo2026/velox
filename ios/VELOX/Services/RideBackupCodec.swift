@@ -125,8 +125,9 @@ enum RideBackupCodec {
             throw BackupError.invalidRide(index: index, reason: "Watch-Sample-IDs sind doppelt")
         }
         for sample in watchSamples {
-            guard sample.isValidObservation(),
-                  (sample.timestampMs >= Int64(max(0, (ride.startedAt - 10) * 1_000))),
+            guard sample.rideID == ride.id,
+                  sample.isValidObservation(),
+                  Double(sample.timestampMs) >= max(0, (ride.startedAt - 10) * 1_000),
                   ride.endedAt.map({ Double(sample.timestampMs) <= ($0 + 10) * 1_000 }) ?? true else {
                 throw BackupError.invalidRide(index: index, reason: "Watch-Messwert ist ungültig oder liegt außerhalb der Tour")
             }
