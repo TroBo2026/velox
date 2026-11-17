@@ -417,7 +417,7 @@
     const last=lastBackupAt(),stale=!last||Date.now()-last>14*86400000;
     if(rideCount>0&&stale){
       el.hidden=false;
-      el.innerHTML='<div><strong>'+(last?"Letzte Sicherung vor "+Math.floor((Date.now()-last)/86400000)+" Tagen.":"Noch keine Sicherung vorhanden.")+'</strong><span>Deine Touren liegen nur auf diesem Gerät. Eine Sicherung schützt sie vor Datenverlust.</span></div><button class="secondary-button compact" type="button" id="backupHintButton">Jetzt sichern</button>';
+      el.innerHTML='<div><strong>'+(last?"Letzte Sicherung vor "+Math.floor((Date.now()-last)/86400000)+" Tagen.":"Noch keine Sicherung vorhanden.")+'</strong><span>Deine Aktivitäten liegen nur auf diesem Gerät. Eine Sicherung schützt sie vor Datenverlust.</span></div><button class="secondary-button compact" type="button" id="backupHintButton">Jetzt sichern</button>';
       $("backupHintButton").addEventListener("click",exportBackup);
     }else{el.hidden=true;el.innerHTML="";}
   }
@@ -759,7 +759,7 @@
     if(bestDelta>2*3600000)return null;
     const temp=data.hourly.temperature_2m?.[index],code=data.hourly.weather_code?.[index];
     if(!Number.isFinite(temp)||!Number.isFinite(code))return null;
-    return {condition:weatherDescription(code),weatherCode:code,temperatureC:temp,precipitationMm:Number.isFinite(data.hourly.precipitation?.[index])?data.hourly.precipitation[index]:null,cloudCoverPct:Number.isFinite(data.hourly.cloud_cover?.[index])?data.hourly.cloud_cover[index]:null,source:"open-meteo",sourceLabel:"Open-Meteo (Wetterdaten zur Fahrzeit)",sampledAt:times[index],fetchedAt:Date.now()};
+    return {condition:weatherDescription(code),weatherCode:code,temperatureC:temp,precipitationMm:Number.isFinite(data.hourly.precipitation?.[index])?data.hourly.precipitation[index]:null,cloudCoverPct:Number.isFinite(data.hourly.cloud_cover?.[index])?data.hourly.cloud_cover[index]:null,source:"open-meteo",sourceLabel:"Open-Meteo (Wetterdaten zur Aktivität)",sampledAt:times[index],fetchedAt:Date.now()};
   }
   async function collectManualWeather(){
     const options=["Sonnig","Leicht bewölkt","Bewölkt","Nebel","Nieselregen","Regen","Schnee","Gewitter","Wechselhaft"];
