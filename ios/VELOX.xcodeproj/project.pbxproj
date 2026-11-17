@@ -50,6 +50,7 @@
   B10000000000000000000019 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
   B10000000000000000000020 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VELOXWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
   B10000000000000000000021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSensorSample.swift; sourceTree = "<group>"; };
+  B10000000000000000000022 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VELOXWatch.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -58,7 +59,7 @@
   C10000000000000000000003 = {isa = PBXGroup; children = (B10000000000000000000003, B10000000000000000000004, B10000000000000000000005, B10000000000000000000015, ); name = Models; path = VELOX/Models; sourceTree = "<group>"; };
   C10000000000000000000004 = {isa = PBXGroup; children = (B10000000000000000000006, B10000000000000000000007, B10000000000000000000008, B10000000000000000000011, B10000000000000000000012, B10000000000000000000013, B10000000000000000000014, ); name = Services; path = VELOX/Services; sourceTree = "<group>"; };
   C10000000000000000000005 = {isa = PBXGroup; children = (B10000000000000000000010, B10000000000000000000020, ); name = Products; sourceTree = "<group>"; };
-  C10000000000000000000006 = {isa = PBXGroup; children = (B10000000000000000000016, B10000000000000000000017, B10000000000000000000018, B10000000000000000000019, B10000000000000000000021, ); name = VELOXWatch; path = VELOXWatch; sourceTree = "<group>"; };
+  C10000000000000000000006 = {isa = PBXGroup; children = (B10000000000000000000016, B10000000000000000000017, B10000000000000000000018, B10000000000000000000019, B10000000000000000000021, B10000000000000000000022, ); name = VELOXWatch; path = VELOXWatch; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -89,7 +90,7 @@
   E10000000000000000000004 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Release; };
   E10000000000000000000005 = {isa = XCBuildConfiguration; buildSettings = {GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = "VELOX/VELOX-Info.plist"; PRODUCT_BUNDLE_IDENTIFIER = "app.velox.ride"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = "1"; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 17.0; }; name = Debug; };
   E10000000000000000000006 = {isa = XCBuildConfiguration; buildSettings = {GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = "VELOX/VELOX-Info.plist"; PRODUCT_BUNDLE_IDENTIFIER = "app.velox.ride"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = "1"; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 17.0; }; name = Release; };
-  E10000000000000000000007 = {isa = XCBuildConfiguration; buildSettings = {GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = "VELOXWatch/Info.plist"; PRODUCT_BUNDLE_IDENTIFIER = "app.velox.ride.watchkitapp"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; WATCHOS_DEPLOYMENT_TARGET = 10.0; SDKROOT = watchos; SUPPORTED_PLATFORMS = "watchos watchsimulator"; TARGETED_DEVICE_FAMILY = "4"; SKIP_INSTALL = YES; }; name = Debug; };
+  E10000000000000000000007 = {isa = XCBuildConfiguration; buildSettings = {GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = "VELOXWatch/Info.plist"; CODE_SIGN_ENTITLEMENTS = "VELOXWatch/VELOXWatch.entitlements"; PRODUCT_BUNDLE_IDENTIFIER = "app.velox.ride.watchkitapp"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; WATCHOS_DEPLOYMENT_TARGET = 10.0; SDKROOT = watchos; SUPPORTED_PLATFORMS = "watchos watchsimulator"; TARGETED_DEVICE_FAMILY = "4"; SKIP_INSTALL = YES; }; name = Debug; };
   E10000000000000000000008 = {isa = XCBuildConfiguration; buildSettings = {GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = "VELOXWatch/Info.plist"; PRODUCT_BUNDLE_IDENTIFIER = "app.velox.ride.watchkitapp"; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; WATCHOS_DEPLOYMENT_TARGET = 10.0; SDKROOT = watchos; SUPPORTED_PLATFORMS = "watchos watchsimulator"; TARGETED_DEVICE_FAMILY = "4"; SKIP_INSTALL = YES; }; name = Release; };
 /* End XCBuildConfiguration section */
 
