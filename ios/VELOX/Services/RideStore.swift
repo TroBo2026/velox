@@ -79,6 +79,24 @@ actor RideStore {
         return archive.rides.sorted { $0.startedAt > $1.startedAt }
     }
 
+    /// Exports the complete local archive using the Web/PWA JSON-v1 envelope.
+    func exportBackup() throws -> Data {
+        try RideBackupCodec.exportBackup(rides: loadAll())
+    }
+
+    /// Imports a validated JSON-v1 backup as one atomic archive write.
+    /// Existing rides are retained and colliding imported IDs are remapped.
+    func importBackup(from data: Data) throws -> RideImportResult {
+        let existing = try loadAll()
+        let result = try RideBackupCodec.importBackup(
+            from: data,
+            existingIDs: Set(existing.map(\\.id))
+        )
+        guard !result.rides.isEmpty else { return result }
+        try persist(existing + result.rides)
+        return result
+    }
+
     /// Inserts a new ride. Duplicate IDs are rejected, never overwritten.
     func insert(_ ride: Ride) throws {
         var rides = try loadAll()
