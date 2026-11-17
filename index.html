@@ -39,23 +39,23 @@
           <article class="metric-card"><span>Höhenmeter</span><strong id="totalElevation">0 <small>m</small></strong><small class="metric-foot">Aufstieg gesamt</small></article>
           <article class="metric-card"><span>Touren</span><strong id="totalRides">0</strong><small class="metric-foot">Einzeln gespeichert</small></article>
         </div>
-        <div class="section-heading recent-heading"><div><span class="eyebrow">ARCHIV</span><h2>Letzte Touren</h2></div><button class="text-button" data-page="rides">Alle anzeigen <svg class="ui-icon inline-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></button></div>
+        <div class="section-heading recent-heading"><div><span class="eyebrow">ARCHIV</span><h2>Letzte Aktivitäten</h2></div><button class="text-button" data-page="rides">Alle anzeigen <svg class="ui-icon inline-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></button></div>
         <div id="recentRides" class="ride-list"><div class="empty-state">Noch keine Touren vorhanden.<br>Starte deine erste VELOX-Aufzeichnung.</div></div>
       </section>
 
       <section class="page" id="page-track">
         <div class="page-title"><span class="eyebrow">LIVE-AUFZEICHNUNG</span><h1>Deine Tour</h1></div>
         <div class="tracking-status"><span class="status-dot" id="trackingDot"></span><span id="trackingStatus">Bereit</span><span id="gpsAccuracy" class="accuracy">GPS nicht aktiv</span></div>
-        <button class="primary-button start-button track-start-button" id="trackStartRide" type="button"><span class="button-play">▶</span><span>Route starten</span><span class="button-arrow">↗</span></button>
+        <button class="primary-button start-button track-start-button" id="trackStartRide" type="button"><span class="button-play">▶</span><span>Aufzeichnung starten</span><span class="button-arrow">↗</span></button>
         <div class="live-distance"><strong id="liveDistance">0,00</strong><span>KM</span></div>
         <div class="live-grid">
-          <div><span>Geschwindigkeit</span><strong id="liveSpeed">0,0 <small>km/h</small></strong></div>
-          <div><span>Fahrzeit</span><strong id="liveDuration">00:00:00</strong></div>
+          <div><span id="liveSpeedLabel">Geschwindigkeit</span><strong id="liveSpeed">0,0 <small>km/h</small></strong></div>
+          <div><span id="liveDurationLabel">Fahrzeit</span><strong id="liveDuration">00:00:00</strong></div>
           <div><span>Höhenmeter</span><strong id="liveElevation">0 <small>m</small></strong></div>
-          <div><span>Ø Geschwindigkeit</span><strong id="liveAverage">0,0 <small>km/h</small></strong></div>
+          <div><span id="liveAverageLabel">Ø Geschwindigkeit</span><strong id="liveAverage">0,0 <small>km/h</small></strong></div>
           <div><span>Aktuelle Höhe</span><strong id="liveAltitude">– <small>m</small></strong></div>
           <div><span>Aktuelle Steigung</span><strong id="liveGrade">– <small>%</small></strong></div>
-          <div><span>Fahrzeitanteil</span><strong id="liveMovingRatio">– <small>%</small></strong></div>
+          <div><span>Bewegungsanteil</span><strong id="liveMovingRatio">– <small>%</small></strong></div>
           <div><span>GPS-Höhenqualität</span><strong id="liveAltitudeQuality">–</strong></div>
         </div>
         <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption">GPS-STRECKENVERLAUF</div><button class="map-tool-button vx-follow active" id="mapFollow" type="button" aria-pressed="true">Folgen: an</button></div>
