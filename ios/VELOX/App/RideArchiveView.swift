@@ -178,6 +178,12 @@ private struct RideArchiveRow: View {
     }
 }
 
+private struct WatchCountRow: Identifiable {
+    let kind: WatchSensorSample.Kind
+    let count: Int
+    var id: String { kind.rawValue }
+}
+
 private struct RideDetailView: View {
     let ride: Ride
 
@@ -202,11 +208,11 @@ private struct RideDetailView: View {
         }
     }
 
-    private var watchCounts: [(WatchSensorSample.Kind, Int)] {
+    private var watchCounts: [WatchCountRow] {
         let grouped = Dictionary(grouping: ride.watchSamples ?? [], by: \.kind)
         return WatchSensorSample.Kind.allCases.compactMap { kind in
             guard let count = grouped[kind]?.count, count > 0 else { return nil }
-            return (kind, count)
+            return WatchCountRow(kind: kind, count: count)
         }
     }
 
@@ -233,8 +239,8 @@ private struct RideDetailView: View {
                     Text("Keine Watch-Messwerte gespeichert.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(watchCounts, id: \.0) { item in
-                        LabeledContent(item.0.rawValue, value: String(item.1))
+                    ForEach(watchCounts) { item in
+                        LabeledContent(item.kind.rawValue, value: String(item.count))
                     }
                 }
             }
