@@ -162,7 +162,7 @@
       : fmt(result.goodAccuracyRatio * 100, 0) + " % der gemeldeten Positionsgenauigkeiten liegen bei höchstens 20 m.";
     const cards = [
       card("Strecke", fmt(result.distanceM / 1000) + " km", result.acceptedSegments + " Bewegungsabschnitte"),
-      card("Bewegungszeit", fmtTime(result.movingSeconds), "Nur gültige Fahrintervalle"),
+      card(running ? "Laufzeit" : "Fahrzeit", fmtTime(result.movingSeconds), "Nur gültige Bewegungsintervalle"),
       card("Gesamtzeit", fmtTime(result.elapsedSeconds), "Aufzeichnungszeit abzüglich Pausen"),
       card("Stand- / Lückenzeit", fmtTime(result.stoppedSeconds), "Nicht als Fahrzeit gewertet"),
       card(running ? "Ø Laufpace" : "Ø Fahrtempo", speedValue(result.averageSpeed), "Distanz ÷ Bewegungszeit"),
@@ -249,7 +249,7 @@
     return '<div class="vx-pro-cards">' +
       card("Aktivitäten", rides.length, "Lokal gespeicherte Datensätze") +
       card("Gesamtdistanz", fmt(total.distance / 1000) + " km", "Nur plausible GPS-Abschnitte") +
-      card("Bewegungszeit", fmtTime(total.moving), "Summe der erkannten Bewegungsintervalle") +
+      card(running ? "Laufzeit" : sport === "cycling" ? "Fahrzeit" : "Bewegungszeit", fmtTime(total.moving), "Summe der erkannten Bewegungsintervalle") +
       card("Aufstieg / Abstieg", "+" + Math.round(total.gain) + " / −" + Math.round(total.loss) + " m", "Gefilterte GPS-Höhenwerte") +
       (!running ? card("Ø Radfahrtempo", bikes.length && bikeAvg ? fmt(bikeAvg) + " km/h" : "–", "Radfahren separat ausgewertet") : "") +
       (sport !== "cycling" ? card("Ø Laufpace", runs.length && runAvg ? formatPace(runAvg) + " min/km" : "–", "Laufen separat ausgewertet") : "") +
