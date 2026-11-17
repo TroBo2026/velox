@@ -42,13 +42,16 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
 
         guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate),
               let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
-              let distanceType = HKObjectType.quantityType(forIdentifier: .distanceCycling) else {
+              let distanceType = HKObjectType.quantityType(forIdentifier: .distanceCycling),
+              let cadenceType = HKObjectType.quantityType(forIdentifier: .cyclingCadence),
+              let powerType = HKObjectType.quantityType(forIdentifier: .cyclingPower),
+              let speedType = HKObjectType.quantityType(forIdentifier: .cyclingSpeed) else {
             statusMessage = "Benötigte HealthKit-Datentypen sind nicht verfügbar."
             return
         }
 
         let shareTypes: Set<HKSampleType> = [HKObjectType.workoutType()]
-        let readTypes: Set<HKObjectType> = [heartRateType, energyType, distanceType]
+        let readTypes: Set<HKObjectType> = [heartRateType, energyType, distanceType, cadenceType, powerType, speedType]
         do {
             try await requestAuthorization(share: shareTypes, read: readTypes)
             let configuration = HKWorkoutConfiguration()
@@ -206,14 +209,34 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
             let timestampMs = Int64(interval.end.timeIntervalSince1970 * 1_000)
             distanceMeters = meters
             sendSample(kind: .distanceMeters, value: meters, timestamp: Double(timestampMs), source: .healthKit)
-            if let previousDistance {
-                let deltaSeconds = Double(timestampMs - previousDistance.timestampMs) / 1_000
-                let speed = (meters - previousDistance.meters) / deltaSeconds
-                if deltaSeconds > 0, speed.isFinite, (0...35).contains(speed) {
-                    sendSample(kind: .speedMetersPerSecond, value: speed, timestamp: Double(timestampMs), source: .healthKit)
-                }
-            }
             previousDistance = (meters, timestampMs)
+        }
+
+        if let type = HKObjectType.quantityType(forIdentifier: .cyclingCadence),
+           types.contains(type),
+           let statistics = builder.statistics(for: type),
+           let quantity = statistics.mostRecentQuantity(),
+           let interval = statistics.mostRecentQuantityDateInterval() {
+            let rpm = quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+            sendSample(kind: .cadenceRPM, value: rpm, timestamp: interval.end.timeIntervalSince1970 * 1_000, source: .healthKit)
+        }
+
+        if let type = HKObjectType.quantityType(forIdentifier: .cyclingPower),
+           types.contains(type),
+           let statistics = builder.statistics(for: type),
+           let quantity = statistics.mostRecentQuantity(),
+           let interval = statistics.mostRecentQuantityDateInterval() {
+            let watts = quantity.doubleValue(for: .watt())
+            sendSample(kind: .cyclingPowerWatts, value: watts, timestamp: interval.end.timeIntervalSince1970 * 1_000, source: .healthKit)
+        }
+
+        if let type = HKObjectType.quantityType(forIdentifier: .cyclingSpeed),
+           types.contains(type),
+           let statistics = builder.statistics(for: type),
+           let quantity = statistics.mostRecentQuantity(),
+           let interval = statistics.mostRecentQuantityDateInterval() {
+            let metersPerSecond = quantity.doubleValue(for: HKUnit.meter().unitDivided(by: .second()))
+            sendSample(kind: .speedMetersPerSecond, value: metersPerSecond, timestamp: interval.end.timeIntervalSince1970 * 1_000, source: .healthKit)
         }
     }
 
