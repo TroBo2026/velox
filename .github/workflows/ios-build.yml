@@ -66,6 +66,15 @@ jobs:
             -o "$RUNNER_TEMP/VELOX-Elevation-Validation"
           "$RUNNER_TEMP/VELOX-Elevation-Validation"
 
+      - name: Validate Watch sensor packets
+        run: |
+          set -o pipefail
+          swiftc -parse-as-library \
+            ios/VELOX/Models/WatchSensorSample.swift \
+            ios/Tests/WatchSensorSampleValidation.swift \
+            -o "$RUNNER_TEMP/VELOX-Watch-Sensor-Validation"
+          "$RUNNER_TEMP/VELOX-Watch-Sensor-Validation"
+
       - name: Package simulator build
         if: success()
         run: |
