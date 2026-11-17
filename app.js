@@ -9,13 +9,17 @@
   const DB_NAME = "velox-local";
   const DB_VERSION = 1;
   const STORE = "rides";
-  const APP_VERSION = "0.12.0";
+  const APP_VERSION = "0.13.0";
   const Core = window.VELOXCore;
   const Charts = window.VELOXCharts;
   const $ = (id) => document.getElementById(id);
   let db;
   let currentPage = "home";
   let selectedActivityType = "cycling";
+  let stepMotionListener = null;
+  let stepDetector = null;
+  let stepSaveAt = 0;
+  const PROFILE_HEIGHT_KEY = "velox-profile-height-cm";
   let activeRide = null;
   let watchId = null;
   let timerId = null;
@@ -61,6 +65,48 @@
   }
   function formatPace(speedKmh){
     return Number.isFinite(speedKmh)&&speedKmh>0?formatPaceSeconds(3600/speedKmh):"–";
+  }
+  function getProfileHeight(){
+    try{const value=Number(localStorage.getItem(PROFILE_HEIGHT_KEY));return Number.isFinite(value)&&value>=100&&value<=230?value:null;}catch{return null;}
+  }
+  function filterRidesBySport(rides,sport){
+    if(sport==="running")return rides.filter(ride=>isRunning(ride));
+    if(sport==="cycling")return rides.filter(ride=>!isRunning(ride));
+    return rides;
+  }
+  async function ensureRunningProfile(){
+    const existing=getProfileHeight();if(existing!==null)return existing;
+    const result=await openSheet({title:"Dein Laufprofil",body:'<p>Deine Körpergröße hilft VELOX, die durchschnittliche Schrittlänge zu schätzen. Die Angabe bleibt lokal auf diesem Gerät und ist freiwillig.</p><label class="vx-field">Körpergröße in Zentimetern<input name="heightCm" type="number" inputmode="numeric" min="100" max="230" step="1" placeholder="z. B. 170"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"skip",label:"Ohne Angabe fortfahren",skip:true}]});
+    if(result.action!=="save")return null;
+    const value=Number(result.values.heightCm);
+    if(!Number.isFinite(value)||value<100||value>230){showToast("Bitte eine Körpergröße zwischen 100 und 230 cm eingeben.");return null;}
+    try{localStorage.setItem(PROFILE_HEIGHT_KEY,String(Math.round(value)));}catch{}
+    updateProfileHeightLabel();return Math.round(value);
+  }
+  function updateProfileHeightLabel(){const el=$("profileHeightValue");if(el)el.textContent=getProfileHeight()===null?"Noch nicht hinterlegt":getProfileHeight()+" cm";}
+  async function requestStepMotionPermission(){
+    if(!window.DeviceMotionEvent)return false;
+    const request=window.DeviceMotionEvent.requestPermission;
+    if(typeof request==="function"){try{return await request.call(window.DeviceMotionEvent)==="granted";}catch{return false;}}
+    return true;
+  }
+  function stopStepCounter(){
+    if(stepMotionListener){window.removeEventListener("devicemotion",stepMotionListener,true);stepMotionListener=null;}
+    stepDetector=null;
+  }
+  function startStepCounter(){
+    if(!activeRide||!isRunning(activeRide)||!window.VELOXSteps||!window.DeviceMotionEvent)return false;
+    stopStepCounter();stepDetector=new window.VELOXSteps.Detector();
+    stepMotionListener=event=>{
+      if(!activeRide||activeRide.status!=="recording"||!stepDetector)return;
+      if(stepDetector.process(event)>0){
+        activeRide.steps=(Number(activeRide.steps)||0)+1;
+        updateLive(false);
+        if(activeRide.steps%10===0&&Date.now()-stepSaveAt>1500){stepSaveAt=Date.now();persistActiveRide().catch(error=>console.warn("Schrittstand konnte nicht gespeichert werden:",error));}
+      }
+    };
+    window.addEventListener("devicemotion",stepMotionListener,true);
+    return true;
   }
   function setActivityType(type){
     if(type!=="running"&&type!=="cycling")return;
@@ -217,6 +263,7 @@
   }
   function renderWrapped(rides){
     const host=$("wrappedContent");if(!host)return;
+    rides=filterRidesBySport(rides,$("wrappedSportFilter")?.value||"all");
     if(!rides.length){host.innerHTML='<div class="empty-state">Noch keine gespeicherten Aktivitäten. Nach deiner ersten Aktivität erstellt VELOX hier automatisch deinen persönlichen Wrapped-Rückblick.</div>';return;}
     const entries=rides.map(ride=>({ride,calc:calcRide(ride)}));
     const totals=entries.reduce((sum,item)=>({distanceM:sum.distanceM+item.calc.distanceM,movingSeconds:sum.movingSeconds+item.calc.movingSeconds,gain:sum.gain+item.calc.elevationGain,loss:sum.loss+item.calc.elevationLoss}),{distanceM:0,movingSeconds:0,gain:0,loss:0});
@@ -430,12 +477,16 @@
     $("totalTime").innerHTML=fmt(time/3600,1)+" <small>h</small>";
     $("totalElevation").innerHTML=Math.round(elev)+" <small>m</small>";
     $("totalRides").textContent=rides.length;
-    $("statsDistance").innerHTML=fmt(distance/1000)+" <small>km</small>";
-    $("statsTime").innerHTML=fmt(time/3600)+" <small>h</small>";
-    $("statsElevation").innerHTML=Math.round(elev)+" <small>m</small>";
-    $("statsAverageDistance").innerHTML=fmt(rides.length?distance/1000/rides.length:0)+" <small>km</small>";
-    renderRideList($("recentRides"),rides.slice(0,3));renderRideList($("allRides"),rides);
-    renderRideComparison(rides.slice(0,3));
+    const statsRides=filterRidesBySport(rides,$("statsSportFilter")?.value||"all");
+    let statsDistance=0,statsTime=0,statsElevation=0;
+    statsRides.forEach(ride=>{const c=calcRide(ride);statsDistance+=c.distanceM;statsTime+=c.movingSeconds;statsElevation+=c.elevationGain;});
+    $("statsDistance").innerHTML=fmt(statsDistance/1000)+" <small>km</small>";
+    $("statsTime").innerHTML=fmt(statsTime/3600)+" <small>h</small>";
+    $("statsElevation").innerHTML=Math.round(statsElevation)+" <small>m</small>";
+    $("statsAverageDistance").innerHTML=fmt(statsRides.length?statsDistance/1000/statsRides.length:0)+" <small>km</small>";
+    renderRideList($("recentRides"),rides.slice(0,3));
+    renderRideList($("allRides"),filterRidesBySport(rides,$("ridesSportFilter")?.value||"all"));
+    renderRideComparison(statsRides.slice(0,3));
     updateBackupHint(rides.length);
     if(currentPage==="wrapped")renderWrapped(rides);
   }
