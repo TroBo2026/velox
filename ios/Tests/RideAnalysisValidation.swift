@@ -13,7 +13,8 @@ struct RideAnalysisValidation {
         testGPSGapSplitsElevationTotals()
         testPauseResumeSessionsCalibrateIndependently()
         testElevationOutlierAndRawDataIntegrity()
-        print("VELOX elevation validation: 8/8 checks passed")
+        testCompatibilitySummarySeparatesSessionsAndOutliers()
+        print("VELOX elevation validation: 9/9 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -192,17 +193,19 @@ struct RideAnalysisValidation {
             pausedMs: 0,
             pauseStarted: nil,
             status: "completed",
-            points: [
-                gpsPoint(time: start, altitude: nil),
-                gpsPoint(time: start + 10, altitude: nil),
-                gpsPoint(time: start + 20, altitude: nil),
-                gpsPoint(time: start + 30, altitude: nil)
-            ],
+            points: zip(
+                [0.0, 10, 20, 30, 40, 50, 60],
+                [13.0, 13.0003, 13.0006, 13.0009, 13.0012, 13.0015, 13.0018]
+            ).map { offset, longitude in
+                gpsPoint(time: start + offset, altitude: nil, longitude: longitude)
+            },
             barometerSamples: [
                 sample(time: start + 1, altitude: 0),
-                sample(time: start + 9, altitude: 2),
-                sample(time: start + 19, altitude: 40),
-                sample(time: start + 29, altitude: 4)
+                sample(time: start + 11, altitude: 2),
+                sample(time: start + 21, altitude: 40),
+                sample(time: start + 31, altitude: 4),
+                sample(time: start + 41, altitude: 6),
+                sample(time: start + 51, altitude: 3)
             ],
             importedFromId: nil
         )
@@ -210,13 +213,36 @@ struct RideAnalysisValidation {
         let originalBarometer = ride.barometerSamples
         let result = RideElevationAnalysis(ride: ride)
 
-        expect(result.profile.count == 4, "outlier remains visible in derived profile")
+        expect(result.profile.count == 6, "outlier remains visible in derived profile")
         expect(close(result.profile[2].altitudeM, to: 40), "outlier value is not rewritten")
-        expect(abs(result.ascentM - 2) < 0.001, "isolated elevation spike excluded from ascent")
-        expect(abs(result.descentM) < 0.001, "isolated elevation spike excluded from descent")
-        expect(result.rawBarometerCount == 4, "raw barometer sample count preserved")
+        expect(abs(result.ascentM - 6) < 0.001, "recovery samples after an isolated spike remain countable")
+        expect(abs(result.descentM - 3) < 0.001, "valid descent after an isolated spike remains countable")
+        expect(result.slopeProfile.count == 4, "distance-based slope windows are calculated")
+        expect((result.maxUphillGradePercent ?? 0) > 9 && (result.maxUphillGradePercent ?? 0) < 10, "uphill grade uses distance and calibrated height")
+        expect((result.maxDownhillGradePercent ?? 0) < -13.5 && (result.maxDownhillGradePercent ?? 0) > -15, "downhill grade preserves its negative sign")
+        expect(result.rawBarometerCount == 6, "raw barometer sample count preserved")
         expect(ride.points == originalGPS, "GPS raw observations remain unchanged")
         expect(ride.barometerSamples == originalBarometer, "barometer raw observations remain unchanged")
+    }
+
+    private static func testCompatibilitySummarySeparatesSessionsAndOutliers() {
+        let start = 1_700_000_000.0
+        let firstSession = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
+        let secondSession = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
+        let samples = [
+            sample(time: start + 1, altitude: 0, sessionID: firstSession),
+            sample(time: start + 11, altitude: 2, sessionID: firstSession),
+            sample(time: start + 21, altitude: 40, sessionID: firstSession),
+            sample(time: start + 31, altitude: 4, sessionID: firstSession),
+            sample(time: start + 41, altitude: 6, sessionID: firstSession),
+            sample(time: start + 101, altitude: 100, sessionID: secondSession),
+            sample(time: start + 111, altitude: 101, sessionID: secondSession)
+        ]
+
+        let summary = RideElevationSummary(samples: samples)
+        expect(abs(summary.ascentM - 7) < 0.001, "summary resets at a new sensor session and recovers after spikes")
+        expect(abs(summary.descentM) < 0.001, "summary excludes the isolated spike")
+        expect(abs(summary.netChangeM) < 0.001, "relative session zeros are never compared")
     }
 
     private static func makeRide(
@@ -245,10 +271,10 @@ struct RideAnalysisValidation {
         )
     }
 
-    private static func gpsPoint(time: Double, altitude: Double?) -> RidePoint {
+    private static func gpsPoint(time: Double, altitude: Double?, longitude: Double = 13.0) -> RidePoint {
         RidePoint(
             lat: 51.0,
-            lon: 13.0,
+            lon: longitude,
             t: time,
             alt: altitude,
             altAccuracy: altitude == nil ? nil : 5,

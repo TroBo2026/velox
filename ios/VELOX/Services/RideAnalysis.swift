@@ -5,8 +5,16 @@ import CoreLocation
 /// untouched in Ride.points and Ride.barometerSamples.
 struct RideElevationProfilePoint: Equatable, Identifiable {
     let id: Int
+    let timestampMs: Int64
     let distanceM: Double
     let altitudeM: Double
+    let segmentID: Int
+}
+
+struct RideSlopePoint: Equatable, Identifiable {
+    let id: Int
+    let distanceM: Double
+    let gradePercent: Double
     let segmentID: Int
 }
 
@@ -20,6 +28,9 @@ struct RideElevationAnalysis: Equatable {
     }
 
     let profile: [RideElevationProfilePoint]
+    let slopeProfile: [RideSlopePoint]
+    let maxUphillGradePercent: Double?
+    let maxDownhillGradePercent: Double?
     let ascentM: Double
     let descentM: Double
     let netChangeM: Double
@@ -35,6 +46,9 @@ struct RideElevationAnalysis: Equatable {
     init(ride: Ride?) {
         guard let ride else {
             profile = []
+            slopeProfile = []
+            maxUphillGradePercent = nil
+            maxDownhillGradePercent = nil
             ascentM = 0
             descentM = 0
             netChangeM = 0
@@ -142,6 +156,7 @@ struct RideElevationAnalysis: Equatable {
                 }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
+                    timestampMs: sample.timestampMs,
                     distanceM: position.distanceM,
                     altitudeM: altitude,
                     segmentID: profileSegmentIDs[segmentKey] ?? position.segmentID
@@ -155,6 +170,7 @@ struct RideElevationAnalysis: Equatable {
                       let position = Self.distance(at: timestamp, on: route) else { continue }
                 plotted.append(RideElevationProfilePoint(
                     id: plotted.count,
+                    timestampMs: timestamp,
                     distanceM: position.distanceM,
                     altitudeM: altitude,
                     segmentID: position.segmentID
@@ -163,6 +179,9 @@ struct RideElevationAnalysis: Equatable {
         }
 
         let computedProfile = plotted
+        let computedSlopeProfile = Self.makeSlopeProfile(computedProfile)
+        let computedMaxUphillGrade = computedSlopeProfile.map(\\.gradePercent).filter { $0 > 0 }.max()
+        let computedMaxDownhillGrade = computedSlopeProfile.map(\\.gradePercent).filter { $0 < 0 }.min()
         let computedReference: Reference
         let computedCalibrationOffset: Double?
         let computedCalibrationSpread: Double?
@@ -206,6 +225,9 @@ struct RideElevationAnalysis: Equatable {
 
         // Initialize every stored property exactly once, after all calculations.
         profile = computedProfile
+        slopeProfile = computedSlopeProfile
+        maxUphillGradePercent = computedMaxUphillGrade
+        maxDownhillGradePercent = computedMaxDownhillGrade
         ascentM = totals.ascent
         descentM = totals.descent
         netChangeM = computedNetChange
@@ -219,6 +241,9 @@ struct RideElevationAnalysis: Equatable {
 
     private init(empty: Void) {
         profile = []
+        slopeProfile = []
+        maxUphillGradePercent = nil
+        maxDownhillGradePercent = nil
         ascentM = 0
         descentM = 0
         netChangeM = 0
@@ -309,6 +334,66 @@ struct RideElevationAnalysis: Equatable {
         return values[middle]
     }
 
+    /// Computes distance-based grade over non-overlapping windows of at least 20 m.
+    /// Windows never cross a GPS/session segment or a 30-second sample gap. A
+    /// vertical jump over 8 m is ignored for grade calculation without altering
+    /// the plotted observation or advancing the last trusted anchor.
+    private static func makeSlopeProfile(_ points: [RideElevationProfilePoint]) -> [RideSlopePoint] {
+        let minimumWindowDistanceM = 20.0
+        let maximumWindowDurationMs: Int64 = 30_000
+        let maximumTrustedElevationStepM = 8.0
+
+        var result: [RideSlopePoint] = []
+        var anchor: RideElevationProfilePoint?
+
+        for point in points {
+            guard let previous = anchor else {
+                anchor = point
+                continue
+            }
+
+            guard point.segmentID == previous.segmentID else {
+                anchor = point
+                continue
+            }
+
+            let elapsedMs = point.timestampMs - previous.timestampMs
+            guard elapsedMs > 0 else { continue }
+            guard elapsedMs <= maximumWindowDurationMs else {
+                anchor = point
+                continue
+            }
+
+            let distanceDelta = point.distanceM - previous.distanceM
+            guard distanceDelta.isFinite, distanceDelta > 0 else { continue }
+            guard distanceDelta >= minimumWindowDistanceM else { continue }
+
+            let altitudeDelta = point.altitudeM - previous.altitudeM
+            guard altitudeDelta.isFinite else {
+                anchor = point
+                continue
+            }
+            // Treat isolated spikes consistently with the ascent/descent totals.
+            // Keep the previous anchor so the recovery sample is not discarded too.
+            guard abs(altitudeDelta) <= maximumTrustedElevationStepM else { continue }
+
+            let grade = altitudeDelta / distanceDelta * 100
+            guard grade.isFinite else {
+                anchor = point
+                continue
+            }
+            result.append(RideSlopePoint(
+                id: result.count,
+                distanceM: point.distanceM,
+                gradePercent: grade,
+                segmentID: point.segmentID
+            ))
+            anchor = point
+        }
+
+        return result
+    }
+
     private static func elevationTotals(_ points: [RideElevationProfilePoint]) -> (ascent: Double, descent: Double) {
         guard let first = points.first else { return (0, 0) }
         var ascent = 0.0
@@ -323,10 +408,11 @@ struct RideElevationAnalysis: Equatable {
             }
             let delta = point.altitudeM - previous
             // Reject isolated jumps; keep the raw observation in the ride archive.
-            if delta.isFinite && abs(delta) <= 8 {
-                if delta >= 1 { ascent += delta }
-                else if delta <= -1 { descent += abs(delta) }
-            }
+            // Do not advance the trusted baseline on a rejected spike, otherwise
+            // the following recovery sample would be rejected as a second spike.
+            guard delta.isFinite, abs(delta) <= 8 else { continue }
+            if delta >= 1 { ascent += delta }
+            else if delta <= -1 { descent += abs(delta) }
             previous = point.altitudeM
         }
         return (ascent, descent)
@@ -354,7 +440,10 @@ struct RideElevationSummary: Equatable {
         let totals = RideElevationAnalysis.elevationTotalsForSummary(ordered)
         ascentM = totals.ascent
         descentM = totals.descent
-        netChangeM = ordered.last!.relativeAltitudeM - first.relativeAltitudeM
+        let sessionKeys = Set(ordered.map { $0.sessionID?.uuidString ?? "legacy" })
+        netChangeM = sessionKeys.count == 1
+            ? ordered.last!.relativeAltitudeM - first.relativeAltitudeM
+            : 0
     }
 }
 
@@ -365,12 +454,20 @@ extension RideElevationAnalysis {
         var descent = 0.0
         var previous = first
         for sample in samples.dropFirst() {
-            let elapsed = sample.timestampMs - previous.timestampMs
-            let delta = sample.relativeAltitudeM - previous.relativeAltitudeM
-            if elapsed > 0 && elapsed <= 15_000 && delta.isFinite && abs(delta) <= 8 {
-                if delta >= 1 { ascent += delta }
-                else if delta <= -1 { descent += abs(delta) }
+            guard sample.sessionID == previous.sessionID else {
+                previous = sample
+                continue
             }
+            let elapsed = sample.timestampMs - previous.timestampMs
+            guard elapsed > 0, elapsed <= 15_000 else {
+                previous = sample
+                continue
+            }
+            let delta = sample.relativeAltitudeM - previous.relativeAltitudeM
+            // Keep the last trusted baseline after an isolated spike.
+            guard delta.isFinite, abs(delta) <= 8 else { continue }
+            if delta >= 1 { ascent += delta }
+            else if delta <= -1 { descent += abs(delta) }
             previous = sample
         }
         return (ascent, descent)

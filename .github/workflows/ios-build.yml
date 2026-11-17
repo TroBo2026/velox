@@ -38,7 +38,7 @@ jobs:
 
       - name: Validate Xcode project
         run: |
-          plutil -lint ios/VELOX.xcodeproj/project.pbxproj
+          plutil -lint ios/VELOX.xcodeproj/project.pbxproj ios/VELOX/VELOX-Info.plist ios/VELOXWatch/Info.plist ios/VELOXWatch/VELOXWatch.entitlements
           xcodebuild -list -project ios/VELOX.xcodeproj
 
       - name: Build for iOS Simulator
@@ -62,8 +62,8 @@ jobs:
             -scheme VELOXWatch \
             -configuration Debug \
             -destination 'generic/platform=watchOS Simulator' \
-            -arch arm64 \
             -derivedDataPath "$RUNNER_TEMP/VELOX-Watch-DerivedData" \
+            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO \
             build
 
@@ -74,6 +74,7 @@ jobs:
             ios/VELOX/Models/RidePoint.swift \
             ios/VELOX/Models/BarometerSample.swift \
             ios/VELOX/Models/Ride.swift \
+            ios/VELOX/Models/WatchSensorSample.swift \
             ios/VELOX/Services/RideAnalysis.swift \
             ios/Tests/RideAnalysisValidation.swift \
             -o "$RUNNER_TEMP/VELOX-Elevation-Validation"

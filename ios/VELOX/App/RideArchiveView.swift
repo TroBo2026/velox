@@ -230,7 +230,14 @@ private struct RideDetailView: View {
                 LabeledContent("Aufstieg", value: String(format: "%.0f m", analysis.ascentM))
                 LabeledContent("Abstieg", value: String(format: "%.0f m", analysis.descentM))
                 LabeledContent("GPS-Referenzpaare", value: String(analysis.gpsAnchorCount))
-                Text("Die Strecke wird aus aufeinanderfolgenden gespeicherten GPS-Punkten berechnet. Bei GPS-Lücken ist sie eine Näherung und kann die tatsächliche Strecke unterschätzen.")
+                LabeledContent("Steigungsabschnitte", value: String(analysis.slopeProfile.count))
+                if let uphill = analysis.maxUphillGradePercent {
+                    LabeledContent("Größte Steigung", value: String(format: "%.1f %%", uphill))
+                }
+                if let downhill = analysis.maxDownhillGradePercent {
+                    LabeledContent("Größtes Gefälle", value: String(format: "%.1f %%", downhill))
+                }
+                Text("Steigung und Gefälle werden über mindestens 20 m Streckenfenster berechnet. Sensor-Sitzungen, GPS-Lücken über 30 s und isolierte Höhensprünge über 8 m werden nicht überbrückt. Die Strecke bleibt bei GPS-Lücken eine Näherung.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
