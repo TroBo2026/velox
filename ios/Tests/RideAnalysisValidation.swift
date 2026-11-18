@@ -14,7 +14,8 @@ struct RideAnalysisValidation {
         testPauseResumeSessionsCalibrateIndependently()
         testElevationOutlierAndRawDataIntegrity()
         testCompatibilitySummarySeparatesSessionsAndOutliers()
-        print("VELOX elevation validation: 9/9 checks passed")
+        testSharedRouteDistanceDoesNotBridgeGPSGaps()
+        print("VELOX elevation and route-distance validation: 10/10 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -243,6 +244,27 @@ struct RideAnalysisValidation {
         expect(abs(summary.ascentM - 7) < 0.001, "summary resets at a new sensor session and recovers after spikes")
         expect(abs(summary.descentM) < 0.001, "summary excludes the isolated spike")
         expect(abs(summary.netChangeM) < 0.001, "relative session zeros are never compared")
+    }
+
+    private static func testSharedRouteDistanceDoesNotBridgeGPSGaps() {
+        let start = 1_700_000_000.0
+        let points = [
+            gpsPoint(time: start, altitude: nil, longitude: 13.0000),
+            gpsPoint(time: start + 10, altitude: nil, longitude: 13.0010),
+            // A 60-second gap must split the route; this jump is not counted.
+            gpsPoint(time: start + 70, altitude: nil, longitude: 13.0100),
+            gpsPoint(time: start + 80, altitude: nil, longitude: 13.0110)
+        ]
+
+        let distance = RideRouteMetrics.distanceMeters(for: points)
+        expect(distance > 130 && distance < 150, "shared distance excludes the long-gap bridge")
+
+        let invalidAccuracy = RidePoint(
+            lat: 51, lon: 13.0200, t: start + 90, alt: nil,
+            altAccuracy: nil, altSource: nil, pressureKPa: nil, accuracy: 80
+        )
+        let withInvalidFix = RideRouteMetrics.distanceMeters(for: points + [invalidAccuracy])
+        expect(abs(withInvalidFix - distance) < 0.001, "invalid-accuracy fixes do not add distance")
     }
 
     private static func makeRide(
