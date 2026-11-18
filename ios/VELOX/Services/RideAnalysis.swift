@@ -199,7 +199,9 @@ struct RideElevationAnalysis: Equatable {
             .max()
         let totalAnchorCount = calibrationBySession.values.reduce(0) { $0 + $1.anchorCount }
 
-        let route = Self.makeRoute(gps)
+        // Keep invalid observations in the route input so they explicitly break continuity.
+        // The calibration set above remains filtered to trusted GPS fixes.
+        let route = Self.makeRoute(ride.points)
         var plotted: [RideElevationProfilePoint] = []
         var profileSegmentIDs: [String: Int] = [:]
 
@@ -335,30 +337,64 @@ struct RideElevationAnalysis: Equatable {
     }
 
     private static func makeRoute(_ points: [RidePoint]) -> [RoutePoint] {
+        let ordered = points.filter { $0.t.isFinite }.sorted { $0.t < $1.t }
         var result: [RoutePoint] = []
         var distance = 0.0
         var segmentID = 0
         var previous: RidePoint?
-        for point in points {
-            guard let timestamp = Self.timestampMilliseconds(from: point.t) else { continue }
+
+        for point in ordered {
+            guard let timestamp = Self.timestampMilliseconds(from: point.t),
+                  point.lat.isFinite, (-90.0...90.0).contains(point.lat),
+                  point.lon.isFinite, (-180.0...180.0).contains(point.lon),
+                  let accuracy = point.accuracy,
+                  accuracy.isFinite, accuracy >= 0, accuracy <= 35 else {
+                if previous != nil { segmentID += 1 }
+                previous = nil
+                continue
+            }
+
             guard let previousPoint = previous,
                   let previousTimestamp = Self.timestampMilliseconds(from: previousPoint.t) else {
                 result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
+
             let elapsedMs = timestamp - previousTimestamp
-            guard elapsedMs > 0 else { continue }
-            let a = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
-            let b = CLLocation(latitude: point.lat, longitude: point.lon)
-            let segment = b.distance(from: a)
-            guard elapsedMs <= 30_000, segment.isFinite, segment >= 0, segment <= 120 else {
-                // Start a new segment; never connect or total elevation across this gap.
+            guard elapsedMs > 0 else {
                 segmentID += 1
                 result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
+
+            guard elapsedMs <= Int64(RideRouteMetrics.maximumGapSeconds * 1_000) else {
+                segmentID += 1
+                result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
+
+            let first = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
+            let second = CLLocation(latitude: point.lat, longitude: point.lon)
+            let segment = second.distance(from: first)
+            guard segment.isFinite else {
+                segmentID += 1
+                previous = nil
+                continue
+            }
+            guard segment <= RideRouteMetrics.maximumSegmentMeters else {
+                segmentID += 1
+                result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
+            guard segment >= RideRouteMetrics.minimumSegmentMeters else {
+                // Match live/archive distance: ignore jitter without moving the anchor.
+                continue
+            }
+
             distance += segment
             result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
             previous = point
