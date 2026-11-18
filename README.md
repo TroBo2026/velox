@@ -5,16 +5,18 @@
 [![Web Check](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml)
 [![iOS Build](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml)
 
-VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
+VELOX ist ein local-first Sporttracker mit zwei getrennten Profilen: Laufen und Radfahren. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
 
 **Inhalt:** [Aktueller Stand](#aktueller-stand--version-099) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
 
 ---
 
-## Aktueller Stand – Version 0.10.0
+## Aktueller Stand – Version 0.13.0
 
 ### Aufzeichnung
-- GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start auf der Startseite oder direkt auf der Track-Seite. Eine laufende Tour kann nicht versehentlich ein zweites Mal gestartet werden.
+- Zwei eigenständige Profile mit separaten Dashboards: Laufprofil und Fahrradprofil. Die Auswahl erfolgt vor dem Tracking und bleibt lokal gespeichert; im Tracking wird keine Sportart mehr ausgewählt.
+- Jedes Profil hat eigene Kennzahlen, Aktivitätslisten, Statistiken, Pro-Analyse, Wrapped-Auswertung, Wochenziele und Wochenüberblicke. Pace und Geschwindigkeit werden nicht sportartübergreifend vermischt.
+- GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss. Das Tracking übernimmt automatisch das zuvor gewählte Profil; eine laufende Aktivität kann nicht versehentlich ein zweites Mal gestartet oder in ein anderes Profil umgeschaltet werden.
 - Der Bildschirm bleibt während der Aufzeichnung an, sofern iOS die Screen-Wake-Lock-API bereitstellt (wird bei Pause und Ende wieder freigegeben).
 - Offline-Aufzeichnung: GPS-Punkte werden fortlaufend lokal in IndexedDB gespeichert. Ohne Verbindung zeigt VELOX eine schematische Offline-Strecke; nach Wiederverbindung können Kartendaten nachgeladen werden.
 - Unterbrochene Touren (App beendet, Seite neu geladen) werden beim nächsten Start pausiert wiederhergestellt.
@@ -26,8 +28,8 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Geglättetes Geschwindigkeitsprofil, Höhenprofil und Steigungsprofil in jeder Tour-Detailansicht; GPS-Lücken werden nicht überbrückt.
 - Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start, Strecken-Geradlinigkeit sowie GPS-erkannte Stopps (ab 10 s unter 1,5 km/h; manuelle Pausen und GPS-Lücken zählen nicht).
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken.
-- **Wrapped:** automatisch berechneter Archiv-Rückblick (Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM, Gelände- und Tempo-Zonen). Erreichbar unter „Mehr“.
-- **VELOX Pro Analyse:** optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Höhen-Ausreißerbericht und Archiv-Rekorden. Sie liest nur vorhandene IndexedDB-Daten.
+- **Wrapped:** automatisch berechneter, nach Lauf- oder Fahrradprofil getrennter Archiv-Rückblick (Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM, Gelände- und Tempo-Zonen). Erreichbar unter „Mehr“.
+- **VELOX Pro Analyse:** optionale sportartspezifische Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Höhen-Ausreißerbericht und Archiv-Rekorden. Sie liest nur vorhandene IndexedDB-Daten.
 - **Persönliche VELOX MAP:** mehrere gespeicherte Touren mit individuellen Farben, Ein-/Ausblenden einzelner Touren, Zeitfiltern und lokaler Streckendichte-Ansicht.
 
 ### Einheitliche Messregeln
@@ -53,6 +55,9 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 ---
 
 ## Datenschutz und Datenspeicherung
+
+Die aktive Profilauswahl und die Wochenziele werden lokal auf dem Gerät gespeichert. Es werden keine Konten oder Serverprofile angelegt. Bestehende Touren bleiben in derselben lokalen Datenbank; ältere Datensätze ohne `activityType` werden aus Kompatibilitätsgründen dem Fahrradprofil zugeordnet.
+
 
 - Kein VELOX-Konto und kein Login erforderlich.
 - Tourdaten werden im Browser auf dem verwendeten Gerät gespeichert. Es gibt keinen VELOX-Server, der Tourdaten entgegennimmt.
