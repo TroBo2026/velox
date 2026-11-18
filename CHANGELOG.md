@@ -9,6 +9,7 @@
 - Wochenziele und Wochenüberblicke werden je Sportprofil getrennt geführt; vorhandene Wochenziele dienen beim ersten Start als Ausgangswert für beide Profile.
 - Bestehende Aktivitätsdaten bleiben unverändert. Alte Datensätze ohne `activityType` werden weiterhin als Fahrradtouren behandelt.
 - Neue lokale Profilauswahl wird auf dem Gerät gespeichert; es wird kein Konto benötigt.
+- Beim Laufen optionale DeviceMotion-Schrittzählung mit einmaliger, freiwilliger Körpergrößenabfrage; Schrittlänge und Schrittstrecke werden als Schätzwerte gekennzeichnet.
 
 ### Validierung
 - Automatische Tests für Berechnungskern, App-Rauchtest, Versionskonsistenz und getrennte Profile.
