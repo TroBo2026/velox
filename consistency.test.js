@@ -26,7 +26,7 @@ ok(!!appVersion, "APP_VERSION in app.js: " + appVersion);
 const versions = {
   "Kopfzeile von app.js": first(read("app.js"), /^\/\* VELOX (\d+\.\d+\.\d+)/),
   "Versionsfeld in index.html": first(html, /VERSION (\d+\.\d+\.\d+)/),
-  "Info-Text in index.html": first(html, /VELOX (\d+\.\d+\.\d+) bleibt/),
+  "Info-Text in index.html": first(html, /VELOX (\d+\.\d+\.\d+) (?:bleibt|ist die aktuelle)/),
   "oberster CHANGELOG-Eintrag": first(read("CHANGELOG.md"), /^## (\d+\.\d+\.\d+)/m),
   "velox-polish.css": first(read("velox-polish.css"), /VELOX (\d+\.\d+\.\d+)/),
   "velox-plus.js": first(read("velox-plus.js"), /VELOX Plus (\d+\.\d+\.\d+)/)
