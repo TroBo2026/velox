@@ -105,3 +105,7 @@ dialog.vx-sheet[open]{animation:vxSheet .22s var(--vx-ease)}
 .track-mode-description{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
 @media(max-width:390px){.profile-choice-grid{gap:8px}.profile-choice-card{min-height:190px;padding:13px}.profile-dashboard-heading{flex-direction:column}.profile-dashboard-heading .secondary-button{align-self:flex-start}}
 @media(prefers-reduced-motion:reduce){.profile-choice-card{transition:none}}
+
+#liveStepsCard{grid-column:1/-1;padding:11px 13px;border:1px solid rgba(91,214,197,.25);border-radius:12px;background:rgba(91,214,197,.055)}
+#liveStepsCard strong{display:block;margin-top:4px;font-variant-numeric:tabular-nums}
+#liveStepsCard small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}
