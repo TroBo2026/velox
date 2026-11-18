@@ -1,5 +1,5 @@
-/* VELOX Plus: Tests der reinen Rechen- und Grafikfunktionen. Ausführen: node tests/plus.test.js */
-const P = require("../velox-plus.js");
+/* VELOX Plus: Tests der reinen Rechen- und Grafikfunktionen. Ausführen: node plus.test.js */
+const P = require("./velox-plus.js");
 let failed = false;
 const ok = (c, m) => { if (!c) { console.log("  ✗", m); failed = true; } else console.log("  ✓", m); };
 const at = (y, mo, d, h = 12) => new Date(y, mo - 1, d, h).getTime();
