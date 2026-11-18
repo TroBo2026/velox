@@ -698,7 +698,12 @@
     if(activeRide){setPage("track");return;}
     const activityType=activeProfile||selectedActivityType;
     if(!normalizeProfile(activityType)){showToast("Bitte wähle zuerst ein Sportprofil aus.");setPage("home");return;}
-    activeRide={id:"ride-"+Date.now(),activityType,name:activityType==="running"?"Laufrunde":"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,pauseIntervals:[],points:[],status:"recording"};
+    // iOS verlangt die Bewegungsfreigabe direkt aus dem Start-Tap, bevor der optionale Größen-Dialog erscheint.
+    const stepPermissionPromise=activityType==="running"?requestStepMotionPermission():Promise.resolve(false);
+    const heightCm=activityType==="running"?await ensureRunningProfile():null;
+    const stepPermission=await stepPermissionPromise;
+    activeRide={id:"ride-"+Date.now(),activityType,name:activityType==="running"?"Laufrunde":"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,pauseIntervals:[],points:[],status:"recording",
+      ...(activityType==="running"?{steps:0,heightCm,stepCountSource:stepPermission?"device-motion":"unavailable"}:{})};
     liveMetricsCache=null;liveMetricsRideId=null;liveDirty=false;pointsSincePersist=0;lastPersistAt=Date.now();dopplerSeen=false;
     syncTrackStartButton();
     try{await dbRequest("readwrite","put",activeRide);}catch(e){activeRide=null;syncTrackStartButton();showToast("Lokale Speicherung nicht verfügbar.");return;}
@@ -709,6 +714,8 @@
     setFollow(true);attachLiveMap();
     setPage("track");
     startWatching();
+    if(activityType==="running"&&stepPermission){if(!startStepCounter())showToast("Schrittzählung auf diesem Gerät nicht verfügbar.");}
+    else if(activityType==="running")showToast("GPS läuft. Schrittzählung ist auf diesem Browser nicht verfügbar oder nicht freigegeben.");
     acquireWakeLock();
     updateLive(true);
     scheduleLiveClock();
