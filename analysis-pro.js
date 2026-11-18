@@ -25,6 +25,7 @@
   const isRunning = ride => ride && ride.activityType === "running";
   function activeProfile(){try{const p=localStorage.getItem(PROFILE_STORAGE_KEY);return p==="running"||p==="cycling"?p:null;}catch{return null;}}
   function estimatedStride(height){return window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(height):(Number.isFinite(Number(height))&&Number(height)>=100&&Number(height)<=230?Number(height)*0.00415:null);}
+  function heightFor(ride){if(Number.isFinite(ride&&ride.heightCm))return ride.heightCm;try{const h=Number(localStorage.getItem("velox-profile-height-cm"));return h>=100&&h<=230?h:null;}catch{return null;}}
   const GRADE_BANDS = [
     { label: "Starke Abfahrt (< −6 %)", min: -35, max: -6 },
     { label: "Leichte Abfahrt (−6 bis −2 %)", min: -6, max: -2 },
@@ -157,7 +158,7 @@
     const running = result.activityType === "running";
     const speedValue = value => running ? formatPace(value) + " min/km" : fmt(value) + " km/h";
     const stepCount = running && result.ride.stepCountSource === "device-motion" && (Number(result.ride.stepSensorEvents)||0) > 0 && Number.isFinite(result.ride.steps) ? result.ride.steps : null;
-    const strideLength = running ? estimatedStride(Number.isFinite(result.ride.heightCm) ? result.ride.heightCm : null) : null;
+    const strideLength = running ? estimatedStride(heightFor(result.ride)) : null;
     const stepCards = running ?
       card("Erkannte Schritte", stepCount === null ? "Nicht erfasst" : Math.round(stepCount).toLocaleString("de-DE"), "Vom Bewegungssensor erkannt") +
       card("Ø Schrittlänge (Schätzung)", strideLength ? fmt(strideLength,2) + " m" : "–", "Näherung aus der Körpergröße") +
@@ -236,7 +237,7 @@
     const avgSpeed = total.moving>0?total.distance/total.moving*3.6:0;
     const stepEntries = running ? analyses.filter(item=>item.ride.stepCountSource==="device-motion"&&(Number(item.ride.stepSensorEvents)||0)>0&&Number.isFinite(item.ride.steps)) : [];
     const totalSteps = stepEntries.reduce((sum,item)=>sum+Math.max(0,item.ride.steps),0);
-    const totalStepDistanceM = stepEntries.reduce((sum,item)=>{const stride=estimatedStride(Number.isFinite(item.ride.heightCm)?item.ride.heightCm:null);return sum+(stride?Math.max(0,item.ride.steps)*stride:0);},0);
+    const totalStepDistanceM = stepEntries.reduce((sum,item)=>{const stride=estimatedStride(heightFor(item.ride));return sum+(stride?Math.max(0,item.ride.steps)*stride:0);},0);
     const records = [
       [running?"Längster Lauf":"Längste Fahrradtour", longest, longest ? fmt(longest.distanceM / 1000) + " km" : "–"],
       ["Höchster Aufstieg", climbing, climbing ? "+" + Math.round(climbing.elevation.gain) + " m" : "–"],
