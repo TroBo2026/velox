@@ -1,0 +1,94 @@
+/* VELOX brand system — native-feeling layout, spacing and touch targets */
+:root{
+  --vx-bg:#07111b;--vx-surface:#101e2b;--vx-surface-raised:#142535;
+  --vx-border:rgba(176,199,212,.14);--vx-text:#edf4f6;--vx-muted:#9aabb8;
+  --vx-accent:#63d8c8;--vx-accent-strong:#36b8aa;
+  --vx-radius:22px;--vx-gutter:clamp(18px,4.8vw,30px);
+}
+html,body{background:var(--vx-bg)}
+body{background:radial-gradient(ellipse at 82% -16%,rgba(56,142,145,.15),transparent 43%),var(--vx-bg);color:var(--vx-text);letter-spacing:-.01em}
+.app-shell{max-width:860px;padding-left:var(--vx-gutter);padding-right:var(--vx-gutter);padding-bottom:calc(126px + env(safe-area-inset-bottom))}
+.topbar{height:64px;border-bottom:1px solid var(--vx-border)}
+.brand{gap:11px;font-size:15px;letter-spacing:.24em}
+.brand-mark{width:29px;height:29px;border-radius:9px;font-size:15px}
+.local-indicator{font-size:9px;letter-spacing:.16em}
+.page{padding-top:24px}
+.hero{padding:24px 0 28px}
+.profile-hub-hero{padding-top:30px;padding-bottom:24px}
+.eyebrow{font-size:10px;letter-spacing:.2em;line-height:1.5}
+h1{font-size:clamp(34px,8vw,50px);line-height:1.06;letter-spacing:-.055em}
+.hero h1{margin:14px 0 16px;max-width:620px}
+.hero p,.page-title p,.profile-dashboard-heading p{max-width:620px;color:var(--vx-muted);font-size:15px;line-height:1.65}
+.profile-choice-grid{display:grid;grid-template-columns:1fr;gap:13px;margin:22px 0 38px}
+.profile-choice-card{
+  appearance:none;width:100%;min-width:0;min-height:124px;padding:20px 21px;
+  display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto auto;
+  column-gap:16px;row-gap:5px;align-items:center;text-align:left;
+  color:var(--vx-text);background:linear-gradient(135deg,rgba(22,43,57,.98),rgba(13,27,40,.98));
+  border:1px solid var(--vx-border);border-radius:20px;box-shadow:0 12px 28px rgba(0,0,0,.16);
+  transition:border-color .18s ease,transform .18s ease,background .18s ease;
+}
+.profile-choice-card:active{transform:scale(.99);border-color:rgba(99,216,200,.55)}
+.profile-choice-card:focus-visible{outline:2px solid var(--vx-accent);outline-offset:3px}
+.profile-choice-icon{grid-column:1;grid-row:1/4;width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:rgba(99,216,200,.10);color:var(--vx-accent);border:1px solid rgba(99,216,200,.18)}
+.profile-choice-icon svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.profile-choice-card .eyebrow{grid-column:2;grid-row:1;color:var(--vx-accent);font-size:9px}
+.profile-choice-card>strong{grid-column:2;grid-row:2;font-size:21px;line-height:1.2;font-weight:750;letter-spacing:-.035em}
+.profile-choice-description{grid-column:2;grid-row:3;color:var(--vx-muted);font-size:12px;line-height:1.45}
+.profile-choice-action{grid-column:2;grid-row:4;margin-top:9px;padding-top:10px;border-top:1px solid var(--vx-border);font-size:12px;font-weight:650;color:var(--vx-accent)}
+.profile-choice-action span{float:right;font-size:16px;line-height:12px}
+.section-heading{align-items:center;gap:14px;margin:28px 0 16px}
+.section-heading h2{font-size:clamp(20px,5vw,25px);line-height:1.2;letter-spacing:-.04em;margin:6px 0 0}
+.period-pill{flex:none;border-radius:12px;padding:8px 11px;font-size:10px;line-height:1.4;max-width:116px;white-space:normal;text-align:center}
+.metric-grid{gap:12px}
+.metric-card,.panel,.ride-card{border:1px solid var(--vx-border);border-radius:18px;background:linear-gradient(150deg,rgba(20,38,53,.98),rgba(12,25,37,.98));box-shadow:0 8px 22px rgba(0,0,0,.12)}
+.metric-card{padding:18px;min-height:118px}
+.metric-card:before{display:none}
+.metric-card>span{font-size:12px;line-height:1.45;margin-bottom:12px}
+.metric-card strong{font-size:clamp(25px,6vw,32px);line-height:1.1;letter-spacing:-.045em}
+.metric-foot{font-size:10px;margin-top:9px}
+.profile-dashboard-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:8px 0 22px}
+.profile-dashboard-heading>div{min-width:0}
+.profile-dashboard-heading h1{margin:9px 0 10px}
+.profile-dashboard-heading p{font-size:13px;margin:0}
+.profile-dashboard-heading .compact{flex:none;margin-top:4px}
+.profile-start-button{margin:4px 0 28px;min-height:58px;border-radius:16px;padding:16px 19px}
+.panel{padding:19px;margin-top:16px}
+.panel h3{font-size:17px;letter-spacing:-.025em}
+.text-button{min-height:42px;padding:8px 0;font-size:12px;font-weight:650}
+.bottom-nav{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;
+  padding:9px 12px calc(9px + env(safe-area-inset-bottom));
+  background:rgba(7,16,25,.96);backdrop-filter:blur(22px) saturate(150%);
+  border-top:1px solid rgba(176,199,212,.16)
+}
+.nav-item{width:auto;min-width:0;min-height:54px;padding:5px 2px;gap:5px;border-radius:12px}
+.nav-item>span{min-height:25px}
+.nav-item .ui-icon{width:21px;height:21px}
+.nav-item small{font-size:10px;line-height:1.2;letter-spacing:.005em}
+.nav-item.selected{color:var(--vx-accent)}
+.nav-start span{width:42px;height:38px;border-radius:13px;background:var(--vx-accent);color:#08221f}
+.nav-start small{color:var(--vx-muted)}
+.primary-button{background:linear-gradient(110deg,#71e1d2,#48c6b7);box-shadow:0 8px 20px rgba(54,184,170,.14)}
+.secondary-button,.danger-button,.danger-outline{min-height:42px;border-radius:12px;padding:10px 14px}
+.ride-card{padding:17px}
+.page-title h1{letter-spacing:-.05em}
+.back-button{min-height:38px;padding:6px 0 12px}
+input,select,textarea{font:inherit}
+@media(min-width:650px){
+ .app-shell{padding-left:34px;padding-right:34px}
+ .profile-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ .profile-choice-card{min-height:164px;padding:22px;grid-template-columns:44px minmax(0,1fr)}
+ .profile-choice-action{align-self:end}
+ .profile-hub-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:430px){
+ .profile-dashboard-heading{display:block}
+ .profile-dashboard-heading .compact{margin-top:14px}
+ .profile-choice-card{min-height:128px;padding:18px}
+ .metric-card{padding:16px;min-height:112px}
+ .metric-card strong{font-size:27px}
+ .section-heading{align-items:flex-start}
+ .period-pill{margin-top:8px}
+}
+@media(prefers-reduced-motion:reduce){.profile-choice-card{transition:none}}
