@@ -1194,6 +1194,11 @@
     if(followLive&&liveMap&&last)liveMap.setView([last.lat,last.lon],Math.max(liveMap.getZoom(),15));
   });
   $("startRide").addEventListener("click",()=>{if(activeProfile)selectProfile(activeProfile);else setPage("home");});
+  $("editProfileHeight")?.addEventListener("click",async()=>{
+    const current=getProfileHeight();
+    const result=await openSheet({title:"Körpergröße bearbeiten",body:'<p>Die Angabe bleibt lokal auf diesem Gerät und dient nur zur Schätzung deiner Schrittlänge beim Laufen.</p><label class="vx-field">Körpergröße in Zentimetern<input name="heightCm" type="number" inputmode="numeric" min="100" max="230" step="1" value="'+(current||"")+'" placeholder="z. B. 170"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
+    if(result.action==="save"){const value=Number(result.values.heightCm);if(Number.isFinite(value)&&value>=100&&value<=230){try{localStorage.setItem(PROFILE_HEIGHT_KEY,String(Math.round(value)));localStorage.removeItem(PROFILE_HEIGHT_SKIP_KEY);}catch{}updateProfileHeightLabel();showToast("Körpergröße aktualisiert.");}else showToast("Bitte eine Körpergröße zwischen 100 und 230 cm eingeben.");}
+  });
   $("trackStartRide")?.addEventListener("click",startRide);
   document.addEventListener("visibilitychange",()=>{
     if(!activeRide)return;
