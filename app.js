@@ -785,6 +785,13 @@
     const liveGrade=currentGrade(c);
     $("liveGrade").innerHTML=liveGrade===null?'– <small>%</small>':fmt(liveGrade)+' <small>%</small>';
     $("liveMovingRatio").innerHTML=fmt(elapsed?Math.min(100,c.movingSeconds/elapsed*100):0,0)+' <small>%</small>';
+    const stepCard=$("liveStepsCard");if(stepCard)stepCard.hidden=!running;
+    if(running){
+      const count=Number(activeRide.steps)||0,sensorAvailable=activeRide.stepCountSource==="device-motion";
+      $("liveSteps").textContent=sensorAvailable?count.toLocaleString("de-DE"):"–";
+      const stride=activeRide.heightCm&&window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(activeRide.heightCm):null;
+      $("liveStepsNote").textContent=!sensorAvailable?"Bewegungssensor nicht freigegeben":stride?("Schrittdistanz ca. "+fmt(count*stride/1000,2)+" km"):"Körpergröße nicht hinterlegt";
+    }
     $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":elevation.quality==="unrated"?"Nicht bewertet":"Begrenzt";
     updateSensorStatus(last);
   }
@@ -819,13 +826,14 @@
       activeRide.status="paused";activeRide.pauseStarted=pauseAt;
       if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
       releaseWakeLock();
+      stopStepCounter();
       $("pauseRide").textContent="Fortsetzen";$("trackingStatus").textContent="Pausiert";
     }else{
       const resumedAt=Date.now(),lastPause=Array.isArray(activeRide.pauseIntervals)?activeRide.pauseIntervals[activeRide.pauseIntervals.length-1]:null;
       if(lastPause&&lastPause.endedAt===null)lastPause.endedAt=resumedAt;
       activeRide.pausedMs=(activeRide.pausedMs||0)+(resumedAt-(activeRide.pauseStarted||resumedAt));
       delete activeRide.pauseStarted;activeRide.status="recording";
-      startWatching();acquireWakeLock();
+      startWatching();if(isRunning(activeRide))startStepCounter();acquireWakeLock();
       $("pauseRide").textContent="Pause";$("trackingStatus").textContent="Aufzeichnung läuft";
     }
     try{await dbRequest("readwrite","put",activeRide);}catch(error){console.error(error);showToast("Speichern fehlgeschlagen.");}
@@ -908,6 +916,7 @@
     }
     if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
     if(timerId!==null)clearTimeout(timerId);timerId=null;
+    stopStepCounter();
     releaseWakeLock();
     activeRide.status="completed";activeRide.endedAt=Date.now();
     const c=calcRide(activeRide);
