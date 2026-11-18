@@ -337,7 +337,9 @@ struct RideElevationAnalysis: Equatable {
     }
 
     private static func makeRoute(_ points: [RidePoint]) -> [RoutePoint] {
-        let ordered = points.filter { $0.t.isFinite }.sorted { $0.t < $1.t }
+        // Preserve observation order so malformed timestamps also break continuity,
+        // exactly as they do in the shared live/archive distance calculation.
+        let ordered = points
         var result: [RoutePoint] = []
         var distance = 0.0
         var segmentID = 0
