@@ -1,7 +1,7 @@
 /* VELOX offline shell — versioned, same-origin only.
    Netzwerk zuerst (kurzes Zeitlimit), sonst Cache: so ist nach einem Update nie eine Mischung aus alter und neuer
    Version aktiv, und die App startet trotzdem offline. */
-const CACHE = "velox-shell-v34";
+const CACHE = "velox-shell-v35";
 const SHELL = [
   "./",
   "./index.html",
@@ -12,6 +12,7 @@ const SHELL = [
   "./elevation-core.js",
   "./ride-core.js",
   "./charts.js",
+  "./step-counter.js",
   "./app.js",
   "./analysis-pro.js",
   "./velox-plus.js",
