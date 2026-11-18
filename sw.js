@@ -1,18 +1,20 @@
 /* VELOX offline shell — versioned, same-origin only.
    Netzwerk zuerst (kurzes Zeitlimit), sonst Cache: so ist nach einem Update nie eine Mischung aus alter und neuer
    Version aktiv, und die App startet trotzdem offline. */
-const CACHE = "velox-shell-v32";
+const CACHE = "velox-shell-v33";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./velox-extras.css",
+  "./velox-polish.css",
   "./sensor-core.js",
   "./elevation-core.js",
   "./ride-core.js",
   "./charts.js",
   "./app.js",
   "./analysis-pro.js",
+  "./velox-plus.js",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-180.png",
@@ -45,14 +47,23 @@ self.addEventListener("activate", event => {
 
 async function networkFirst(request, cacheKey) {
   const cache = await caches.open(CACHE);
+  let timer;
   try {
     const response = await Promise.race([
       fetch(request),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), NETWORK_TIMEOUT_MS))
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("timeout")), NETWORK_TIMEOUT_MS); })
     ]);
-    if (response && response.ok) await cache.put(cacheKey || request, response.clone());
+    clearTimeout(timer);
+    // Serverfehler (5xx) zählen wie "offline": dann lieber die gespeicherte Version ausliefern.
+    if (response.status >= 500) throw new Error("server " + response.status);
+    // Nur vollständige Antworten speichern (cache.put lehnt z. B. 206 ab). Scheitert das Speichern
+    // (Speicher voll), wird die frische Antwort trotzdem ausgeliefert statt auf den Cache zurückzufallen.
+    if (response.status === 200) {
+      try { await cache.put(cacheKey || request, response.clone()); } catch (error) { console.warn("SW: Speichern fehlgeschlagen:", error); }
+    }
     return response;
   } catch {
+    clearTimeout(timer);
     return (await cache.match(cacheKey || request)) ||
       (await cache.match(request, { ignoreSearch: true })) || null;
   }

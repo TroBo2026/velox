@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.12.1 – Fehlerbehebungen, Feinschliff und Wochenziel
+
+Geprüft per Code-Durchsicht und automatischen Tests (`node tests/plus.test.js`, `node tests/consistency.test.js`, bestehende Tests). Auf einem echten iPhone ist 0.12.1 **noch nicht** getestet.
+
+### Behobene Fehler
+- **Kopfzeile unter der iOS-Statusleiste:** Im installierten Modus (`black-translucent`, `viewport-fit=cover`) fehlte der Abstand für den oberen Sicherheitsbereich. Logo und Hinweis lagen unter Uhrzeit/Notch.
+- **Service Worker verwarf frische Antworten:** Scheiterte das Speichern einer Datei im Cache (z. B. Speicher voll), fiel `networkFirst` auf die alte Cache-Version zurück, obwohl die Netzwerkantwort schon da war. Das Speichern darf jetzt scheitern; nur Antworten mit Status 200 werden gespeichert. Serverfehler (5xx) werden wie „offline“ behandelt.
+- **Geisterstrecke auf der Live-Karte:** Beim Start einer neuen Aktivität ohne Neuladen blieben Linie und Positionsmarke der vorigen Aktivität sichtbar, weil die Listen geleert wurden, ohne die Ebenen von der Karte zu entfernen.
+- **Stillstand zerschnitt die Route:** Zwei identische aufeinanderfolgende GPS-Positionen (Abstand unter 0,1 m) beendeten einen Streckenabschnitt. Das erhöhte die Zahl der „GPS-Abschnitte“ und erzeugte zusätzliche GPX-Tracksegmente. Nur echte Lücken trennen jetzt.
+- **Pro-Analyse kannte keine Läufe:** Laufaktivitäten hießen „Fahrradtour“. Außerdem wurden bei Auswahl einer einzelnen Tour trotzdem alle Touren neu berechnet.
+- **Höhenquelle „GPS“ ohne Höhenwert:** Lieferte das Gerät keine verwertbare Höhe, stand bei „Höhenquelle“ trotzdem „GPS“. Jetzt „Keine verwertbare Höhe“.
+- **Uneinheitliche Versionsnummern** (0.10.0 / 0.11.0 / 0.12.0 in Code, Oberfläche und Dokumentation). Alles steht jetzt auf 0.12.1, und ein Test hält das ab sofort zusammen.
+
+### Neu
+- **Wochenziel:** Ring auf der Startseite (Kilometer seit Montag, Serie aufeinanderfolgender aktiver Wochen), Ziel einstellbar (5–1000 km). Nur lokal gespeichert.
+- **Wochenüberblick:** Balkendiagramm der letzten 8 Wochen in der Analyse, mit Ziellinie.
+- **Aufnahme-Puls:** Der Statuspunkt pulsiert, solange aufgezeichnet wird (bei reduzierter Bewegung abgeschaltet).
+- **`velox-polish.css`:** ruhigere Profil-Grafiken (weicheres Raster, Aufdeck-Animation, Fadenkreuz, Tooltip), Markierung des aktiven Reiters, Berührungsreaktion.
+- **CI:** Neue Prüfung `tests/consistency.test.js` (Offline-Cache vollständig? Versionsnummern gleich?) und `tests/plus.test.js` (Wochenlogik).
+
+### Bekannte Grenzen
+- Nicht auf einem echten iPhone getestet.
+- Wochenziel und Wochenüberblick zählen Laufen und Radfahren zusammen.
+
 ## 0.10.0 – Berechnung, Grafiken und Zuverlässigkeit
 
 Alle Änderungen sind automatisch getestet (`node tests/core.test.js`, `node tests/app.smoke.test.js`). Auf einem echten iPhone ist 0.10.0 **noch nicht** getestet.
