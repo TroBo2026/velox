@@ -1,4 +1,4 @@
-/* VELOX 0.12.1 — Feinschliff: Sicherheitsbereiche, ruhigere Grafiken, Wochenziel.
+/* VELOX 0.13.0 — getrennte Sportprofile, Dashboards und Wochenziele.
    Wird nach styles.css und velox-extras.css geladen und überschreibt nur gezielt.
    Bewusst zurückhaltend: eine einzige Bewegung (Aufdecken der Profile), Rest reagiert auf Eingaben. */
 
@@ -81,3 +81,27 @@ dialog.vx-sheet[open]{animation:vxSheet .22s var(--vx-ease)}
   .vx-recording .status-dot{animation:none}
   dialog.vx-sheet[open]{animation:none}
 }
+
+
+/* ---------- Eigenständige Lauf- und Fahrradprofile ---------- */
+.profile-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0 22px}
+.profile-choice-card{display:flex;min-width:0;min-height:208px;flex-direction:column;align-items:flex-start;gap:8px;padding:17px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,rgba(26,48,64,.95),rgba(10,23,34,.98));color:var(--text);text-align:left;cursor:pointer;transition:transform .15s ease,border-color .15s ease}
+.profile-choice-card:active{transform:scale(.985)}
+.profile-choice-card:focus-visible,.profile-start-button:focus-visible{outline:3px solid var(--teal);outline-offset:3px}
+.profile-choice-running{border-color:rgba(91,214,197,.45)}
+.profile-choice-cycling{border-color:rgba(217,184,121,.45)}
+.profile-choice-icon{font-size:30px;line-height:1.2}
+.profile-choice-card>.eyebrow{margin-top:4px;color:var(--muted);font-size:9px;letter-spacing:.12em}
+.profile-choice-card>strong{font-family:Manrope,sans-serif;font-size:clamp(20px,5vw,27px);letter-spacing:-.04em}
+.profile-choice-description{color:var(--muted);font-size:11px;line-height:1.45}
+.profile-choice-action{display:flex;width:100%;justify-content:space-between;align-items:center;margin-top:auto;padding-top:14px;color:var(--teal);font-size:11px;font-weight:800}
+.profile-choice-cycling .profile-choice-action{color:var(--gold,var(--amber,#d9b879))}
+.profile-dashboard-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:10px 0 18px}
+.profile-dashboard-heading h1{margin:4px 0;font-size:clamp(27px,7vw,36px)}
+.profile-dashboard-heading p{max-width:280px;margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.profile-dashboard-heading .secondary-button{flex-shrink:0;min-height:38px;padding:0 10px;font-size:10px}
+.profile-start-button{width:100%;margin:0 0 22px}
+.profile-hub-metrics{margin-bottom:20px}
+.track-mode-description{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+@media(max-width:390px){.profile-choice-grid{gap:8px}.profile-choice-card{min-height:190px;padding:13px}.profile-dashboard-heading{flex-direction:column}.profile-dashboard-heading .secondary-button{align-self:flex-start}}
+@media(prefers-reduced-motion:reduce){.profile-choice-card{transition:none}}
