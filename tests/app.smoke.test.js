@@ -53,6 +53,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Profile auswählen: bestehende Datensätze ohne activityType müssen im Fahrradprofil bleiben.
  sb.VELOXApp.selectProfile("cycling");await sleep(150);
  ok(sb.VELOXApp.getActiveProfile()==="cycling"&&els.bikeCount.textContent==="3","Fahrradprofil wird dauerhaft ausgewählt");
+ ok(sb.localStorage.getItem("velox-active-profile")==="cycling","Aktives Profil wird lokal gespeichert");
  ok(els.allRides.innerHTML.includes("Testtour a")&&!els.allRides.innerHTML.includes("Laufrunde"),"Aktivitätenarchiv folgt dem Fahrradprofil");
  const mixed=[{id:"run",activityType:"running"},{id:"bike",activityType:"cycling"},{id:"legacy"}];
  ok(sb.VELOXApp.profileRides(mixed,"running").length===1&&sb.VELOXApp.profileRides(mixed,"cycling").length===2,"Profilfilter trennt neue und alte Aktivitätsdatensätze korrekt");
@@ -65,6 +66,8 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(!els.activityModePicker,"Im Tracking existiert keine Sportauswahl mehr");
  ok(els.allRides.innerHTML.includes("Noch keine Aktivitäten"),"Archiv zeigt im Laufprofil keine Fahrradtouren");
  await els.trackStartRide.listeners.click[0]();await sleep(100);
+ sb.VELOXApp.selectProfile("cycling");
+ ok(sb.VELOXApp.getActiveProfile()==="running","Profilwechsel wird während einer laufenden Aktivität blockiert");
  ok(geoCbs.ok,"GPS-Watch gestartet (kein liveLine-Fehler)");
  let t=Date.now()-130000,d=0;
  for(let i=0;i<120;i++){t+=1000;d+=5;await geoCbs.ok({timestamp:t,coords:{latitude:LAT,longitude:13.7+d*M_LON,accuracy:5,altitude:200+d*0.03,altitudeAccuracy:6,speed:5}});}
