@@ -1198,7 +1198,7 @@
   document.addEventListener("visibilitychange",()=>{
     if(!activeRide)return;
     if(document.visibilityState==="hidden")persistActiveRide().catch(error=>console.error("Checkpoint fehlgeschlagen:",error));
-    else{if(activeRide.status==="recording")acquireWakeLock();updateLive(true);scheduleLiveClock();}
+    else{if(activeRide.status==="recording"){acquireWakeLock();if(isRunning(activeRide))startStepCounter();}updateLive(true);scheduleLiveClock();}
   });
   window.addEventListener("pagehide",()=>{
     if(activeRide)persistActiveRide().catch(error=>console.error("Letzter Checkpoint fehlgeschlagen:",error));
@@ -1270,6 +1270,7 @@
       if(activeRide&&$("trackingStatus"))$("trackingStatus").textContent="Offline · GPS-Aufzeichnung wird lokal gespeichert";
     });
     updateSensorStatus(null);
+    updateProfileHeightLabel();
     syncTrackStartButton();
     setFollow(true);
     if(window.VELOXSensors)window.VELOXSensors.subscribe(()=>{if(activeRide&&activeRide.status==="recording")$("trackingStatus").textContent="Barometerdaten empfangen";});
