@@ -516,6 +516,17 @@
       $("backupHintButton").addEventListener("click",exportBackup);
     }else{el.hidden=true;el.innerHTML="";}
   }
+  function stepSummary(rides){
+    const measured=rides.filter(ride=>ride&&ride.stepCountSource==="device-motion"&&Number.isFinite(ride.steps));
+    let steps=0,distanceM=0;
+    measured.forEach(ride=>{
+      const height=Number.isFinite(ride.heightCm)?ride.heightCm:getProfileHeight();
+      const stride=window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(height):null;
+      steps+=Math.max(0,ride.steps);
+      if(stride)distanceM+=Math.max(0,ride.steps)*stride;
+    });
+    return {records:measured.length,steps,distanceM};
+  }
   function updateProfileDashboard(rides,profile){
     const list=profileRides(rides,profile),running=profile==="running";
     let distance=0,time=0,elevation=0;
@@ -527,6 +538,11 @@
     $(prefix+"Count").textContent=String(list.length);
     $(prefix+(running?"Pace":"Speed")).innerHTML=running?(averageSpeed?formatPace(averageSpeed)+" <small>min/km</small>":"–"):(fmt(averageSpeed)+" <small>km/h</small>");
     $(prefix+"AverageDistance").innerHTML=fmt(list.length?distance/1000/list.length:0)+" <small>km</small>";
+    if(running){
+      const steps=stepSummary(list);
+      $("runSteps").textContent=steps.records?Math.round(steps.steps).toLocaleString("de-DE"):"–";
+      $("runStepDistance").innerHTML=steps.records&&steps.distanceM>0?fmt(steps.distanceM/1000,2)+" <small>km</small>":"–";
+    }
     renderRideList($(running?"runRecentRides":"bikeRecentRides"),list.slice(0,4));
   }
   async function refresh(){
@@ -547,6 +563,9 @@
     $("statsTime").innerHTML=fmt(statsTime/3600,1)+" <small>h</small>";
     $("statsElevation").innerHTML=Math.round(statsElevation)+" <small>m</small>";
     $("statsAverageDistance").innerHTML=fmt(selected.length?selected.reduce((sum,r)=>sum+calcRide(r).distanceM,0)/1000/selected.length:0)+" <small>km</small>";
+    const runningStats=activeProfile==="running",stepCards=$("statsStepsCard"),stepDistanceCard=$("statsStepDistanceCard");
+    if(stepCards)stepCards.hidden=!runningStats;if(stepDistanceCard)stepDistanceCard.hidden=!runningStats;
+    if(runningStats){const steps=stepSummary(selected);$("statsSteps").textContent=steps.records?Math.round(steps.steps).toLocaleString("de-DE"):"–";$("statsStepDistance").innerHTML=steps.records&&steps.distanceM>0?fmt(steps.distanceM/1000,2)+" <small>km</small>":"–";}
     renderRideList($("allRides"),selected);
     renderRideComparison(selected.slice(0,3));
     updateBackupHint(rides.length);
