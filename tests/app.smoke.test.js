@@ -41,7 +41,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(els.backupHint&&els.backupHint.innerHTML.includes("Noch keine Sicherung"),"Backup-Hinweis erscheint");
  ok(/Dauerhafter Speicher: aktiv/.test(els.storageStatus?.textContent||""),"Speicherschutz-Status");
  // Detail öffnen
- const card=els["ride:a:recentRides"];(card.listeners.click||[])[0]();await sleep(500);
+ const card=els["ride:a:bikeRecentRides"];(card.listeners.click||[])[0]();await sleep(500);
  ok(els.rideDetail.innerHTML.length>5000,"Detailseite gerendert ("+els.rideDetail.innerHTML.length+" Zeichen)");
  ok(/Steilste Abfahrt/.test(els.rideDetail.innerHTML)&&!/NaN/.test(els.rideDetail.innerHTML),"Detail ohne NaN");
  ok(/vx-svg/.test(els.elevationPlot.innerHTML),"Höhenprofil-Grafik (SVG) gerendert");
