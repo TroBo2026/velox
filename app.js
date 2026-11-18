@@ -131,7 +131,25 @@
   function updateProfileContext(){
     const running=activeProfile==="running";
     const label=running?"Laufprofil":"Fahrradprofil";
-    [["ridesProfileEyebrow",running?"LAUFARCHIV":"FAHRRADARCHIV"],["ridesProfileTitle",running?"Deine Läufe":"Deine Fahrradtouren"],["statsProfileEyebrow",running?"LAUFANALYSE":"FAHRRADANALYSE"],["statsProfileTitle",running?"Laufstatistiken":"Fahrradstatistiken"],["wrappedProfileEyebrow",running?"DEIN LAUF-WRAPPED":"DEIN FAHRRAD-WRAPPED"],["wrappedProfileTitle",running?"Lauf-Wrapped":"Fahrrad-Wrapped"]].forEach(([id,value])=>{const el=$(id);if(el)el.textContent=value;});
+    const pairs=[
+      ["ridesProfileEyebrow",running?"LAUFARCHIV":"FAHRRADARCHIV"],
+      ["ridesProfileTitle",running?"Deine Läufe":"Deine Fahrradtouren"],
+      ["statsProfileEyebrow",running?"LAUFANALYSE":"FAHRRADANALYSE"],
+      ["statsProfileTitle",running?"Laufstatistiken":"Fahrradstatistiken"],
+      ["statsDistanceLabel",running?"Laufdistanz gesamt":"Fahrtdistanz gesamt"],
+      ["statsTimeLabel",running?"Laufzeit gesamt":"Fahrzeit gesamt"],
+      ["statsElevationLabel","Aufstieg gesamt"],
+      ["statsAverageDistanceLabel",running?"Ø Laufdistanz":"Ø Tourdistanz"],
+      ["comparisonEyebrow",running?"LAUFVERGLEICH":"FAHRRADVERGLEICH"],
+      ["comparisonHeading",running?"Deine letzten Läufe":"Deine letzten Fahrradtouren"],
+      ["personalMapEyebrow",running?"DEINE LAUFSTRECKEN":"DEINE FAHRRADROUTEN"],
+      ["personalMapHeading",running?"Persönliche Laufkarte":"Persönliche Fahrradkarte"],
+      ["wrappedProfileEyebrow",running?"DEIN LAUF-WRAPPED":"DEIN FAHRRAD-WRAPPED"],
+      ["wrappedProfileTitle",running?"Lauf-Wrapped":"Fahrrad-Wrapped"]
+    ];
+    pairs.forEach(([id,value])=>{const el=$(id);if(el)el.textContent=value;});
+    const allOption=document.querySelector('#mapDateFilter option[value="all"]');
+    if(allOption)allOption.textContent=running?"Alle Läufe":"Alle Fahrradtouren";
     document.querySelectorAll("[data-profile-context]").forEach(el=>{el.textContent=label;});
   }
   const haversine = Core.haversine;
