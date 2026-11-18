@@ -24,7 +24,7 @@ const sb={document:doc,navigator:{onLine:false,geolocation:{watchPosition:(ok,er
    tx.objectStore=()=>({getAll:()=>mk(()=>[...data.values()].map(v=>JSON.parse(JSON.stringify(v)))),put:v=>mk(()=>{data.set(v.id,JSON.parse(JSON.stringify(v)));return v.id}),add:v=>mk(()=>{data.set(v.id,v)}),delete:id=>mk(()=>{data.delete(id)}),clear:()=>mk(()=>data.clear())});
    setTimeout(()=>tx.oncomplete&&tx.oncomplete(),8);return tx}};
   setTimeout(()=>{req.result=db;req.onsuccess&&req.onsuccess()},0);return req}},
- localStorage:{data:new Map(),getItem(k){return this.data.has(k)?this.data.get(k):null;},setItem(k,v){this.data.set(k,String(v));}}};
+ localStorage:{data:new Map([["velox-profile-height-cm","170"]]),getItem(k){return this.data.has(k)?this.data.get(k):null;},setItem(k,v){this.data.set(k,String(v));}}};
 sb.window=sb;sb.self=sb;sb.requestAnimationFrame=f=>setTimeout(f,0);
 const ctx=vm.createContext(sb);
 for(const f of["sensor-core.js","elevation-core.js","ride-core.js","charts.js","step-counter.js","app.js","analysis-pro.js"])vm.runInContext(fs.readFileSync(R+f,"utf8"),ctx,{filename:f});
@@ -82,6 +82,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(data.size===4,"Tour gespeichert (4 in DB): "+data.size);
  const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
  ok(saved&&saved.status==="completed"&&saved.activityType==="running"&&saved.name==="Laufrunde"&&saved.points.length===120&&saved.points[5].speed===5,"Laufaktivität vollständig inkl. Sportart und Doppler-Tempo");
+ ok(saved&&saved.heightCm===170&&saved.stepCountSource==="unavailable"&&/Schrittanalyse \(Schätzung\)/.test(els.rideDetail.innerHTML),"Lauf-Schrittprofil bleibt nachvollziehbar, auch wenn der Bewegungssensor nicht freigegeben ist");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const runPro=sb.VELOXProAnalysis.analyzeRide({...r,activityType:"running"},5);
  ok(runPro.activityType==="running"&&runPro.speedZones.some(zone=>zone.label.includes("min/km")),"Pro-Analyse nutzt Laufpace-Zonen statt Fahrrad-km/h");
