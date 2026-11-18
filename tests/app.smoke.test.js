@@ -53,7 +53,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Profile auswählen: bestehende Datensätze ohne activityType müssen im Fahrradprofil bleiben.
  sb.VELOXApp.selectProfile("cycling");await sleep(150);
  ok(sb.VELOXApp.getActiveProfile()==="cycling"&&els.bikeCount.textContent==="3","Fahrradprofil wird dauerhaft ausgewählt");
- ok(els.allRides.innerHTML.includes("Fahrradtour")&&!els.allRides.innerHTML.includes("Laufrunde"),"Aktivitätenarchiv folgt dem Fahrradprofil");
+ ok(els.allRides.innerHTML.includes("Testtour a")&&!els.allRides.innerHTML.includes("Laufrunde"),"Aktivitätenarchiv folgt dem Fahrradprofil");
  const mixed=[{id:"run",activityType:"running"},{id:"bike",activityType:"cycling"},{id:"legacy"}];
  ok(sb.VELOXApp.profileRides(mixed,"running").length===1&&sb.VELOXApp.profileRides(mixed,"cycling").length===2,"Profilfilter trennt neue und alte Aktivitätsdatensätze korrekt");
  // Wrapped
