@@ -1,8 +1,8 @@
 /* VELOX Konsistenzprüfung: Ist der Offline-Cache vollständig und sind alle Versionsnummern gleich?
    Fängt genau die Fehler ab, die sonst unbemerkt bleiben (Datei vergessen in sw.js, Version nur halb hochgezählt).
-   Ausführen: node tests/consistency.test.js */
+   Ausführen: node consistency.test.js */
 const fs = require("fs"), path = require("path");
-const R = path.join(__dirname, "..") + "/";
+const R = __dirname + "/";
 const read = (f) => fs.readFileSync(R + f, "utf8");
 let failed = false;
 const ok = (c, m) => { if (!c) { console.log("  ✗", m); failed = true; } else console.log("  ✓", m); };
