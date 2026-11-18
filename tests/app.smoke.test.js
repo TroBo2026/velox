@@ -88,6 +88,10 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const runPro=sb.VELOXProAnalysis.analyzeRide({...r,activityType:"running"},5);
  ok(runPro.activityType==="running"&&runPro.speedZones.some(zone=>zone.label.includes("min/km")),"Pro-Analyse nutzt Laufpace-Zonen statt Fahrrad-km/h");
+ const stepRide={...r,activityType:"running",stepCountSource:"device-motion",steps:500,heightCm:170};
+ const stepAnalysis=sb.VELOXProAnalysis.analyzeRide(stepRide,5);
+ ok(sb.VELOXProAnalysis.renderSingle(stepAnalysis,5).includes("Erkannte Schritte")&&sb.VELOXProAnalysis.renderSingle(stepAnalysis,5).includes("Schrittdistanz (Schätzung)"),"Pro-Einzeltouranalyse enthält erkannte Schritte und geschätzte Schrittdistanz");
+ ok(sb.VELOXProAnalysis.renderArchive([stepRide],[stepAnalysis]).includes("Erkannte Schritte"),"Pro-Archiv addiert Schrittzahlen nur im Laufprofil");
  const same=(a,b)=>Math.abs(a-b)<1e-6;
  ok(same(pro.distanceM,core.distanceM)&&same(pro.movingSeconds,core.movingSeconds),"Pro = Detail: Distanz/Fahrzeit ("+(pro.distanceM/1000).toFixed(3)+" km)");
  ok(same(pro.elevation.gain,core.elevationGain)&&same(pro.elevation.loss,core.elevationLoss),"Pro = Detail: Aufstieg/Abstieg (+"+pro.elevation.gain.toFixed(1)+" / -"+pro.elevation.loss.toFixed(1)+")");
