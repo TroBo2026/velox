@@ -27,7 +27,7 @@ const sb={document:doc,navigator:{onLine:false,geolocation:{watchPosition:(ok,er
  localStorage:{data:new Map(),getItem(k){return this.data.has(k)?this.data.get(k):null;},setItem(k,v){this.data.set(k,String(v));}}};
 sb.window=sb;sb.self=sb;sb.requestAnimationFrame=f=>setTimeout(f,0);
 const ctx=vm.createContext(sb);
-for(const f of["sensor-core.js","elevation-core.js","ride-core.js","charts.js","app.js","analysis-pro.js"])vm.runInContext(fs.readFileSync(R+f,"utf8"),ctx,{filename:f});
+for(const f of["sensor-core.js","elevation-core.js","ride-core.js","charts.js","step-counter.js","app.js","analysis-pro.js"])vm.runInContext(fs.readFileSync(R+f,"utf8"),ctx,{filename:f});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.log("  ✓",m)};
 (async()=>{
