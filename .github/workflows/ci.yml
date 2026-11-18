@@ -27,10 +27,20 @@ jobs:
           node --check elevation-core.js
           node --check ride-core.js
           node --check sensor-core.js
+          node --check step-counter.js
           node --check sw.js
           node --check tests/core.test.js
           node --check tests/app.smoke.test.js
+          node --check tests/step-counter.test.js
+          node --check consistency.test.js
+          node --check plus.test.js
       - name: Run deterministic calculation tests
         run: node tests/core.test.js
       - name: Run application smoke test
         run: node tests/app.smoke.test.js
+      - name: Run step counter tests
+        run: node tests/step-counter.test.js
+      - name: Run consistency test
+        run: node consistency.test.js
+      - name: Run VELOX Plus tests
+        run: node plus.test.js

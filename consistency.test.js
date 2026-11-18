@@ -1,8 +1,8 @@
 /* VELOX Konsistenzprüfung: Ist der Offline-Cache vollständig und sind alle Versionsnummern gleich?
    Fängt genau die Fehler ab, die sonst unbemerkt bleiben (Datei vergessen in sw.js, Version nur halb hochgezählt).
-   Ausführen: node tests/consistency.test.js */
+   Ausführen: node consistency.test.js */
 const fs = require("fs"), path = require("path");
-const R = path.join(__dirname, "..") + "/";
+const R = __dirname + "/";
 const read = (f) => fs.readFileSync(R + f, "utf8");
 let failed = false;
 const ok = (c, m) => { if (!c) { console.log("  ✗", m); failed = true; } else console.log("  ✓", m); };
@@ -26,7 +26,7 @@ ok(!!appVersion, "APP_VERSION in app.js: " + appVersion);
 const versions = {
   "Kopfzeile von app.js": first(read("app.js"), /^\/\* VELOX (\d+\.\d+\.\d+)/),
   "Versionsfeld in index.html": first(html, /VERSION (\d+\.\d+\.\d+)/),
-  "Info-Text in index.html": first(html, /VELOX (\d+\.\d+\.\d+) bleibt/),
+  "Info-Text in index.html": first(html, /VELOX (\d+\.\d+\.\d+) (?:bleibt|ist die aktuelle)/),
   "oberster CHANGELOG-Eintrag": first(read("CHANGELOG.md"), /^## (\d+\.\d+\.\d+)/m),
   "velox-polish.css": first(read("velox-polish.css"), /VELOX (\d+\.\d+\.\d+)/),
   "velox-plus.js": first(read("velox-plus.js"), /VELOX Plus (\d+\.\d+\.\d+)/)

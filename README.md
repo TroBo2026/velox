@@ -5,16 +5,19 @@
 [![Web Check](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml)
 [![iOS Build](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml)
 
-VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
+VELOX ist ein local-first Sporttracker mit zwei getrennten Profilen: Laufen und Radfahren. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
 
-**Inhalt:** [Aktueller Stand](#aktueller-stand--version-099) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
+**Inhalt:** [Aktueller Stand](#aktueller-stand--version-0130) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
 
 ---
 
-## Aktueller Stand – Version 0.10.0
+## Aktueller Stand – Version 0.13.0
 
 ### Aufzeichnung
-- GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start auf der Startseite oder direkt auf der Track-Seite. Eine laufende Tour kann nicht versehentlich ein zweites Mal gestartet werden.
+- Zwei eigenständige Profile mit separaten Dashboards: Laufprofil und Fahrradprofil. Die Auswahl erfolgt vor dem Tracking und bleibt lokal gespeichert; im Tracking wird keine Sportart mehr ausgewählt.
+- Jedes Profil hat eigene Kennzahlen, Aktivitätslisten, Statistiken, Pro-Analyse, Wrapped-Auswertung, Wochenziele und Wochenüberblicke. Pace und Geschwindigkeit werden nicht sportartübergreifend vermischt.
+- GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss. Das Tracking übernimmt automatisch das zuvor gewählte Profil; eine laufende Aktivität kann nicht versehentlich ein zweites Mal gestartet oder in ein anderes Profil umgeschaltet werden.
+- Beim Laufen optionale Schrittzählung über den Bewegungssensor im Vordergrund. VELOX fragt die Körpergröße einmalig ab (freiwillig), speichert sie lokal und schätzt daraus Schrittlänge und Schrittstrecke. Die GPS-Strecke bleibt der offizielle Distanzwert.
 - Der Bildschirm bleibt während der Aufzeichnung an, sofern iOS die Screen-Wake-Lock-API bereitstellt (wird bei Pause und Ende wieder freigegeben).
 - Offline-Aufzeichnung: GPS-Punkte werden fortlaufend lokal in IndexedDB gespeichert. Ohne Verbindung zeigt VELOX eine schematische Offline-Strecke; nach Wiederverbindung können Kartendaten nachgeladen werden.
 - Unterbrochene Touren (App beendet, Seite neu geladen) werden beim nächsten Start pausiert wiederhergestellt.
@@ -26,12 +29,13 @@ VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen test
 - Geglättetes Geschwindigkeitsprofil, Höhenprofil und Steigungsprofil in jeder Tour-Detailansicht; GPS-Lücken werden nicht überbrückt.
 - Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start, Strecken-Geradlinigkeit sowie GPS-erkannte Stopps (ab 10 s unter 1,5 km/h; manuelle Pausen und GPS-Lücken zählen nicht).
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken.
-- **Wrapped:** automatisch berechneter Archiv-Rückblick (Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM, Gelände- und Tempo-Zonen). Erreichbar unter „Mehr“.
-- **VELOX Pro Analyse:** optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Höhen-Ausreißerbericht und Archiv-Rekorden. Sie liest nur vorhandene IndexedDB-Daten.
+- **Wrapped:** automatisch berechneter, nach Lauf- oder Fahrradprofil getrennter Archiv-Rückblick (Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM, Gelände- und Tempo-Zonen). Erreichbar unter „Mehr“.
+- **VELOX Pro Analyse:** optionale sportartspezifische Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Höhen-Ausreißerbericht und Archiv-Rekorden. Sie liest nur vorhandene IndexedDB-Daten.
 - **Persönliche VELOX MAP:** mehrere gespeicherte Touren mit individuellen Farben, Ein-/Ausblenden einzelner Touren, Zeitfiltern und lokaler Streckendichte-Ansicht.
 
 ### Einheitliche Messregeln
 - **Bewegungsfilter** in Tourendetails, Live-Kennzahlen und Pro-Analyse: gültige GPS-Koordinaten, Zeitabstand bis 30 s, Distanz von 0,8 bis 150 m, gemeldete horizontale Genauigkeit höchstens 80 m, Tempo von 1,5 bis 100 km/h. Distanz, Bewegungszeit, Durchschnitts- und Maximaltempo stammen aus denselben akzeptierten Fahrintervallen.
+- **Laufschritt-Messung:** Die PWA nutzt `DeviceMotion`-Beschleunigungsdaten und eine einfache Ereigniserkennung. Die Schrittzahl ist eine Näherung, keine zertifizierte Pedometer-Messung und nicht so zuverlässig wie Apples native Core-Motion-Schrittzählung. iOS kann Sensorzugriffe im Hintergrund unterbrechen; das Telefon sollte während der Aufzeichnung passend und sicher getragen werden.
 - **Gemeinsame Höhen-Engine** (`elevation-core.js`) für Live-Ansicht, Tourendetails und Pro-Analyse: robuste lokale Median-/Ausreißerprüfung, segmentbewusste Glättung und eine adaptive Mindestschwelle für kumulierte Höhenmeter. Fehlende oder unbrauchbare Höhenwerte trennen Auswertungssegmente und werden nicht überbrückt.
 - Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter der adaptiven Schwelle (mindestens 2,5 m, höchstens 6 m) werden nicht aufsummiert. Fehlende Genauigkeitsangaben werden nicht als gute Messqualität eingestuft.
 - Steigungswerte stammen aus demselben geglätteten Höhenprofil; große Zeit-/Distanzlücken werden ausgelassen.
@@ -53,6 +57,9 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 ---
 
 ## Datenschutz und Datenspeicherung
+
+Die aktive Profilauswahl und die Wochenziele werden lokal auf dem Gerät gespeichert. Es werden keine Konten oder Serverprofile angelegt. Bestehende Touren bleiben in derselben lokalen Datenbank; ältere Datensätze ohne `activityType` werden aus Kompatibilitätsgründen dem Fahrradprofil zugeordnet.
+
 
 - Kein VELOX-Konto und kein Login erforderlich.
 - Tourdaten werden im Browser auf dem verwendeten Gerät gespeichert. Es gibt keinen VELOX-Server, der Tourdaten entgegennimmt.
@@ -122,11 +129,14 @@ Voraussetzung: Node.js 20 oder neuer. Es gibt keinen Build-Schritt.
 
 ```bash
 node --check app.js              # Syntax prüfen (analog für die übrigen .js-Dateien)
-node tests/core.test.js   # Barometer-Fusion und Zeitstempel-Regeln
-node tests/app.smoke.test.js     # App lädt ohne Fehler; Distanz, Stillstand, Cache, Robustheit
+node tests/core.test.js         # Rechenkern, GPS-Filter und Höhenberechnung
+node tests/app.smoke.test.js     # App-Rauchtest, Profilwechsel und Lauf-/Rad-Tracking
+node tests/step-counter.test.js  # Schrittzähler und Schrittlängen-Schätzung
+node consistency.test.js        # Offline-Cache und Versionskonsistenz
+node plus.test.js               # Wochenziele, Wochenserien und SVG-Grafiken
 ```
 
-Der Workflow `ci.yml` führt JavaScript-Syntaxprüfung, deterministische Rechenkern-Tests und den App-Rauchtest bei jedem Push und Pull Request aus. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator.
+Der Workflow `ci.yml` führt Syntax-, Rechenkern-, App-Rauch-, Konsistenz- und Wochenzieltests bei jedem Push und Pull Request aus. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator.
 
 ---
 
@@ -135,7 +145,7 @@ Der Workflow `ci.yml` führt JavaScript-Syntaxprüfung, deterministische Rechenk
 1. Vor dem Test in VELOX unter „Mehr“ eine JSON-Sicherung exportieren und an einem sicheren Ort behalten.
 2. VELOX über eine HTTPS-Adresse in Safari öffnen. Bei der Standortabfrage „Beim Verwenden“ wählen und „Genauer Standort“ aktivieren.
 3. Optional über „Teilen“ → „Zum Home-Bildschirm“ hinzufügen. Für den ersten Funktionstest kann Safari selbst verwendet werden.
-4. Eine kurze Fahrt im Freien mit freier Sicht zum Himmel aufzeichnen. VELOX im Vordergrund lassen. Der Energiesparmodus kann Hintergrund- und Messverhalten zusätzlich einschränken.
+4. Je eine kurze Aktivität im Laufprofil und im Fahrradprofil im Freien mit freier Sicht zum Himmel aufzeichnen. VELOX im Vordergrund lassen. Der Energiesparmodus kann Hintergrund- und Messverhalten zusätzlich einschränken.
 5. Eine Standortfreigabe nur nach einer klaren VELOX-Aktion erteilen. Die PWA verwendet GPS; Barometer, Kompass, Gyroskop und Beschleunigungssensor werden nicht über native Core-Motion-Schnittstellen gelesen.
 6. Nach dem Speichern Tourdetails und GPS-Lücken prüfen. Dann Wrapped öffnen und kontrollieren, dass die neue Tour in Tourenzahl, Distanz und Rekorden auftaucht. Eine JSON-Sicherung erneut exportieren und prüfen, dass die Tour enthalten ist.
 7. Zusätzlich prüfen: Bleibt der Bildschirm während der Aufzeichnung an? Läuft die Aufzeichnung nach Pause und Fortsetzen weiter? Erscheint nach „Tour beenden“ ein Wetterdialog?
@@ -172,7 +182,7 @@ Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punk
 
 ## Versionsverlauf
 
-**0.10.0** – Versionsangleichung: Web-App, native iOS-Metadaten und aktuelle Dokumentation tragen jetzt dieselbe Versionsnummer. Keine Funktionsänderung.
+**0.13.0** – Zwei getrennte Sportprofile mit eigenen Dashboards, Aktivitäten, Analysen, Wrapped-Auswertungen und Wochenzielen. Das Tracking übernimmt die vorher gewählte Sportart automatisch.\n\n**0.12.1** – Fehlerkorrekturen für iOS-Sicherheitsbereiche, Service-Worker-Cache, Kartenrouten, Höhenquellen und Pro-Analyse; außerdem Wochenziel und Wochenüberblick.
 
 **0.9.8** – Fehlerbehebungen und Feinschliff (Details in [`CHANGELOG-0.9.8.md`](CHANGELOG-0.9.8.md)): behobener Startfehler der GPS-Aufzeichnung, kein Doppelstart, keine Geisterstrecken auf der Live-Karte, Stillstand trennt Routen nicht mehr, sicheres Speichern beim Pausieren/Beenden, funktionierendes Wetter für frische Fahrten, Wake Lock, geringere Rechenlast bei langen Touren, echtes Stale-While-Revalidate im Service Worker, iOS-Sicherheitsbereiche, Barometer-Zeitstempel-Toleranz, CI und Tests.
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.13.0 – Getrennte Lauf- und Fahrradprofile
+
+- Eigenständige Lauf- und Fahrrad-Dashboards mit getrennten Kennzahlen und Aktivitätslisten.
+- Profilwahl vor dem Tracking; das Tracking übernimmt das gewählte Profil und zeigt keine Sportauswahl mehr.
+- Aktivitäten, Statistiken, persönliche Routenkarte, Pro-Analyse und Wrapped folgen dem aktiven Profil.
+- Laufpace und Fahrradgeschwindigkeit werden in der Pro-Analyse getrennt dargestellt.
+- Wochenziele und Wochenüberblicke werden je Sportprofil getrennt geführt; vorhandene Wochenziele dienen beim ersten Start als Ausgangswert für beide Profile.
+- Bestehende Aktivitätsdaten bleiben unverändert. Alte Datensätze ohne `activityType` werden weiterhin als Fahrradtouren behandelt.
+- Neue lokale Profilauswahl wird auf dem Gerät gespeichert; es wird kein Konto benötigt.
+- Beim Laufen optionale DeviceMotion-Schrittzählung mit einmaliger, freiwilliger Körpergrößenabfrage; Schrittlänge und Schrittstrecke werden als Schätzwerte gekennzeichnet.
+
+### Validierung
+- Automatische Tests für Berechnungskern, App-Rauchtest, Versionskonsistenz und getrennte Profile.
+- Echter iPhone-Test für GPS und Navigation bleibt erforderlich.
+
 ## 0.12.1 – Fehlerbehebungen, Feinschliff und Wochenziel
 
 Geprüft per Code-Durchsicht und automatischen Tests (`node tests/plus.test.js`, `node tests/consistency.test.js`, bestehende Tests). Auf einem echten iPhone ist 0.12.1 **noch nicht** getestet.
