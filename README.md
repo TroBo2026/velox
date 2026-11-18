@@ -17,6 +17,7 @@ VELOX ist ein local-first Sporttracker mit zwei getrennten Profilen: Laufen und 
 - Zwei eigenständige Profile mit separaten Dashboards: Laufprofil und Fahrradprofil. Die Auswahl erfolgt vor dem Tracking und bleibt lokal gespeichert; im Tracking wird keine Sportart mehr ausgewählt.
 - Jedes Profil hat eigene Kennzahlen, Aktivitätslisten, Statistiken, Pro-Analyse, Wrapped-Auswertung, Wochenziele und Wochenüberblicke. Pace und Geschwindigkeit werden nicht sportartübergreifend vermischt.
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss. Das Tracking übernimmt automatisch das zuvor gewählte Profil; eine laufende Aktivität kann nicht versehentlich ein zweites Mal gestartet oder in ein anderes Profil umgeschaltet werden.
+- Beim Laufen optionale Schrittzählung über den Bewegungssensor im Vordergrund. VELOX fragt die Körpergröße einmalig ab (freiwillig), speichert sie lokal und schätzt daraus Schrittlänge und Schrittstrecke. Die GPS-Strecke bleibt der offizielle Distanzwert.
 - Der Bildschirm bleibt während der Aufzeichnung an, sofern iOS die Screen-Wake-Lock-API bereitstellt (wird bei Pause und Ende wieder freigegeben).
 - Offline-Aufzeichnung: GPS-Punkte werden fortlaufend lokal in IndexedDB gespeichert. Ohne Verbindung zeigt VELOX eine schematische Offline-Strecke; nach Wiederverbindung können Kartendaten nachgeladen werden.
 - Unterbrochene Touren (App beendet, Seite neu geladen) werden beim nächsten Start pausiert wiederhergestellt.
@@ -34,6 +35,7 @@ VELOX ist ein local-first Sporttracker mit zwei getrennten Profilen: Laufen und 
 
 ### Einheitliche Messregeln
 - **Bewegungsfilter** in Tourendetails, Live-Kennzahlen und Pro-Analyse: gültige GPS-Koordinaten, Zeitabstand bis 30 s, Distanz von 0,8 bis 150 m, gemeldete horizontale Genauigkeit höchstens 80 m, Tempo von 1,5 bis 100 km/h. Distanz, Bewegungszeit, Durchschnitts- und Maximaltempo stammen aus denselben akzeptierten Fahrintervallen.
+- **Laufschritt-Messung:** Die PWA nutzt `DeviceMotion`-Beschleunigungsdaten und eine einfache Ereigniserkennung. Die Schrittzahl ist eine Näherung, keine zertifizierte Pedometer-Messung und nicht so zuverlässig wie Apples native Core-Motion-Schrittzählung. iOS kann Sensorzugriffe im Hintergrund unterbrechen; das Telefon sollte während der Aufzeichnung passend und sicher getragen werden.
 - **Gemeinsame Höhen-Engine** (`elevation-core.js`) für Live-Ansicht, Tourendetails und Pro-Analyse: robuste lokale Median-/Ausreißerprüfung, segmentbewusste Glättung und eine adaptive Mindestschwelle für kumulierte Höhenmeter. Fehlende oder unbrauchbare Höhenwerte trennen Auswertungssegmente und werden nicht überbrückt.
 - Höhenwerte mit gemeldeter vertikaler Ungenauigkeit über 35 m werden ausgelassen; Änderungen unter der adaptiven Schwelle (mindestens 2,5 m, höchstens 6 m) werden nicht aufsummiert. Fehlende Genauigkeitsangaben werden nicht als gute Messqualität eingestuft.
 - Steigungswerte stammen aus demselben geglätteten Höhenprofil; große Zeit-/Distanzlücken werden ausgelassen.
@@ -129,6 +131,7 @@ Voraussetzung: Node.js 20 oder neuer. Es gibt keinen Build-Schritt.
 node --check app.js              # Syntax prüfen (analog für die übrigen .js-Dateien)
 node tests/core.test.js         # Rechenkern, GPS-Filter und Höhenberechnung
 node tests/app.smoke.test.js     # App-Rauchtest, Profilwechsel und Lauf-/Rad-Tracking
+node tests/step-counter.test.js  # Schrittzähler und Schrittlängen-Schätzung
 node consistency.test.js        # Offline-Cache und Versionskonsistenz
 node plus.test.js               # Wochenziele, Wochenserien und SVG-Grafiken
 ```
