@@ -202,9 +202,16 @@ final class RideRecorder: NSObject, ObservableObject {
         }
 
         if let previous = lastAcceptedLocation {
+            let elapsed = location.timestamp.timeIntervalSince(previous.timestamp)
             let segment = location.distance(from: previous)
-            guard segment >= 2, segment <= 120 else { return }
-            distanceMeters += segment
+            guard elapsed.isFinite, elapsed > 0 else { return }
+            // Ignore short GPS jitter. Long gaps and implausible jumps create a
+            // new segment instead of being connected to the previous fix.
+            if elapsed <= RideRouteMetrics.maximumGapSeconds,
+               segment.isFinite,
+               segment < RideRouteMetrics.minimumSegmentMeters {
+                return
+            }
         }
 
         let altitudeIsValid = location.verticalAccuracy >= 0 && location.altitude.isFinite
@@ -221,6 +228,7 @@ final class RideRecorder: NSObject, ObservableObject {
         ride.points.append(point)
         currentRide = ride
         lastAcceptedLocation = location
+        distanceMeters = RideRouteMetrics.distanceMeters(for: ride.points)
         lastAccuracyMeters = location.horizontalAccuracy
         message = "Aufzeichnung aktiv · GPS ±\(Int(location.horizontalAccuracy.rounded())) m"
         persist(ride)
