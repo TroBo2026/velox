@@ -1299,6 +1299,6 @@
     setFollow(true);
     if(window.VELOXSensors)window.VELOXSensors.subscribe(()=>{if(activeRide&&activeRide.status==="recording")$("trackingStatus").textContent="Barometerdaten empfangen";});
   }
-  window.VELOXApp=Object.freeze({version:APP_VERSION,selectProfile,profileRides,getActiveProfile:()=>activeProfile});
+  window.VELOXApp=Object.freeze({version:APP_VERSION,selectProfile,profileRides,openDetail,getActiveProfile:()=>activeProfile});
   init();
 })();
