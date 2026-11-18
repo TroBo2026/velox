@@ -81,6 +81,7 @@
     activeProfile=profile;selectedActivityType=profile;
     try{localStorage.setItem(PROFILE_STORAGE_KEY,profile);}catch{showToast("Profil gilt bis zum Schließen der App; lokales Speichern ist nicht verfügbar.");}
     window.dispatchEvent(new CustomEvent("velox:profilechange",{detail:{profile}}));
+    syncTrackStartButton();
     setPage(profile+"-dashboard");
   }
   function updateProfileContext(){
@@ -746,14 +747,13 @@
     timerId=setTimeout(tick,Math.max(25,1000-(Date.now()%1000)));
   }
   function syncTrackStartButton(){
-    const button=$("trackStartRide"),picker=$("activityModePicker");
+    const button=$("trackStartRide");
     const running=activeRide?isRunning(activeRide):activeProfile==="running";
     if(button){
       button.hidden=!!activeRide;
       const label=button.querySelector("[data-start-label]");
       if(label)label.textContent=running?"Lauf starten":"Fahrt starten";
     }
-    if(picker)picker.hidden=true;
     const title=$("trackPageTitle"),eyebrow=$("trackPageEyebrow"),intro=$("trackModeDescription");
     if(title)title.textContent=running?"Dein Lauf":"Deine Fahrt";
     if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
