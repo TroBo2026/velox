@@ -40,6 +40,8 @@
   let personalRidesCache = [];
   let personalHeatLayer = null;
   let personalHeatVisible = false;
+  let personalMapLoadSequence = 0;
+  let refreshSequence = 0;
   const personalVisibility = new Map();
   const mapColors = ["#5bd6c5","#e7bd75","#8ca8ff","#d98ce8","#ff8e80","#8fd18b","#f0a75b","#7bd1e8"];
   let toastTimer = null;
@@ -461,7 +463,10 @@
     renderRideList($(running?"runRecentRides":"bikeRecentRides"),list.slice(0,4));
   }
   async function refresh(){
-    const rides=await allRides();let distance=0,time=0,elev=0;
+    const sequence=++refreshSequence;
+    const rides=await allRides();
+    if(sequence!==refreshSequence)return;
+    let distance=0,time=0,elev=0;
     rides.forEach(r=>{const c=calcRide(r);distance+=c.distanceM;time+=c.movingSeconds;elev+=c.elevationGain;});
     $("totalDistance").innerHTML=fmt(distance/1000)+" <small>km</small>";
     $("totalTime").innerHTML=fmt(time/3600,1)+" <small>h</small>";
@@ -561,7 +566,10 @@
     if(heatButton){heatButton.classList.toggle("active",personalHeatVisible);heatButton.setAttribute("aria-pressed",String(personalHeatVisible));}
   }
   async function renderPersonalMap(){
-    personalRidesCache=profileRides(await allRides(),activeProfile);
+    const sequence=++personalMapLoadSequence;
+    const rides=await allRides();
+    if(sequence!==personalMapLoadSequence||currentPage!=="stats")return;
+    personalRidesCache=profileRides(rides,activeProfile);
     const points=personalRidesCache.flatMap(ride=>validRouteSegments(Array.isArray(ride.points)?ride.points:[]).flat());
     const box=$("personalMap");
     if(!points.length){
@@ -1193,6 +1201,6 @@
     setFollow(true);
     if(window.VELOXSensors)window.VELOXSensors.subscribe(()=>{if(activeRide&&activeRide.status==="recording")$("trackingStatus").textContent="Barometerdaten empfangen";});
   }
-  window.VELOXApp=Object.freeze({version:APP_VERSION});
+  window.VELOXApp=Object.freeze({version:APP_VERSION,selectProfile,profileRides,getActiveProfile:()=>activeProfile});
   init();
 })();
