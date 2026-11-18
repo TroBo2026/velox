@@ -1,4 +1,4 @@
-/* VELOX Plus 0.12.1 — Wochenziel, Wochenüberblick und Aufzeichnungs-Puls.
+/* VELOX Plus 0.13.0 — getrennte Wochenziele und Wochenüberblicke je Sportprofil.
    Reine Zusatzdatei: liest nur vorhandene IndexedDB-Daten (wie analysis-pro.js) und verändert nie eine Tour.
    Browser: window.VELOXPlus · Node: module.exports (für tests/plus.test.js). */
 (function (root, factory) {
@@ -7,7 +7,7 @@
   else { root.VELOXPlus = api; api.start(); }
 })(typeof self !== "undefined" ? self : this, function (root) {
   "use strict";
-  const DB_NAME = "velox-local", STORE = "rides", GOAL_KEY = "velox-weekly-goal";
+  const DB_NAME = "velox-local", STORE = "rides", GOAL_KEY = "velox-weekly-goal", PROFILE_KEY = "velox-active-profile";
   const DEFAULT_GOAL_KM = 50, MIN_GOAL_KM = 5, MAX_GOAL_KM = 1000, WEEKS = 8;
   const finite = Number.isFinite;
   const fmt = (n, d = 1) => Number(n || 0).toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -86,10 +86,12 @@
 
   /* ---------- Browser-Teil ---------- */
   const state = { rides: [], timer: null, memo: new Map() };
-  function storedGoal() {
-    try { return normalizeGoal(root.localStorage.getItem(GOAL_KEY)) || DEFAULT_GOAL_KM; } catch (error) { return DEFAULT_GOAL_KM; }
+  function storedGoal(profile) {
+    try { return normalizeGoal(root.localStorage.getItem(GOAL_KEY + "-" + profile)) || normalizeGoal(root.localStorage.getItem(GOAL_KEY)) || DEFAULT_GOAL_KM; } catch (error) { return DEFAULT_GOAL_KM; }
   }
-  function saveGoal(km) { try { root.localStorage.setItem(GOAL_KEY, String(km)); } catch (error) { /* Speicher gesperrt: Ziel gilt bis zum Neuladen */ } }
+  function saveGoal(km, profile) { try { root.localStorage.setItem(GOAL_KEY + "-" + profile, String(km)); } catch (error) { /* Speicher gesperrt: Ziel gilt bis zum Neuladen */ } }
+  function isProfileRide(ride, profile) { return profile === "running" ? ride && ride.activityType === "running" : ride && ride.activityType !== "running"; }
+  function selectedProfile() { try { const p = root.localStorage.getItem(PROFILE_KEY); return p === "running" || p === "cycling" ? p : null; } catch (error) { return null; } }
   function distanceOf(ride) {
     const Core = root.VELOXCore;
     if (!Core || !Array.isArray(ride.points)) return 0;
@@ -117,20 +119,30 @@
       };
     });
   }
-  function render() {
-    const goalKm = storedGoal(), now = Date.now();
-    const recent = state.rides.filter((r) => r && finite(r.startedAt) && r.startedAt >= weekStart(now) - 7 * 86400000 * WEEKS);
+  function renderProfile(profile) {
+    const goalKm = storedGoal(profile), now = Date.now();
+    const recent = state.rides.filter((r) => r && isProfileRide(r, profile) && finite(r.startedAt) && r.startedAt >= weekStart(now) - 7 * 86400000 * WEEKS);
     const buckets = weeklyBuckets(recent, now, WEEKS, distanceOf), current = buckets[buckets.length - 1];
     const km = current.distanceM / 1000, progress = goalProgress(current.distanceM, goalKm), streak = streakWeeks(buckets);
-    const ring = root.document.getElementById("vxGoalRing"), text = root.document.getElementById("vxGoalText"), bars = root.document.getElementById("vxWeeksChart");
-    if (ring) ring.innerHTML = ringSvg(progress, Math.round(progress * 100) + " %", "von " + fmt(goalKm, 0) + " km", "Wochenziel: " + fmt(km, 1) + " von " + fmt(goalKm, 0) + " Kilometern erreicht");
+    const suffix = profile === "running" ? "running" : "cycling";
+    const ring = root.document.getElementById("vxGoalRing-" + suffix), text = root.document.getElementById("vxGoalText-" + suffix), bars = root.document.getElementById("vxWeeksChart-" + suffix);
+    const sport = profile === "running" ? "Laufkilometer" : "Fahrradkilometer";
+    if (ring) ring.innerHTML = ringSvg(progress, Math.round(progress * 100) + " %", "von " + fmt(goalKm, 0) + " km", "Wochenziel: " + fmt(km, 1) + " von " + fmt(goalKm, 0) + " " + sport + " erreicht");
     if (text) {
       const left = Math.max(0, goalKm - km);
       text.innerHTML = '<strong>' + fmt(km, 1) + ' <small>km diese Woche</small></strong><p>' +
-        (progress >= 1 ? "Wochenziel erreicht. Jeder weitere Kilometer ist Bonus." : current.count === 0 ? "Noch keine Aktivität seit Montag. Schon eine kurze Runde bringt dich voran." : "Noch " + fmt(left, 1) + " km bis zum Wochenziel.") +
+        (progress >= 1 ? "Wochenziel erreicht. Jeder weitere Kilometer ist Bonus." : current.count === 0 ? "Noch keine Aktivität seit Montag. Deine nächste " + (profile === "running" ? "Laufrunde" : "Fahrradtour") + " zählt hier." : "Noch " + fmt(left, 1) + " km bis zum Wochenziel.") +
         '</p><small class="vx-goal-streak">' + (streak > 0 ? streak + (streak === 1 ? " Woche" : " Wochen") + " in Folge aktiv" : "Serie startet mit deiner nächsten Aktivität") + '</small>';
     }
     if (bars) bars.innerHTML = barsSvg(buckets, goalKm);
+  }
+  function render() {
+    renderProfile("running");renderProfile("cycling");
+    const active = selectedProfile();
+    ["running","cycling"].forEach(profile=>{
+      const panel=root.document.getElementById("vxWeeks-"+profile);
+      if(panel)panel.hidden=active!==profile;
+    });
   }
   function schedule() {
     clearTimeout(state.timer);
@@ -138,11 +150,12 @@
       try { state.rides = await readRides(); render(); } catch (error) { console.warn("VELOX Plus:", error); }
     }, 250);
   }
-  function openGoalDialog(current) {
+  function openGoalDialog(current, profile) {
     return new Promise((resolve) => {
       const dlg = root.document.createElement("dialog");
       dlg.className = "vx-sheet";
-      dlg.innerHTML = '<form method="dialog"><h3>Wochenziel festlegen</h3><div class="vx-sheet-body"><p>Wie viele Kilometer möchtest du pro Woche (Montag bis Sonntag) schaffen? Laufen und Radfahren zählen zusammen.</p>' +
+      const sport = profile === "running" ? "Laufen" : "Radfahren";
+      dlg.innerHTML = '<form method="dialog"><h3>Wochenziel · ' + sport + '</h3><div class="vx-sheet-body"><p>Wie viele Kilometer möchtest du pro Woche (Montag bis Sonntag) beim ' + sport + ' erreichen? Dieses Ziel zählt ausschließlich für dein ' + (profile === "running" ? "Laufprofil" : "Fahrradprofil") + '.</p>' +
         '<label class="vx-field">Kilometer pro Woche<input name="km" type="number" inputmode="numeric" min="' + MIN_GOAL_KM + '" max="' + MAX_GOAL_KM + '" step="5" required value="' + current + '"></label></div>' +
         '<div class="vx-sheet-actions"><button type="submit" value="save" class="primary-button">Speichern</button><button type="submit" value="cancel" class="secondary-button" formnovalidate>Abbrechen</button></div></form>';
       root.document.body.appendChild(dlg);
@@ -158,29 +171,38 @@
   }
   function mount() {
     const doc = root.document;
-    const grid = doc.querySelector("#page-home .metric-grid"), compare = doc.querySelector("#page-stats .ride-comparison-panel");
-    if (grid && !doc.getElementById("vxGoal")) {
-      grid.insertAdjacentHTML("afterend",
-        '<section class="panel vx-goal" id="vxGoal" aria-labelledby="vxGoalHeading"><div class="vx-goal-ring" id="vxGoalRing"></div>' +
-        '<div class="vx-goal-body"><span class="eyebrow">WOCHENZIEL</span><h3 id="vxGoalHeading">Deine Woche</h3><div id="vxGoalText" class="vx-goal-text"></div>' +
-        (typeof root.HTMLDialogElement === "function" ? '<button class="secondary-button compact" id="vxGoalEdit" type="button">Ziel ändern</button>' : "") + '</div></section>');
-      const edit = doc.getElementById("vxGoalEdit");
-      if (edit) edit.addEventListener("click", async () => {
-        const km = await openGoalDialog(storedGoal());
-        if (km !== null) { saveGoal(km); render(); }
+    ["running","cycling"].forEach(profile=>{
+      const suffix=profile==="running"?"running":"cycling";
+      const page=profile==="running"?"running-dashboard":"cycling-dashboard";
+      const grid=doc.querySelector("#page-"+page+" .metric-grid");
+      if(grid&&!doc.getElementById("vxGoal-"+suffix)){
+        grid.insertAdjacentHTML("afterend",
+          '<section class="panel vx-goal" id="vxGoal-'+suffix+'" aria-labelledby="vxGoalHeading-'+suffix+'"><div class="vx-goal-ring" id="vxGoalRing-'+suffix+'"></div>'+
+          '<div class="vx-goal-body"><span class="eyebrow">WOCHENZIEL · '+(profile==="running"?"LAUFEN":"RADFAHREN")+'</span><h3 id="vxGoalHeading-'+suffix+'">Deine Woche</h3><div id="vxGoalText-'+suffix+'" class="vx-goal-text"></div>'+
+          (typeof root.HTMLDialogElement==="function"?'<button class="secondary-button compact" id="vxGoalEdit-'+suffix+'" type="button">Ziel ändern</button>':"")+'</div></section>');
+      }
+      const edit=doc.getElementById("vxGoalEdit-"+suffix);
+      if(edit)edit.addEventListener("click",async()=>{
+        const km=await openGoalDialog(storedGoal(profile),profile);
+        if(km!==null){saveGoal(km,profile);render();}
+      });
+    });
+    const compare=doc.querySelector("#page-stats .ride-comparison-panel");
+    if(compare){
+      ["running","cycling"].forEach(profile=>{
+        const id="vxWeeks-"+profile;
+        if(!doc.getElementById(id))compare.insertAdjacentHTML("afterend",
+          '<section class="panel vx-weeks" id="'+id+'" aria-labelledby="'+id+'Heading" hidden><span class="eyebrow">WOCHENÜBERBLICK · '+(profile==="running"?"LAUFEN":"RADFAHREN")+'</span><h3 id="'+id+'Heading">Kilometer pro Woche</h3>'+
+          '<div id="vxWeeksChart-'+profile+'" class="vx-weeks-chart"></div><p class="small-note">Die letzten '+WEEKS+' Wochen (Montag bis Sonntag), ausschließlich '+(profile==="running"?"Laufen":"Radfahren")+'. Gezählt wird nur die gültige GPS-Strecke.</p></section>');
       });
     }
-    if (compare && !doc.getElementById("vxWeeks")) {
-      compare.insertAdjacentHTML("afterend",
-        '<section class="panel vx-weeks" id="vxWeeks" aria-labelledby="vxWeeksHeading"><span class="eyebrow">WOCHENÜBERBLICK</span><h3 id="vxWeeksHeading">Kilometer pro Woche</h3>' +
-        '<div id="vxWeeksChart" class="vx-weeks-chart"></div><p class="small-note">Die letzten ' + WEEKS + ' Wochen (Montag bis Sonntag), Laufen und Radfahren zusammen. Gezählt wird nur die gültige GPS-Strecke.</p></section>');
+    const total=doc.getElementById("totalRides"),status=doc.getElementById("trackingStatus");
+    if(typeof root.MutationObserver==="function"){
+      if(total)new root.MutationObserver(schedule).observe(total,{childList:true,characterData:true,subtree:true});
+      if(status)new root.MutationObserver(()=>doc.body.classList.toggle("vx-recording",/Aufzeichnung läuft/.test(status.textContent))).observe(status,{childList:true,characterData:true,subtree:true});
     }
-    const total = doc.getElementById("totalRides"), status = doc.getElementById("trackingStatus");
-    if (typeof root.MutationObserver === "function") {
-      if (total) new root.MutationObserver(schedule).observe(total, { childList: true, characterData: true, subtree: true });
-      if (status) new root.MutationObserver(() => doc.body.classList.toggle("vx-recording", /Aufzeichnung läuft/.test(status.textContent))).observe(status, { childList: true, characterData: true, subtree: true });
-    }
-    doc.addEventListener("visibilitychange", () => { if (doc.visibilityState === "visible") schedule(); });
+    doc.addEventListener("visibilitychange",()=>{if(doc.visibilityState==="visible")schedule();});
+    root.addEventListener("velox:profilechange",schedule);
     schedule();
   }
   function start() {
@@ -189,5 +211,5 @@
     else mount();
   }
 
-  return { weekStart, weeklyBuckets, streakWeeks, goalProgress, normalizeGoal, ringSvg, barsSvg, start, version: "0.12.1" };
+  return { weekStart, weeklyBuckets, streakWeeks, goalProgress, normalizeGoal, ringSvg, barsSvg, start, version: "0.13.0" };
 });
