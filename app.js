@@ -827,10 +827,10 @@
     $("liveMovingRatio").innerHTML=fmt(elapsed?Math.min(100,c.movingSeconds/elapsed*100):0,0)+' <small>%</small>';
     const stepCard=$("liveStepsCard");if(stepCard)stepCard.hidden=!running;
     if(running){
-      const count=Number(activeRide.steps)||0,sensorAvailable=activeRide.stepCountSource==="device-motion"&&(Number(activeRide.stepSensorEvents)||0)>0;
+      const count=Number(activeRide.steps)||0,sensorGranted=activeRide.stepCountSource==="device-motion",sensorAvailable=sensorGranted&&(Number(activeRide.stepSensorEvents)||0)>0;
       $("liveSteps").textContent=sensorAvailable?count.toLocaleString("de-DE"):"–";
       const stride=activeRide.heightCm&&window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(activeRide.heightCm):null;
-      $("liveStepsNote").textContent=!sensorAvailable?"Bewegungssensor nicht freigegeben":stride?("Schrittdistanz ca. "+fmt(count*stride/1000,2)+" km"):"Körpergröße nicht hinterlegt";
+      $("liveStepsNote").textContent=!sensorGranted?"Bewegungssensor nicht freigegeben":!sensorAvailable?"Warte auf Bewegungssensordaten":stride?("Schrittdistanz ca. "+fmt(count*stride/1000,2)+" km"):"Körpergröße nicht hinterlegt";
     }
     $("liveAltitudeQuality").textContent=elevation.quality==="high"?"Gut":elevation.quality==="medium"?"Mittel":elevation.quality==="unrated"?"Nicht bewertet":"Begrenzt";
     updateSensorStatus(last);
