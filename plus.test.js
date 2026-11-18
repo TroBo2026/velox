@@ -8,6 +8,9 @@ const dist = (r) => r.km * 1000;
 // Dienstag, 17.11.2026 → Woche beginnt Montag, 16.11.2026
 const now = at(2026, 11, 17);
 ok(P.weekStart(now) === at(2026, 11, 16, 0), "Wochenbeginn ist Montag 00:00");
+ok(P.isProfileRide({activityType:"running"},"running") && !P.isProfileRide({activityType:"running"},"cycling"), "Laufaktivität zählt nur im Laufprofil");
+ok(P.isProfileRide({activityType:"cycling"},"cycling") && !P.isProfileRide({activityType:"cycling"},"running"), "Fahrradaktivität zählt nur im Fahrradprofil");
+ok(P.isProfileRide({},"cycling") && !P.isProfileRide({},"running"), "Alte Datensätze ohne Sportart bleiben im Fahrradprofil");
 ok(P.weekStart(at(2026, 11, 22, 23)) === at(2026, 11, 16, 0), "Sonntag gehört noch zur selben Woche");
 ok(P.weekStart(at(2026, 11, 23, 0)) === at(2026, 11, 23, 0), "Montag 00:00 beginnt die nächste Woche");
 
