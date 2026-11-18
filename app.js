@@ -100,7 +100,8 @@
     stopStepCounter();stepDetector=new window.VELOXSteps.Detector();
     stepMotionListener=event=>{
       if(!activeRide||activeRide.status!=="recording"||!stepDetector)return;
-      if(event&&(event.acceleration||event.accelerationIncludingGravity))activeRide.stepSensorEvents=(Number(activeRide.stepSensorEvents)||0)+1;
+      const hasMotionSample=event&&[event.acceleration,event.accelerationIncludingGravity].some(sample=>sample&&[sample.x,sample.y,sample.z].every(Number.isFinite));
+      if(hasMotionSample)activeRide.stepSensorEvents=(Number(activeRide.stepSensorEvents)||0)+1;
       if(stepDetector.process(event)>0){
         activeRide.steps=(Number(activeRide.steps)||0)+1;
         updateLive(false);
