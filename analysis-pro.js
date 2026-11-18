@@ -156,7 +156,7 @@
     const e = result.elevation;
     const running = result.activityType === "running";
     const speedValue = value => running ? formatPace(value) + " min/km" : fmt(value) + " km/h";
-    const stepCount = running && result.ride.stepCountSource === "device-motion" && Number.isFinite(result.ride.steps) ? result.ride.steps : null;
+    const stepCount = running && result.ride.stepCountSource === "device-motion" && (Number(result.ride.stepSensorEvents)||0) > 0 && Number.isFinite(result.ride.steps) ? result.ride.steps : null;
     const strideLength = running ? estimatedStride(Number.isFinite(result.ride.heightCm) ? result.ride.heightCm : null) : null;
     const stepCards = running ?
       card("Erkannte Schritte", stepCount === null ? "Nicht erfasst" : Math.round(stepCount).toLocaleString("de-DE"), "Vom Bewegungssensor erkannt") +
@@ -234,7 +234,7 @@
     const fastest = analyses.filter(item => item.movingSeconds > 0).sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
     const climbing = analyses.filter(item => item.elevation.validCount >= 2).sort((a, b) => b.elevation.gain - a.elevation.gain)[0];
     const avgSpeed = total.moving>0?total.distance/total.moving*3.6:0;
-    const stepEntries = running ? analyses.filter(item=>item.ride.stepCountSource==="device-motion"&&Number.isFinite(item.ride.steps)) : [];
+    const stepEntries = running ? analyses.filter(item=>item.ride.stepCountSource==="device-motion"&&(Number(item.ride.stepSensorEvents)||0)>0&&Number.isFinite(item.ride.steps)) : [];
     const totalSteps = stepEntries.reduce((sum,item)=>sum+Math.max(0,item.ride.steps),0);
     const totalStepDistanceM = stepEntries.reduce((sum,item)=>{const stride=estimatedStride(Number.isFinite(item.ride.heightCm)?item.ride.heightCm:null);return sum+(stride?Math.max(0,item.ride.steps)*stride:0);},0);
     const records = [
