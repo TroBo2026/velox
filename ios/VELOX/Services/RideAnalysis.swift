@@ -18,6 +18,67 @@ struct RideSlopePoint: Equatable, Identifiable {
     let segmentID: Int
 }
 
+/// Shared GPS route-distance policy used by live recording, analysis and archive.
+/// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
+enum RideRouteMetrics {
+    static let maximumGapSeconds = 30.0
+    static let maximumSegmentMeters = 120.0
+    static let minimumSegmentMeters = 2.0
+
+    static func distanceMeters(for points: [RidePoint]) -> Double {
+        var total = 0.0
+        var previous: RidePoint?
+
+        for point in points {
+            guard point.t.isFinite,
+                  point.t > 0,
+                  point.lat.isFinite, (-90.0...90.0).contains(point.lat),
+                  point.lon.isFinite, (-180.0...180.0).contains(point.lon),
+                  let accuracy = point.accuracy,
+                  accuracy.isFinite, accuracy >= 0, accuracy <= 35 else {
+                previous = nil
+                continue
+            }
+
+            guard let prior = previous else {
+                previous = point
+                continue
+            }
+
+            let elapsed = point.t - prior.t
+            guard elapsed.isFinite, elapsed > 0 else {
+                previous = point
+                continue
+            }
+
+            // A time gap or a large jump starts a fresh segment.
+            if elapsed > maximumGapSeconds {
+                previous = point
+                continue
+            }
+
+            let first = CLLocation(latitude: prior.lat, longitude: prior.lon)
+            let second = CLLocation(latitude: point.lat, longitude: point.lon)
+            let segment = second.distance(from: first)
+            guard segment.isFinite else {
+                previous = nil
+                continue
+            }
+            if segment > maximumSegmentMeters {
+                previous = point
+                continue
+            }
+            if segment >= minimumSegmentMeters {
+                total += segment
+                previous = point
+            }
+            // Sub-2 m jitter is ignored without moving the trusted anchor.
+        }
+
+        return total.isFinite ? total : 0
+    }
+}
+
 struct RideElevationAnalysis: Equatable {
     enum Reference: String, Equatable {
         case gpsCalibrated = "GPS-kalibriert"
