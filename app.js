@@ -18,6 +18,11 @@
   const PROFILE_STORAGE_KEY = "velox-active-profile";
   let activeProfile = null;
   let selectedActivityType = "cycling";
+  let stepMotionListener = null;
+  let stepDetector = null;
+  let stepSaveAt = 0;
+  const PROFILE_HEIGHT_KEY = "velox-profile-height-cm";
+  const PROFILE_HEIGHT_SKIP_KEY = "velox-profile-height-skipped";
   let activeRide = null;
   let watchId = null;
   let timerId = null;
@@ -66,6 +71,45 @@
   function formatPace(speedKmh){
     return Number.isFinite(speedKmh)&&speedKmh>0?formatPaceSeconds(3600/speedKmh):"–";
   }
+  function getProfileHeight(){
+    try{const value=Number(localStorage.getItem(PROFILE_HEIGHT_KEY));return Number.isFinite(value)&&value>=100&&value<=230?value:null;}catch{return null;}
+  }
+  function updateProfileHeightLabel(){const el=$("profileHeightValue");if(el)el.textContent=getProfileHeight()===null?"Noch nicht hinterlegt":getProfileHeight()+" cm";}
+  async function ensureRunningProfile(){
+    const existing=getProfileHeight();if(existing!==null)return existing;
+    try{if(localStorage.getItem(PROFILE_HEIGHT_SKIP_KEY)==="1")return null;}catch{}
+    const result=await openSheet({title:"Dein Laufprofil",body:'<p>Deine Körpergröße hilft VELOX, die durchschnittliche Schrittlänge zu schätzen. Die Angabe bleibt lokal auf diesem Gerät und ist freiwillig.</p><label class="vx-field">Körpergröße in Zentimetern<input name="heightCm" type="number" inputmode="numeric" min="100" max="230" step="1" placeholder="z. B. 170"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"skip",label:"Ohne Angabe fortfahren",skip:true}]});
+    if(result.action!=="save"){try{localStorage.setItem(PROFILE_HEIGHT_SKIP_KEY,"1");}catch{}return null;}
+    const value=Number(result.values.heightCm);
+    if(!Number.isFinite(value)||value<100||value>230){showToast("Bitte eine Körpergröße zwischen 100 und 230 cm eingeben.");return null;}
+    try{localStorage.setItem(PROFILE_HEIGHT_KEY,String(Math.round(value)));localStorage.removeItem(PROFILE_HEIGHT_SKIP_KEY);}catch{}
+    updateProfileHeightLabel();return Math.round(value);
+  }
+  async function requestStepMotionPermission(){
+    if(!window.DeviceMotionEvent)return false;
+    const request=window.DeviceMotionEvent.requestPermission;
+    if(typeof request==="function"){try{return await request.call(window.DeviceMotionEvent)==="granted";}catch{return false;}}
+    return true;
+  }
+  function stopStepCounter(){
+    if(stepMotionListener){window.removeEventListener("devicemotion",stepMotionListener,true);stepMotionListener=null;}
+    stepDetector=null;
+  }
+  function startStepCounter(){
+    if(!activeRide||!isRunning(activeRide)||activeRide.stepCountSource!=="device-motion"||!window.VELOXSteps||!window.DeviceMotionEvent)return false;
+    stopStepCounter();stepDetector=new window.VELOXSteps.Detector();
+    stepMotionListener=event=>{
+      if(!activeRide||activeRide.status!=="recording"||!stepDetector)return;
+      if(stepDetector.process(event)>0){
+        activeRide.steps=(Number(activeRide.steps)||0)+1;
+        updateLive(false);
+        if(activeRide.steps%10===0&&Date.now()-stepSaveAt>1500){stepSaveAt=Date.now();persistActiveRide().catch(error=>console.warn("Schrittstand konnte nicht gespeichert werden:",error));}
+      }
+    };
+    window.addEventListener("devicemotion",stepMotionListener,true);
+    return true;
+  }
+
   function normalizeProfile(value){return value==="running"||value==="cycling"?value:null;}
   function readSavedProfile(){
     try{return normalizeProfile(localStorage.getItem(PROFILE_STORAGE_KEY));}catch{return null;}
