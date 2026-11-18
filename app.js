@@ -554,11 +554,12 @@
   }
   function renderRideComparison(rides){
     const host=$("rideComparison");if(!host)return;
-    if(rides.length<2){host.innerHTML='<p class="small-note">Mindestens zwei gespeicherte Aktivitäten erforderlich. Deine Aktivitäten bleiben lokal auf diesem Gerät.</p>';return;}
+    if(rides.length<2){host.innerHTML='<p class="small-note">Mindestens zwei gespeicherte '+(activeProfile==="running"?"Läufe":"Fahrradtouren")+' erforderlich. Deine Aktivitäten bleiben lokal auf diesem Gerät.</p>';return;}
     const columns=rides.map(ride=>({ride,calc:calcRide(ride)}));
+    const timeLabel=activeProfile==="running"?"Laufzeit":"Fahrzeit";
     const rows=[
       ["Distanz",c=>fmt(c.distanceM/1000)+" km"],
-      ["Bewegungszeit",c=>fmtTime(c.movingSeconds)],
+      [timeLabel,c=>fmtTime(c.movingSeconds)],
       ["Ø Tempo",(c,ride)=>isRunning(ride)?formatPace(c.averageSpeed)+" min/km":fmt(c.averageSpeed)+" km/h"],
       ["Max. Tempo",(c,ride)=>isRunning(ride)?formatPace(c.maxSpeed)+" min/km":fmt(c.maxSpeed)+" km/h"],
       ["Aufstieg",c=>Math.round(c.elevationGain)+" m"],
