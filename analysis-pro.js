@@ -4,6 +4,7 @@
   "use strict";
   const DB_NAME = "velox-local";
   const STORE = "rides";
+  const PROFILE_STORAGE_KEY = "velox-active-profile";
   const $ = (id) => document.getElementById(id);
   const fmt = (value, digits = 1) => Number(value || 0).toLocaleString("de-DE", {
     minimumFractionDigits: digits,
@@ -20,6 +21,9 @@
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   })[char]);
 
+  const formatPace = speedKmh => {if(!Number.isFinite(speedKmh)||speedKmh<=0)return "–";const seconds=Math.round(3600/speedKmh);return Math.floor(seconds/60)+":"+String(seconds%60).padStart(2,"0");};
+  const isRunning = ride => ride && ride.activityType === "running";
+  function activeProfile(){try{const p=localStorage.getItem(PROFILE_STORAGE_KEY);return p==="running"||p==="cycling"?p:null;}catch{return null;}}
   const GRADE_BANDS = [
     { label: "Starke Abfahrt (< −6 %)", min: -35, max: -6 },
     { label: "Leichte Abfahrt (−6 bis −2 %)", min: -6, max: -2 },
@@ -48,7 +52,13 @@
       const band = gradeBands.find((b) => item.grade >= b.min && (item.grade < b.max || (b.max === 35 && item.grade <= 35)));
       if (band) band.distance += item.weightM;
     });
-    const speedZones = SPEED_ZONES.map((zone) => ({ ...zone, seconds: 0 }));
+    const running = isRunning(ride);
+    const zoneDefinitions = running ? [
+      { label: "Langsamer als 7:30 min/km", min: 0, max: 8 },
+      { label: "5:00–7:30 min/km", min: 8, max: 12 },
+      { label: "Schneller als 5:00 min/km", min: 12, max: Infinity }
+    ] : SPEED_ZONES;
+    const speedZones = zoneDefinitions.map((zone) => ({ ...zone, seconds: 0 }));
     c.intervals.forEach((it) => {
       const zone = speedZones.find((z) => it.speedKmh >= z.min && it.speedKmh < z.max);
       if (zone) zone.seconds += it.durationS;
@@ -72,6 +82,7 @@
 
     return {
       ride,
+      activityType: running ? "running" : "cycling",
       points,
       distanceM: c.distanceM,
       movingSeconds: c.movingSeconds,
@@ -142,18 +153,20 @@
   }
   function renderSingle(result, splitKm) {
     const e = result.elevation;
+    const running = result.activityType === "running";
+    const speedValue = value => running ? formatPace(value) + " min/km" : fmt(value) + " km/h";
     const qualityNote = result.goodAccuracyRatio === null
       ? "GPS-Genauigkeit wurde vom Gerät nicht für alle Punkte gemeldet."
       : fmt(result.goodAccuracyRatio * 100, 0) + " % der gemeldeten Positionsgenauigkeiten liegen bei höchstens 20 m.";
     const cards = [
       card("Strecke", fmt(result.distanceM / 1000) + " km", result.acceptedSegments + " Bewegungsabschnitte"),
-      card("Bewegungszeit", fmtTime(result.movingSeconds), "Nur gültige Fahrintervalle"),
+      card(running ? "Laufzeit" : "Fahrzeit", fmtTime(result.movingSeconds), "Nur gültige Bewegungsintervalle"),
       card("Gesamtzeit", fmtTime(result.elapsedSeconds), "Aufzeichnungszeit abzüglich Pausen"),
       card("Stand- / Lückenzeit", fmtTime(result.stoppedSeconds), "Nicht als Fahrzeit gewertet"),
-      card("Ø während der Fahrt", fmt(result.averageSpeed) + " km/h", "Distanz ÷ Bewegungszeit"),
-      card("Ø über Gesamtzeit", fmt(result.overallAverage) + " km/h", "Distanz ÷ Gesamtzeit"),
-      card("Max. gültiges Tempo", fmt(result.maxSpeed) + " km/h", "Ausreißer oberhalb 100 km/h ausgeschlossen"),
-      card("95. Perzentil", result.p95Speed === null ? "–" : fmt(result.p95Speed) + " km/h", "Robuster Vergleichswert des Tempos"),
+      card(running ? "Ø Laufpace" : "Ø Fahrtempo", speedValue(result.averageSpeed), "Distanz ÷ Bewegungszeit"),
+      card(running ? "Ø Pace über Gesamtzeit" : "Ø über Gesamtzeit", speedValue(result.overallAverage), "Distanz ÷ Gesamtzeit"),
+      card(running ? "Schnellste Pace" : "Max. gültiges Tempo", speedValue(result.maxSpeed), "Aus gültigen GPS-Intervallen"),
+      card(running ? "Pace-95. Perzentil" : "95. Perzentil", result.p95Speed === null ? "–" : speedValue(result.p95Speed), "Robuster Vergleichswert"),
       card("Aufstieg / Abstieg", "+" + Math.round(e.gain) + " / −" + Math.round(e.loss) + " m", e.validCount + " gültige Höhenpunkte"),
       card("Höchster / tiefster Punkt", e.max === null ? "–" : Math.round(e.max) + " / " + Math.round(e.min) + " m", "Aus geglätteten GPS-Höhenwerten"),
       card("Höhenqualität", e.quality==="high"?"Hoch":e.quality==="medium"?"Mittel":e.quality==="low"?"Begrenzt":"Nicht bewertet",
@@ -176,7 +189,7 @@
     const splitRows = result.splits.length
       ? result.splits.map((split) =>
         '<tr><td>' + split.number + (split.complete ? '' : ' (Rest)') + '</td><td>' + fmt(split.distanceM / 1000, 2) + ' km</td><td>' +
-        fmtTime(split.movingSeconds) + '</td><td>' + fmt(split.averageSpeed) + ' km/h</td></tr>'
+        fmtTime(split.movingSeconds) + '</td><td>' + speedValue(split.averageSpeed) + '</td></tr>'
       ).join("")
       : '<tr><td colspan="4">Nicht genügend gültige GPS-Daten für Splits.</td></tr>';
     const rejected = result.rejected;
@@ -189,7 +202,7 @@
       ["Ungültiger GPS-Punkt", rejected.invalid]
     ].map((row) => '<div class="vx-pro-audit-row"><span>' + row[0] + '</span><strong>' + row[1] + '</strong></div>').join("");
     return '<div class="vx-pro-cards">' + cards + '</div>' +
-      '<div class="vx-pro-columns"><section class="vx-pro-subpanel"><h4>Tempoverteilung</h4>' + zoneRows +
+      '<div class="vx-pro-columns"><section class="vx-pro-subpanel"><h4>' + (running ? "Paceverteilung" : "Tempoverteilung") + '</h4>' + zoneRows +
       '</section><section class="vx-pro-subpanel"><h4>Steigungsverteilung</h4>' + gradeRows +
       '<p class="vx-pro-note">Aus GPS-Höhenwerten; ohne echte Höhenmessdaten werden keine Steigungen ergänzt.</p></section></div>' +
       '<section class="vx-pro-subpanel"><div class="vx-pro-heading-row"><h4>' + fmt(splitKm, 0) + '-km-Splits</h4><span>Bewegungszeit je Abschnitt, fortlaufend über die gültige Strecke</span></div>' +
@@ -204,31 +217,31 @@
   }
   function renderArchive(rides, analyses) {
     const total = analyses.reduce((sum, item) => ({
-      distance: sum.distance + item.distanceM,
-      moving: sum.moving + item.movingSeconds,
-      elapsed: sum.elapsed + item.elapsedSeconds,
-      gain: sum.gain + item.elevation.gain,
+      distance: sum.distance + item.distanceM, moving: sum.moving + item.movingSeconds,
+      elapsed: sum.elapsed + item.elapsedSeconds, gain: sum.gain + item.elevation.gain,
       loss: sum.loss + item.elevation.loss
     }), { distance: 0, moving: 0, elapsed: 0, gain: 0, loss: 0 });
+    const running = analyses.length>0 && analyses.every(item=>item.activityType==="running");
     const longest = analyses.filter(item => item.distanceM > 0).sort((a, b) => b.distanceM - a.distanceM)[0];
     const fastest = analyses.filter(item => item.movingSeconds > 0).sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
     const climbing = analyses.filter(item => item.elevation.validCount >= 2).sort((a, b) => b.elevation.gain - a.elevation.gain)[0];
+    const avgSpeed = total.moving>0?total.distance/total.moving*3.6:0;
     const records = [
-      ["Längste Tour", longest, longest ? fmt(longest.distanceM / 1000) + " km" : "–"],
+      [running?"Längster Lauf":"Längste Fahrradtour", longest, longest ? fmt(longest.distanceM / 1000) + " km" : "–"],
       ["Höchster Aufstieg", climbing, climbing ? "+" + Math.round(climbing.elevation.gain) + " m" : "–"],
-      ["Höchstes Ø-Fahrtempo", fastest, fastest ? fmt(fastest.averageSpeed) + " km/h" : "–"]
+      [running?"Schnellste Ø-Laufpace":"Höchstes Ø-Fahrtempo", fastest, fastest ? (running?formatPace(fastest.averageSpeed)+" min/km":fmt(fastest.averageSpeed)+" km/h") : "–"]
     ].map((row) => '<div class="vx-pro-record"><span>' + row[0] + '</span><strong>' + row[2] +
-      '</strong><small>' + (row[1] ? escapeHtml(row[1].ride.name || "Fahrradtour") + " · " + dateLabel(row[1].ride.startedAt) : "Noch keine Tour") +
+      '</strong><small>' + (row[1] ? escapeHtml(row[1].ride.name || (running?"Laufrunde":"Fahrradtour")) + " · " + dateLabel(row[1].ride.startedAt) : "Noch keine Aktivität") +
       '</small></div>').join("");
     return '<div class="vx-pro-cards">' +
-      card("Touren", rides.length, "Lokal gespeicherte Fahrten") +
+      card(running?"Läufe":"Fahrradtouren", rides.length, "Lokal gespeicherte Aktivitäten") +
       card("Gesamtdistanz", fmt(total.distance / 1000) + " km", "Nur plausible GPS-Abschnitte") +
-      card("Bewegungszeit", fmtTime(total.moving), "Summe der erkannten Fahrintervalle") +
+      card(running?"Laufzeit":"Fahrzeit", fmtTime(total.moving), "Summe der erkannten Bewegungsintervalle") +
       card("Aufstieg / Abstieg", "+" + Math.round(total.gain) + " / −" + Math.round(total.loss) + " m", "Gefilterte GPS-Höhenwerte") +
-      card("Ø Fahrtempo", total.moving > 0 ? fmt(total.distance / total.moving * 3.6) + " km/h" : "–", "Gesamtdistanz ÷ Bewegungszeit") +
+      card(running?"Ø Laufpace":"Ø Fahrtempo", total.moving > 0 ? (running?formatPace(avgSpeed)+" min/km":fmt(avgSpeed)+" km/h") : "–", "Gesamtdistanz ÷ Bewegungszeit") +
       card("Gesamtzeit", fmtTime(total.elapsed), "Pausen abgezogen") +
       '</div><section class="vx-pro-subpanel"><h4>Deine Archiv-Rekorde</h4><div class="vx-pro-record-grid">' + records +
-      '</div></section><p class="vx-pro-note">Die Archivsumme wird aus allen gespeicherten Touren neu berechnet. Fehlende oder unplausible GPS-Abschnitte werden nicht als Strecke gezählt.</p>';
+      '</div></section><p class="vx-pro-note">Diese Auswertung enthält ausschließlich '+(running?"Laufaktivitäten":"Fahrradtouren")+'. Andere Sportprofile bleiben getrennt.</p>';
   }
   function init() {
     const page = $("page-stats");
@@ -299,6 +312,7 @@
       if (event.target.closest('[data-page="stats"]')) setTimeout(loadAndRender, 250);
     });
     loadAndRender();
+    window.addEventListener("velox:profilechange",loadAndRender);
   }
   let ridesCache = [];
   let analysesCache = [];
@@ -307,7 +321,9 @@
     if (!host) return;
     host.innerHTML = '<div class="vx-pro-empty">Tourdaten werden lokal ausgewertet …</div>';
     try {
-      ridesCache = await readRides();
+      const all = await readRides();
+      const profile = activeProfile();
+      ridesCache = profile === "running" ? all.filter(isRunning) : profile === "cycling" ? all.filter(ride=>!isRunning(ride)) : all;
       const select = $("vxProRide");
       const previous = select.value;
       select.innerHTML = '<option value="all">Alle Touren · Archiv</option>' +
