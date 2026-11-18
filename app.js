@@ -1,4 +1,4 @@
-/* VELOX 0.11.0 — local-first running + cycling tracker */
+/* VELOX 0.13.0 — separate local-first running and cycling profiles */
 (() => {
   "use strict";
   if(!window.VELOXCore||!window.VELOXCharts){
