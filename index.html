@@ -25,33 +25,74 @@
 
     <main id="appMain">
       <section class="page active" id="page-home">
-        <div class="hero">
-          <div class="eyebrow">DEIN SPORT. DEINE DATEN.</div>
-          <h1>Bereit für<br><em>deine nächste Aktivität?</em></h1>
-          <p>Laufen oder Radfahren. Präzise aufgezeichnet. Lokal gespeichert.</p>
-          <button class="primary-button start-button" id="startRide"><span class="button-play"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="currentColor" stroke="none"/></svg></span><span>Aktivität starten</span><span class="button-arrow"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></button>
+        <div class="hero profile-hub-hero">
+          <div class="eyebrow">VELOX · DEINE SPORTPROFILE</div>
+          <h1>Wähle deinen<br><em>Trainingsbereich.</em></h1>
+          <p>Zwei eigenständige Profile mit eigenen Dashboards, Aktivitäten und Auswertungen. Deine Auswahl bleibt auf diesem Gerät gespeichert.</p>
+        </div>
+        <div class="profile-choice-grid">
+          <button class="profile-choice-card profile-choice-running" type="button" data-profile="running">
+            <span class="profile-choice-icon" aria-hidden="true">🏃</span>
+            <span class="eyebrow">LAUFPROFIL</span><strong>Laufen</strong>
+            <span class="profile-choice-description">Pace · Laufzeit · Laufaktivitäten</span>
+            <span class="profile-choice-action">Laufprofil öffnen <span aria-hidden="true">↗</span></span>
+          </button>
+          <button class="profile-choice-card profile-choice-cycling" type="button" data-profile="cycling">
+            <span class="profile-choice-icon" aria-hidden="true">🚴</span>
+            <span class="eyebrow">FAHRRADPROFIL</span><strong>Radfahren</strong>
+            <span class="profile-choice-description">Geschwindigkeit · Fahrzeit · Fahrradtouren</span>
+            <span class="profile-choice-action">Fahrradprofil öffnen <span aria-hidden="true">↗</span></span>
+          </button>
         </div>
         <div id="backupHint" class="vx-hint" role="status" hidden></div>
-        <div class="section-heading"><div><span class="eyebrow">ÜBERSICHT</span><h2>Deine Aktivität</h2></div><span class="period-pill">Gesamt</span></div>
-        <div class="metric-grid">
-          <article class="metric-card"><span>Gesamtdistanz</span><strong id="totalDistance">0,0 <small>km</small></strong><small class="metric-foot">Alle gespeicherten Aktivitäten</small></article>
-          <article class="metric-card"><span>Aktivitätszeit</span><strong id="totalTime">0 <small>h</small></strong><small class="metric-foot">Bewegungszeit</small></article>
+        <div class="section-heading"><div><span class="eyebrow">GESAMTARCHIV</span><h2>Alle gespeicherten Aktivitäten</h2></div><span class="period-pill">Laufen + Radfahren</span></div>
+        <div class="metric-grid profile-hub-metrics">
+          <article class="metric-card"><span>Gesamtdistanz</span><strong id="totalDistance">0,0 <small>km</small></strong><small class="metric-foot">Alle Sportprofile</small></article>
+          <article class="metric-card"><span>Gesamtzeit</span><strong id="totalTime">0 <small>h</small></strong><small class="metric-foot">Bewegungszeit</small></article>
           <article class="metric-card"><span>Höhenmeter</span><strong id="totalElevation">0 <small>m</small></strong><small class="metric-foot">Aufstieg gesamt</small></article>
-          <article class="metric-card"><span>Aktivitäten</span><strong id="totalRides">0</strong><small class="metric-foot">Einzeln gespeichert</small></article>
+          <article class="metric-card"><span>Aktivitäten</span><strong id="totalRides">0</strong><small class="metric-foot">Laufen + Radfahren</small></article>
         </div>
-        <div class="section-heading recent-heading"><div><span class="eyebrow">ARCHIV</span><h2>Letzte Aktivitäten</h2></div><button class="text-button" data-page="rides">Alle anzeigen <svg class="ui-icon inline-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></button></div>
-        <div id="recentRides" class="ride-list"><div class="empty-state">Noch keine Aktivitäten vorhanden.<br>Starte deine erste VELOX-Aufzeichnung.</div></div>
+      </section>
+
+      <section class="page" id="page-running-dashboard">
+        <div class="profile-dashboard-heading">
+          <div><span class="eyebrow">DEIN PERSÖNLICHES PROFIL</span><h1>Laufprofil</h1><p>Deine Läufe, deine Pace und deine Entwicklung – getrennt vom Radfahren.</p></div>
+          <button class="secondary-button compact" type="button" data-page="home">Profil wechseln</button>
+        </div>
+        <button class="primary-button start-button profile-start-button" type="button" data-profile-start="running"><span class="button-play">▶</span><span>Lauf starten</span><span class="button-arrow">↗</span></button>
+        <div class="section-heading"><div><span class="eyebrow">LAUFSTATISTIK</span><h2>Deine Laufbilanz</h2></div><span class="period-pill">Nur Laufen</span></div>
+        <div class="metric-grid">
+          <article class="metric-card"><span>Laufdistanz</span><strong id="runDistance">0,0 <small>km</small></strong></article>
+          <article class="metric-card"><span>Laufzeit</span><strong id="runTime">0 <small>h</small></strong></article>
+          <article class="metric-card"><span>Aufstieg</span><strong id="runElevation">0 <small>m</small></strong></article>
+          <article class="metric-card"><span>Läufe</span><strong id="runCount">0</strong></article>
+          <article class="metric-card"><span>Ø Laufpace</span><strong id="runPace">–</strong></article>
+          <article class="metric-card"><span>Ø Laufdistanz</span><strong id="runAverageDistance">0 <small>km</small></strong></article>
+        </div>
+        <section class="panel"><span class="eyebrow">LAUFARCHIV</span><h3>Deine letzten Läufe</h3><div id="runRecentRides" class="ride-list"><div class="empty-state">Noch keine Läufe gespeichert.</div></div><button class="text-button" type="button" data-page="rides">Alle Läufe anzeigen ↗</button></section>
+      </section>
+
+      <section class="page" id="page-cycling-dashboard">
+        <div class="profile-dashboard-heading">
+          <div><span class="eyebrow">DEIN PERSÖNLICHES PROFIL</span><h1>Fahrradprofil</h1><p>Deine Fahrradtouren, Geschwindigkeit und Höhenmeter – getrennt vom Laufen.</p></div>
+          <button class="secondary-button compact" type="button" data-page="home">Profil wechseln</button>
+        </div>
+        <button class="primary-button start-button profile-start-button" type="button" data-profile-start="cycling"><span class="button-play">▶</span><span>Fahrt starten</span><span class="button-arrow">↗</span></button>
+        <div class="section-heading"><div><span class="eyebrow">FAHRRADSTATISTIK</span><h2>Deine Fahrradbilan</h2></div><span class="period-pill">Nur Radfahren</span></div>
+        <div class="metric-grid">
+          <article class="metric-card"><span>Fahrtdistanz</span><strong id="bikeDistance">0,0 <small>km</small></strong></article>
+          <article class="metric-card"><span>Fahrzeit</span><strong id="bikeTime">0 <small>h</small></strong></article>
+          <article class="metric-card"><span>Aufstieg</span><strong id="bikeElevation">0 <small>m</small></strong></article>
+          <article class="metric-card"><span>Fahrradtouren</span><strong id="bikeCount">0</strong></article>
+          <article class="metric-card"><span>Ø Geschwindigkeit</span><strong id="bikeSpeed">0,0 <small>km/h</small></strong></article>
+          <article class="metric-card"><span>Ø Tourdistanz</span><strong id="bikeAverageDistance">0 <small>km</small></strong></article>
+        </div>
+        <section class="panel"><span class="eyebrow">FAHRRADARCHIV</span><h3>Deine letzten Fahrradtouren</h3><div id="bikeRecentRides" class="ride-list"><div class="empty-state">Noch keine Fahrradtouren gespeichert.</div></div><button class="text-button" type="button" data-page="rides">Alle Fahrradtouren anzeigen ↗</button></section>
       </section>
 
       <section class="page" id="page-track">
-        <div class="page-title"><span class="eyebrow" id="trackPageEyebrow">RAD-AUFZEICHNUNG</span><h1 id="trackPageTitle">Deine Fahrt</h1></div>
-        <section class="activity-mode-picker" id="activityModePicker" aria-label="Sportart auswählen">
-          <div class="activity-mode-heading"><span class="eyebrow">SPORTART</span><strong>Was möchtest du aufzeichnen?</strong><p id="trackModeDescription">GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.</p></div>
-          <div class="activity-mode-options">
-            <button class="activity-mode-option" id="activityRunChoice" type="button" data-activity-choice="running" aria-pressed="false"><span class="activity-mode-icon">🏃</span><span><strong>Laufen</strong><small>Pace · min/km</small></span><span class="activity-mode-check">✓</span></button>
-            <button class="activity-mode-option selected" id="activityBikeChoice" type="button" data-activity-choice="cycling" aria-pressed="true"><span class="activity-mode-icon">🚴</span><span><strong>Radfahren</strong><small>Geschwindigkeit · km/h</small></span><span class="activity-mode-check">✓</span></button>
-          </div>
-        </section>
+        <div class="page-title"><button class="back-button" type="button" data-page="home">← Profilübersicht</button><span class="eyebrow" id="trackPageEyebrow">FAHRRAD-AUFZEICHNUNG</span><h1 id="trackPageTitle">Deine Fahrt</h1><p id="trackModeDescription" class="track-mode-description">GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.</p></div>
+        <p id="trackModeDescription" class="track-mode-description">GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.</p>
         <div class="tracking-status"><span class="status-dot" id="trackingDot"></span><span id="trackingStatus">Bereit</span><span id="gpsAccuracy" class="accuracy">GPS nicht aktiv</span></div>
         <button class="primary-button start-button track-start-button" id="trackStartRide" type="button"><span class="button-play">▶</span><span data-start-label>Fahrt starten</span><span class="button-arrow">↗</span></button>
         <div class="live-distance"><strong id="liveDistance">0,00</strong><span>KM</span></div>
@@ -71,7 +112,7 @@
       </section>
 
       <section class="page" id="page-rides">
-        <div class="page-title"><span class="eyebrow">DEIN ARCHIV</span><h1>Aktivitäten</h1></div>
+        <div class="page-title"><button class="back-button" type="button" data-page="home">← Profilübersicht</button><span class="eyebrow" id="ridesProfileEyebrow">DEIN ARCHIV</span><h1 id="ridesProfileTitle">Aktivitäten</h1></div>
         <div id="allRides" class="ride-list"><div class="empty-state">Noch keine gespeicherten Aktivitäten.</div></div>
       </section>
 
@@ -81,7 +122,7 @@
       </section>
 
       <section class="page" id="page-stats">
-        <div class="page-title"><span class="eyebrow">AUSWERTUNG</span><h1>Statistiken</h1></div>
+        <div class="page-title"><button class="back-button" type="button" data-page="home">← Profilübersicht</button><span class="eyebrow" id="statsProfileEyebrow">AUSWERTUNG</span><h1 id="statsProfileTitle">Statistiken</h1></div>
         <div class="metric-grid stats-grid">
           <article class="metric-card"><span>Distanz gesamt</span><strong id="statsDistance">0 <small>km</small></strong></article>
           <article class="metric-card"><span>Bewegungszeit gesamt</span><strong id="statsTime">0 <small>h</small></strong></article>
@@ -98,7 +139,7 @@
       </section>
 
       <section class="page" id="page-wrapped">
-        <div class="page-title"><button class="secondary-button compact" type="button" data-page="settings" aria-label="Zurück zu Mehr">← Zurück</button><span class="eyebrow">DEIN PERSÖNLICHER RÜCKBLICK</span><h1>Wrapped</h1><p>Deine Aktivitäten, Kennzahlen und persönlichen Rekorde.</p></div>
+        <div class="page-title"><button class="back-button" type="button" data-page="home">← Profilübersicht</button><span class="eyebrow" id="wrappedProfileEyebrow">DEIN PERSÖNLICHER RÜCKBLICK</span><h1 id="wrappedProfileTitle">Wrapped</h1><p>Deine Aktivitäten, Kennzahlen und persönlichen Rekorde.</p></div>
         <div id="wrappedContent" aria-live="polite"><div class="empty-state">Dein Wrapped wird aus deinen gespeicherten Aktivitäten berechnet.</div></div>
       </section>
 
@@ -112,7 +153,7 @@
         <details class="panel more-info"><summary>Messwerte und Sensoren</summary><div class="more-info-body"><h4>GPS und Höhenprofil</h4><p>Distanz und Geschwindigkeit werden aus gültigen GPS-Positionen und Zeitstempeln berechnet. VELOX verwirft unplausible Sprünge, große Messlücken und ungeeignete Genauigkeitswerte. Stillstand wird zusätzlich über die vom iPhone gemeldete GPS-Geschwindigkeit erkannt, damit GPS-Rauschen an der Ampel keine Strecke erzeugt.</p><p>GPS-Höhenwerte schwanken stark. VELOX entfernt Ausreißer, glättet die Höhe über die Strecke (nicht über die Zeit), tastet sie alle 25 m ab und zählt Auf- und Abstieg erst ab einer Mindeständerung von etwa 2,5 bis 6 m, je nach gemeldeter Genauigkeit. Das Ergebnis bleibt eine Näherung, keine vermessene Höhenreferenz. Steigungen werden über mindestens 50 m Strecke berechnet.</p><h4>Barometer</h4><p>Safari stellt keinen verlässlichen Zugriff auf den iPhone-Drucksensor bereit. Die Web-App zeichnet deshalb keine nativen Barometerwerte auf. Die native iOS-Version soll Core Motion verwenden, sofern das Gerät den Sensor tatsächlich bereitstellt. Core Motion liefert zunächst relative Höhenänderung und Luftdruck, nicht automatisch die absolute Höhe über dem Meeresspiegel.</p><h4>Weitere Sensoren</h4><p>Kompass, Gyroskop, Beschleunigung, Herzfrequenz, Leistung, Trittfrequenz und Kalorien werden nur angezeigt, wenn eine passende echte Datenquelle vorhanden ist. Telefonbewegung allein ist keine verlässliche Messung der Fahrradbeschleunigung oder Schräglage.</p></div></details>
         <details class="panel more-info"><summary>Speicherung, Export und Datenschutz</summary><div class="more-info-body"><h4>Lokale Aktivitätsdaten</h4><p>Die Web-Version speichert Aktivitäten lokal im Browser in IndexedDB. VELOX besitzt keinen eigenen Aktivitätsserver und benötigt kein Konto. VELOX bittet den Browser um dauerhaften Speicher; ob iOS das zusagt, steht oben unter „Speicherschutz“. Vor dem Löschen von Browserdaten oder einer Neuinstallation solltest du unter „Daten exportieren“ eine JSON-Sicherung erstellen. Ab 14 Tagen ohne Sicherung erinnert dich die Startseite daran.</p><h4>Import</h4><p>Der JSON-v1-Import ergänzt Aktivitäten, ohne bestehende Datensätze zu überschreiben. Bei einer ID-Kollision wird die importierte Aktivität mit einer neuen ID gespeichert. GPX- und JSON-Dateien bleiben unabhängig von der späteren nativen App nutzbar.</p><h4>Karten und Wetter</h4><p>Kartenkacheln werden bei Bedarf von OpenStreetMap geladen, die Kartenbibliothek Leaflet von unpkg.com. Wetterdaten werden nur nach deiner Zustimmung mit Aktivitätsdatum und einer repräsentativen GPS-Position bei Open-Meteo abgefragt. Lehnst du ab, kannst du Angaben manuell ergänzen oder überspringen. Ohne Internetverbindung trägst du Wetter und Temperatur direkt nach der Aktivität selbst ein; nachträglich wird es nicht automatisch abgefragt.</p></div></details>
         <details class="panel more-info"><summary>App-Version, Offline-Nutzung und Grenzen</summary><div class="more-info-body"><h4>Web-/PWA-Version</h4><p>VELOX 0.11.0 bleibt bis zur getesteten Ablösung verfügbar. Die Offline-App-Shell speichert die wichtigsten App-Dateien; Karten und die Kartenbibliothek benötigen weiterhin eine Internetverbindung.</p><h4>Aufzeichnung unter iOS</h4><p>iOS kann Safari oder eine installierte Web-App im Hintergrund anhalten. VELOX hält den Bildschirm während der Aufzeichnung wach (Screen Wake Lock, iOS 16.4 oder neuer), eine zuverlässige GPS-Aufzeichnung bei gesperrtem Bildschirm wird für die PWA aber nicht zugesichert. Für einen Test VELOX im Vordergrund geöffnet lassen.</p><h4>Native Entwicklung</h4><p>Die native SwiftUI-Version wird getrennt vorbereitet und soll GPS, Barometer und lokale Sicherungen direkt über iOS-Frameworks nutzen. Ein Xcode-Build und ein echter iPhone-Test stehen noch aus. Die PWA bleibt bis dahin die nutzbare Version.</p><h4>Externe Dienste</h4><p>Es werden keine kostenpflichtigen APIs oder Abonnements vorausgesetzt. Die Karten- und optionalen Wetterdienste haben eigene Datenschutzbedingungen.</p></div></details>
-        <div class="panel"><span class="eyebrow">VERSION 0.12.0</span><h3>VELOX – Your ride. Your world.</h3><p>Lokaler Sporttracker für Laufen und Radfahren · Web-/PWA-Version. Die native iOS-App befindet sich in Vorbereitung und ist noch nicht als lauffähige App bestätigt.</p></div>
+        <div class="panel"><span class="eyebrow">VERSION 0.13.0</span><h3>VELOX – Your ride. Your world.</h3><p>Lokaler Sporttracker für Laufen und Radfahren · Web-/PWA-Version. Die native iOS-App befindet sich in Vorbereitung und ist noch nicht als lauffähige App bestätigt.</p></div>
         <section class="panel" aria-labelledby="impressum-heading">
           <span class="eyebrow">RECHTLICHE ANGABEN</span>
           <h3 id="impressum-heading">Impressum</h3>
