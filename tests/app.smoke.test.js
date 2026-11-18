@@ -82,7 +82,9 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(data.size===4,"Tour gespeichert (4 in DB): "+data.size);
  const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
  ok(saved&&saved.status==="completed"&&saved.activityType==="running"&&saved.name==="Laufrunde"&&saved.points.length===120&&saved.points[5].speed===5,"Laufaktivität vollständig inkl. Sportart und Doppler-Tempo");
- ok(saved&&saved.heightCm===170&&saved.stepCountSource==="unavailable"&&/Schrittanalyse \(Schätzung\)/.test(els.rideDetail.innerHTML),"Lauf-Schrittprofil bleibt nachvollziehbar, auch wenn der Bewegungssensor nicht freigegeben ist");
+ ok(saved&&saved.heightCm===170&&saved.stepCountSource==="unavailable","Laufprofil speichert Körpergröße und Sensorstatus auch ohne Bewegungssensor");
+ await sleep(250);const savedCard=els["ride:"+saved.id+":allRides"];if(savedCard)(savedCard.listeners.click||[])[0]();await sleep(450);
+ ok(/Schrittanalyse \(Schätzung\)/.test(els.rideDetail.innerHTML)&&/Schrittlänge/.test(els.rideDetail.innerHTML),"Schrittanalyse erscheint in den gespeicherten Laufdetails");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const runPro=sb.VELOXProAnalysis.analyzeRide({...r,activityType:"running"},5);
  ok(runPro.activityType==="running"&&runPro.speedZones.some(zone=>zone.label.includes("min/km")),"Pro-Analyse nutzt Laufpace-Zonen statt Fahrrad-km/h");
