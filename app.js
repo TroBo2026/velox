@@ -100,6 +100,7 @@
     stopStepCounter();stepDetector=new window.VELOXSteps.Detector();
     stepMotionListener=event=>{
       if(!activeRide||activeRide.status!=="recording"||!stepDetector)return;
+      if(event&&(event.acceleration||event.accelerationIncludingGravity))activeRide.stepSensorEvents=(Number(activeRide.stepSensorEvents)||0)+1;
       if(stepDetector.process(event)>0){
         activeRide.steps=(Number(activeRide.steps)||0)+1;
         updateLive(false);
@@ -518,7 +519,7 @@
     }else{el.hidden=true;el.innerHTML="";}
   }
   function stepSummary(rides){
-    const measured=rides.filter(ride=>ride&&ride.stepCountSource==="device-motion"&&Number.isFinite(ride.steps));
+    const measured=rides.filter(ride=>ride&&ride.stepCountSource==="device-motion"&&(Number(ride.stepSensorEvents)||0)>0&&Number.isFinite(ride.steps));
     let steps=0,distanceM=0;
     measured.forEach(ride=>{
       const height=Number.isFinite(ride.heightCm)?ride.heightCm:getProfileHeight();
@@ -826,7 +827,7 @@
     $("liveMovingRatio").innerHTML=fmt(elapsed?Math.min(100,c.movingSeconds/elapsed*100):0,0)+' <small>%</small>';
     const stepCard=$("liveStepsCard");if(stepCard)stepCard.hidden=!running;
     if(running){
-      const count=Number(activeRide.steps)||0,sensorAvailable=activeRide.stepCountSource==="device-motion";
+      const count=Number(activeRide.steps)||0,sensorAvailable=activeRide.stepCountSource==="device-motion"&&(Number(activeRide.stepSensorEvents)||0)>0;
       $("liveSteps").textContent=sensorAvailable?count.toLocaleString("de-DE"):"–";
       const stride=activeRide.heightCm&&window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(activeRide.heightCm):null;
       $("liveStepsNote").textContent=!sensorAvailable?"Bewegungssensor nicht freigegeben":stride?("Schrittdistanz ca. "+fmt(count*stride/1000,2)+" km"):"Körpergröße nicht hinterlegt";
@@ -1015,7 +1016,7 @@
       :metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–")+
        metric("Max. GPS-Tempo",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–")+
        metric("Tempo-Median",c.movingSeconds?fmt(c.medianSpeed)+" km/h":"–");
-    const savedSteps=running&&r.stepCountSource==="device-motion"&&Number.isFinite(r.steps)?r.steps:null;
+    const savedSteps=running&&r.stepCountSource==="device-motion"&&(Number(r.stepSensorEvents)||0)>0&&Number.isFinite(r.steps)?r.steps:null;
     const strideHeight=Number.isFinite(r.heightCm)?r.heightCm:getProfileHeight();
     const estimatedStride=running&&strideHeight&&window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(strideHeight):null;
     const stepCards=running
