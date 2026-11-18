@@ -24,6 +24,7 @@
   const formatPace = speedKmh => {if(!Number.isFinite(speedKmh)||speedKmh<=0)return "–";const seconds=Math.round(3600/speedKmh);return Math.floor(seconds/60)+":"+String(seconds%60).padStart(2,"0");};
   const isRunning = ride => ride && ride.activityType === "running";
   function activeProfile(){try{const p=localStorage.getItem(PROFILE_STORAGE_KEY);return p==="running"||p==="cycling"?p:null;}catch{return null;}}
+  function estimatedStride(height){return window.VELOXSteps?window.VELOXSteps.estimateStepLengthM(height):(Number.isFinite(Number(height))&&Number(height)>=100&&Number(height)<=230?Number(height)*0.00415:null);}
   const GRADE_BANDS = [
     { label: "Starke Abfahrt (< −6 %)", min: -35, max: -6 },
     { label: "Leichte Abfahrt (−6 bis −2 %)", min: -6, max: -2 },
@@ -155,11 +156,18 @@
     const e = result.elevation;
     const running = result.activityType === "running";
     const speedValue = value => running ? formatPace(value) + " min/km" : fmt(value) + " km/h";
+    const stepCount = running && result.ride.stepCountSource === "device-motion" && Number.isFinite(result.ride.steps) ? result.ride.steps : null;
+    const strideLength = running ? estimatedStride(Number.isFinite(result.ride.heightCm) ? result.ride.heightCm : null) : null;
+    const stepCards = running ?
+      card("Erkannte Schritte", stepCount === null ? "Nicht erfasst" : Math.round(stepCount).toLocaleString("de-DE"), "Vom Bewegungssensor erkannt") +
+      card("Ø Schrittlänge (Schätzung)", strideLength ? fmt(strideLength,2) + " m" : "–", "Näherung aus der Körpergröße") +
+      card("Schrittdistanz (Schätzung)", stepCount !== null && strideLength ? fmt(stepCount*strideLength/1000,2) + " km" : "–", "GPS bleibt der offizielle Streckenwert") : "";
     const qualityNote = result.goodAccuracyRatio === null
       ? "GPS-Genauigkeit wurde vom Gerät nicht für alle Punkte gemeldet."
       : fmt(result.goodAccuracyRatio * 100, 0) + " % der gemeldeten Positionsgenauigkeiten liegen bei höchstens 20 m.";
     const cards = [
       card("Strecke", fmt(result.distanceM / 1000) + " km", result.acceptedSegments + " Bewegungsabschnitte"),
+      stepCards,
       card(running ? "Laufzeit" : "Fahrzeit", fmtTime(result.movingSeconds), "Nur gültige Bewegungsintervalle"),
       card("Gesamtzeit", fmtTime(result.elapsedSeconds), "Aufzeichnungszeit abzüglich Pausen"),
       card("Stand- / Lückenzeit", fmtTime(result.stoppedSeconds), "Nicht als Fahrzeit gewertet"),
@@ -226,6 +234,9 @@
     const fastest = analyses.filter(item => item.movingSeconds > 0).sort((a, b) => b.averageSpeed - a.averageSpeed)[0];
     const climbing = analyses.filter(item => item.elevation.validCount >= 2).sort((a, b) => b.elevation.gain - a.elevation.gain)[0];
     const avgSpeed = total.moving>0?total.distance/total.moving*3.6:0;
+    const stepEntries = running ? analyses.filter(item=>item.ride.stepCountSource==="device-motion"&&Number.isFinite(item.ride.steps)) : [];
+    const totalSteps = stepEntries.reduce((sum,item)=>sum+Math.max(0,item.ride.steps),0);
+    const totalStepDistanceM = stepEntries.reduce((sum,item)=>{const stride=estimatedStride(Number.isFinite(item.ride.heightCm)?item.ride.heightCm:null);return sum+(stride?Math.max(0,item.ride.steps)*stride:0);},0);
     const records = [
       [running?"Längster Lauf":"Längste Fahrradtour", longest, longest ? fmt(longest.distanceM / 1000) + " km" : "–"],
       ["Höchster Aufstieg", climbing, climbing ? "+" + Math.round(climbing.elevation.gain) + " m" : "–"],
@@ -239,6 +250,7 @@
       card(running?"Laufzeit":"Fahrzeit", fmtTime(total.moving), "Summe der erkannten Bewegungsintervalle") +
       card("Aufstieg / Abstieg", "+" + Math.round(total.gain) + " / −" + Math.round(total.loss) + " m", "Gefilterte GPS-Höhenwerte") +
       card(running?"Ø Laufpace":"Ø Fahrtempo", total.moving > 0 ? (running?formatPace(avgSpeed)+" min/km":fmt(avgSpeed)+" km/h") : "–", "Gesamtdistanz ÷ Bewegungszeit") +
+      (running ? card("Erkannte Schritte",stepEntries.length?Math.round(totalSteps).toLocaleString("de-DE"):"Nicht erfasst","Aus allen Läufen mit Sensorfreigabe") + card("Schrittdistanz (Schätzung)",totalStepDistanceM>0?fmt(totalStepDistanceM/1000,2)+" km":"–","Aus Schrittzahl und gespeicherter Körpergröße") : "") +
       card("Gesamtzeit", fmtTime(total.elapsed), "Pausen abgezogen") +
       '</div><section class="vx-pro-subpanel"><h4>Deine Archiv-Rekorde</h4><div class="vx-pro-record-grid">' + records +
       '</div></section><p class="vx-pro-note">Diese Auswertung enthält ausschließlich '+(running?"Laufaktivitäten":"Fahrradtouren")+'. Andere Sportprofile bleiben getrennt.</p>';
