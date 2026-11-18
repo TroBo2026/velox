@@ -211,5 +211,5 @@
     else mount();
   }
 
-  return { weekStart, weeklyBuckets, streakWeeks, goalProgress, normalizeGoal, ringSvg, barsSvg, start, version: "0.13.0" };
+  return { weekStart, weeklyBuckets, streakWeeks, goalProgress, normalizeGoal, ringSvg, barsSvg, isProfileRide, start, version: "0.13.0" };
 });
