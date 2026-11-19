@@ -1,4 +1,4 @@
-/* VELOX 0.11.0 — local-first running + cycling tracker */
+/* VELOX 0.12.0 — local-first cycling tracker */
 (() => {
   "use strict";
   if(!window.VELOXCore||!window.VELOXCharts){
@@ -15,7 +15,6 @@
   const $ = (id) => document.getElementById(id);
   let db;
   let currentPage = "home";
-  let selectedActivityType = "cycling";
   let activeRide = null;
   let watchId = null;
   let timerId = null;
@@ -61,20 +60,6 @@
   }
   function formatPace(speedKmh){
     return Number.isFinite(speedKmh)&&speedKmh>0?formatPaceSeconds(3600/speedKmh):"–";
-  }
-  function setActivityType(type){
-    if(type!=="running"&&type!=="cycling")return;
-    if(activeRide)return;
-    selectedActivityType=type;
-    const running=type==="running";
-    const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");
-    if(runButton)runButton.classList.toggle("selected",running);
-    if(bikeButton)bikeButton.classList.toggle("selected",!running);
-    const title=$("trackPageTitle"),eyebrow=$("trackPageEyebrow"),intro=$("trackModeDescription");
-    if(title)title.textContent=running?"Dein Lauf":"Deine Fahrt";
-    if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
-    if(intro)intro.textContent=running?"GPS-Lauftracking mit Pace, Laufzeit und Höhenprofil.":"GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.";
-    syncTrackStartButton();
   }
   const haversine = Core.haversine;
   const validRidePoint = Core.validPoint;
@@ -598,13 +583,13 @@
     if(!navigator.geolocation){showToast("GPS wird von diesem Browser nicht unterstützt.");return;}
     if(!window.isSecureContext){showToast("GPS benötigt eine sichere HTTPS-Verbindung.");return;}
     if(activeRide){setPage("track");return;}
-    const activityType=selectedActivityType;
-    activeRide={id:"ride-"+Date.now(),activityType,name:activityType==="running"?"Laufrunde":"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,pauseIntervals:[],points:[],status:"recording"};
+    const activityType="cycling";
+    activeRide={id:"ride-"+Date.now(),activityType,name:"Fahrradtour",startedAt:Date.now(),endedAt:null,pausedMs:0,pauseIntervals:[],points:[],status:"recording"};
     liveMetricsCache=null;liveMetricsRideId=null;liveDirty=false;pointsSincePersist=0;lastPersistAt=Date.now();dopplerSeen=false;
     syncTrackStartButton();
     try{await dbRequest("readwrite","put",activeRide);}catch(e){activeRide=null;syncTrackStartButton();showToast("Lokale Speicherung nicht verfügbar.");return;}
     $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Pause";
-    $("stopRide").textContent=activityType==="running"?"Lauf beenden":"Fahrt beenden";
+    $("stopRide").textContent="Fahrt beenden";
     $("trackingStatus").textContent="GPS wird gesucht …";$("trackingDot").style.background="#d9b879";
     liveMap=liveMap||initMap("liveMap");liveLines=[];liveMarker=null;
     setFollow(true);attachLiveMap();
@@ -664,16 +649,15 @@
     }
     const c=liveMetricsCache,elapsed=activeSeconds(activeRide);
     $("liveDistance").textContent=fmt(c.distanceM/1000,2);
-    const running=isRunning(activeRide);
     const speed=currentSpeed(activeRide.points);
-    $("liveSpeedLabel").textContent=running?"Aktuelle Pace":"Geschwindigkeit";
-    $("liveAverageLabel").textContent=running?"Ø Pace":"Ø Geschwindigkeit";
-    $("liveDurationLabel").textContent=running?"Laufzeit":"Fahrzeit";
-    $("liveMovingRatioLabel").textContent=running?"Laufanteil":"Fahranteil";
-    $("liveSpeed").innerHTML=running?formatPace(speed)+" <small>min/km</small>":fmt(speed)+" <small>km/h</small>";
+    $("liveSpeedLabel").textContent="Geschwindigkeit";
+    $("liveAverageLabel").textContent="Ø Geschwindigkeit";
+    $("liveDurationLabel").textContent="Fahrzeit";
+    $("liveMovingRatioLabel").textContent="Fahranteil";
+    $("liveSpeed").innerHTML=fmt(speed)+" <small>km/h</small>";
     $("liveDuration").textContent=fmtTime(elapsed);
     $("liveElevation").innerHTML=Math.round(c.elevationGain)+' <small>m</small>';
-    $("liveAverage").innerHTML=running?formatPace(c.averageSpeed)+" <small>min/km</small>":fmt(c.averageSpeed)+' <small>km/h</small>';
+    $("liveAverage").innerHTML=fmt(c.averageSpeed)+' <small>km/h</small>';
     const last=activeRide.points[activeRide.points.length-1],elevation=c.elevationProfile;
     $("liveAltitude").innerHTML=last&&Number.isFinite(last.alt)?Math.round(last.alt)+' <small>m</small>':'– <small>m</small>';
     const liveGrade=currentGrade(c);
@@ -693,22 +677,17 @@
   }
   function syncTrackStartButton(){
     const button=$("trackStartRide");
-    const running=activeRide?isRunning(activeRide):selectedActivityType==="running";
     if(button){
       button.hidden=!!activeRide;
       const label=button.querySelector("[data-start-label]");
-      if(label)label.textContent=running?"Lauf starten":"Fahrt starten";
+      if(label)label.textContent="Fahrt starten";
     }
-    
     const title=$("trackPageTitle"),eyebrow=$("trackPageEyebrow"),intro=$("trackModeDescription");
-    if(title)title.textContent=running?"Dein Lauf":"Deine Fahrt";
-    if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
-    if(intro)intro.textContent=running?"GPS-Lauftracking mit Pace, Laufzeit und Höhenprofil.":"GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.";
-    const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");
-    if(runButton)runButton.classList.toggle("selected",running);
-    if(bikeButton)bikeButton.classList.toggle("selected",!running);
-    const ratioTile=$("liveMovingRatioTile");if(ratioTile)ratioTile.hidden=running;
-    const mapCaption=$("liveMapCaption");if(mapCaption)mapCaption.textContent=running?"GPS-LAUFSTRECKE":"GPS-STRECKENVERLAUF";
+    if(title)title.textContent="Deine Fahrt";
+    if(eyebrow)eyebrow.textContent="RAD-AUFZEICHNUNG";
+    if(intro)intro.textContent="GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.";
+    const ratioTile=$("liveMovingRatioTile");if(ratioTile)ratioTile.hidden=false;
+    const mapCaption=$("liveMapCaption");if(mapCaption)mapCaption.textContent="GPS-STRECKENVERLAUF";
   }
   async function pauseRide(){
     if(!activeRide)return;
@@ -1075,8 +1054,7 @@
     const last=activeRide&&lastValid(activeRide.points);
     if(followLive&&liveMap&&last)liveMap.setView([last.lat,last.lon],Math.max(liveMap.getZoom(),15));
   });
-  $("activityRunChoice")?.addEventListener("click",()=>{setActivityType("running");setPage("track");});
-  $("activityBikeChoice")?.addEventListener("click",()=>{setActivityType("cycling");setPage("track");});
+  $("startRide")?.addEventListener("click",()=>setPage("track"));
   $("trackStartRide")?.addEventListener("click",startRide);
   document.addEventListener("visibilitychange",()=>{
     if(!activeRide)return;
@@ -1115,7 +1093,7 @@
     dopplerSeen=(unfinished.points||[]).some(p=>p&&Number.isFinite(p.speed)&&p.speed>=1);
     unfinished.pauseIntervals.push({startedAt:now,endedAt:null});
     activeRide=unfinished;
-    selectedActivityType=isRunning(unfinished)?"running":"cycling";
+
     await persistActiveRide();syncTrackStartButton();
     $("pauseRide").disabled=false;$("stopRide").disabled=false;$("pauseRide").textContent="Fortsetzen";
     $("trackingStatus").textContent="Unterbrochene Aktivität wiederhergestellt · pausiert";$("trackingDot").style.background="#d9b879";
