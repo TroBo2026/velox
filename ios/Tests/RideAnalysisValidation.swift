@@ -15,7 +15,10 @@ struct RideAnalysisValidation {
         testElevationOutlierAndRawDataIntegrity()
         testCompatibilitySummarySeparatesSessionsAndOutliers()
         testSharedRouteDistanceDoesNotBridgeGPSGaps()
-        print("VELOX elevation and route-distance validation: 10/10 checks passed")
+        testMTBSlowTechnicalMovementIsAccumulated()
+        testMTBFastDescentIsPreserved()
+        testMTBAccuracyEnvelopeIsNotOverlyStrict()
+        print("VELOX elevation and route-distance validation: 13/13 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -267,6 +270,48 @@ struct RideAnalysisValidation {
         expect(abs(withInvalidFix - distance) < 0.001, "invalid-accuracy fixes do not add distance")
     }
 
+    private static func testMTBSlowTechnicalMovementIsAccumulated() {
+        let start = 1_700_000_000.0
+        let metersPerLongitudeDegree = 111_320.0 * cos(51.0 * .pi / 180.0)
+        let points = [0.0, 1.2, 2.4, 3.6].enumerated().map { index, meters in
+            gpsPoint(
+                time: start + Double(index),
+                altitude: nil,
+                longitude: 13.0 + meters / metersPerLongitudeDegree
+            )
+        }
+        let distance = RideRouteMetrics.distanceMeters(for: points)
+        expect(distance > 3.4 && distance < 3.8, "slow technical movement accumulates instead of being discarded")
+    }
+
+    private static func testMTBFastDescentIsPreserved() {
+        let start = 1_700_000_000.0
+        let metersPerLongitudeDegree = 111_320.0 * cos(51.0 * .pi / 180.0)
+        let points = [
+            gpsPoint(time: start, altitude: nil, longitude: 13.0),
+            gpsPoint(time: start + 5, altitude: nil, longitude: 13.0 + 180.0 / metersPerLongitudeDegree)
+        ]
+        let distance = RideRouteMetrics.distanceMeters(for: points)
+        expect(distance > 175 && distance < 185, "rapid downhill movement is not rejected by a fixed distance cap")
+
+        let impossibleJump = [
+            points[0],
+            gpsPoint(time: start + 1, altitude: nil, longitude: 13.0 + 180.0 / metersPerLongitudeDegree)
+        ]
+        expect(RideRouteMetrics.distanceMeters(for: impossibleJump) == 0, "isolated one-second GPS teleport is rejected")
+    }
+
+    private static func testMTBAccuracyEnvelopeIsNotOverlyStrict() {
+        let start = 1_700_000_000.0
+        let metersPerLongitudeDegree = 111_320.0 * cos(51.0 * .pi / 180.0)
+        let points = [
+            gpsPoint(time: start, altitude: nil, longitude: 13.0, accuracy: 45),
+            gpsPoint(time: start + 2, altitude: nil, longitude: 13.0 + 12.0 / metersPerLongitudeDegree, accuracy: 45)
+        ]
+        let distance = RideRouteMetrics.distanceMeters(for: points)
+        expect(distance > 11 && distance < 13, "moderate tree-cover GPS accuracy remains usable")
+    }
+
     private static func makeRide(
         gpsAltitudes: [Double],
         barometerAltitudes: [Double],
@@ -293,7 +338,7 @@ struct RideAnalysisValidation {
         )
     }
 
-    private static func gpsPoint(time: Double, altitude: Double?, longitude: Double = 13.0) -> RidePoint {
+    private static func gpsPoint(time: Double, altitude: Double?, longitude: Double = 13.0, accuracy: Double = 5) -> RidePoint {
         RidePoint(
             lat: 51.0,
             lon: longitude,
@@ -302,7 +347,7 @@ struct RideAnalysisValidation {
             altAccuracy: altitude == nil ? nil : 5,
             altSource: altitude == nil ? nil : "coreLocation",
             pressureKPa: nil,
-            accuracy: 5
+            accuracy: accuracy
         )
     }
 
