@@ -51,6 +51,7 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/VELOX-DerivedData" \
             ONLY_ACTIVE_ARCH=YES \
+            ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO \
             build
 
@@ -64,6 +65,7 @@ jobs:
             -destination 'generic/platform=watchOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/VELOX-Watch-DerivedData" \
             ONLY_ACTIVE_ARCH=YES \
+            ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO \
             build
 
