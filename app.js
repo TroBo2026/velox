@@ -67,7 +67,9 @@
     if(activeRide)return;
     selectedActivityType=type;
     const running=type==="running";
-    const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");\n    if(runButton)runButton.classList.toggle("selected",running);\n    if(bikeButton)bikeButton.classList.toggle("selected",!running);
+    const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");
+    if(runButton)runButton.classList.toggle("selected",running);
+    if(bikeButton)bikeButton.classList.toggle("selected",!running);
     const title=$("trackPageTitle"),eyebrow=$("trackPageEyebrow"),intro=$("trackModeDescription");
     if(title)title.textContent=running?"Dein Lauf":"Deine Fahrt";
     if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
@@ -703,7 +705,10 @@
     if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
     if(intro)intro.textContent=running?"GPS-Lauftracking mit Pace, Laufzeit und Höhenprofil.":"GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.";
     const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");
-    if(runButton)runButton.classList.toggle("selected",running);\n    if(bikeButton)bikeButton.classList.toggle("selected",!running);\n    const ratioTile=$("liveMovingRatioTile");if(ratioTile)ratioTile.hidden=running;\n    const mapCaption=$("liveMapCaption");if(mapCaption)mapCaption.textContent=running?"GPS-LAUFSTRECKE":"GPS-STRECKENVERLAUF";
+    if(runButton)runButton.classList.toggle("selected",running);
+    if(bikeButton)bikeButton.classList.toggle("selected",!running);
+    const ratioTile=$("liveMovingRatioTile");if(ratioTile)ratioTile.hidden=running;
+    const mapCaption=$("liveMapCaption");if(mapCaption)mapCaption.textContent=running?"GPS-LAUFSTRECKE":"GPS-STRECKENVERLAUF";
   }
   async function pauseRide(){
     if(!activeRide)return;
@@ -1070,7 +1075,8 @@
     const last=activeRide&&lastValid(activeRide.points);
     if(followLive&&liveMap&&last)liveMap.setView([last.lat,last.lon],Math.max(liveMap.getZoom(),15));
   });
-  $("activityRunChoice")?.addEventListener("click",()=>{setActivityType("running");setPage("track");});\n  $("activityBikeChoice")?.addEventListener("click",()=>{setActivityType("cycling");setPage("track");});
+  $("activityRunChoice")?.addEventListener("click",()=>{setActivityType("running");setPage("track");});
+  $("activityBikeChoice")?.addEventListener("click",()=>{setActivityType("cycling");setPage("track");});
   $("trackStartRide")?.addEventListener("click",startRide);
   document.addEventListener("visibilitychange",()=>{
     if(!activeRide)return;
