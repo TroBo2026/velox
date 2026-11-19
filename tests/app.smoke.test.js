@@ -52,9 +52,10 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"wrapped"}})},preventDefault(){}}));await sleep(300);
  ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN|undefined/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
  // Laufmodus vor der Aufzeichnung auswählen und die sportartspezifische Oberfläche prüfen.
- els.startRide.listeners.click[0]();
  els.activityRunChoice.listeners.click[0]();
  ok(els.trackPageTitle.textContent==="Dein Lauf","Laufmodus stellt die passende Oberfläche ein");
+ ok(els.liveMovingRatioTile.hidden===true,"Fahranteil wird im Laufmodus ausgeblendet");
+ ok(els.liveMapCaption.textContent==="GPS-LAUFSTRECKE","Laufkarte erhält sportartspezifische Beschriftung");
  await els.trackStartRide.listeners.click[0]();await sleep(100);
  ok(geoCbs.ok,"GPS-Watch gestartet (kein liveLine-Fehler)");
  let t=Date.now()-130000,d=0;
