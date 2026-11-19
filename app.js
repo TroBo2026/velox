@@ -67,9 +67,7 @@
     if(activeRide)return;
     selectedActivityType=type;
     const running=type==="running";
-    const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");
-    if(runButton){runButton.classList.toggle("selected",running);runButton.setAttribute("aria-pressed",String(running));}
-    if(bikeButton){bikeButton.classList.toggle("selected",!running);bikeButton.setAttribute("aria-pressed",String(!running));}
+    const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");\n    if(runButton)runButton.classList.toggle("selected",running);\n    if(bikeButton)bikeButton.classList.toggle("selected",!running);
     const title=$("trackPageTitle"),eyebrow=$("trackPageEyebrow"),intro=$("trackModeDescription");
     if(title)title.textContent=running?"Dein Lauf":"Deine Fahrt";
     if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
@@ -692,21 +690,20 @@
     timerId=setTimeout(tick,Math.max(25,1000-(Date.now()%1000)));
   }
   function syncTrackStartButton(){
-    const button=$("trackStartRide"),picker=$("activityModePicker");
+    const button=$("trackStartRide");
     const running=activeRide?isRunning(activeRide):selectedActivityType==="running";
     if(button){
       button.hidden=!!activeRide;
       const label=button.querySelector("[data-start-label]");
       if(label)label.textContent=running?"Lauf starten":"Fahrt starten";
     }
-    if(picker)picker.hidden=!!activeRide;
+    
     const title=$("trackPageTitle"),eyebrow=$("trackPageEyebrow"),intro=$("trackModeDescription");
     if(title)title.textContent=running?"Dein Lauf":"Deine Fahrt";
     if(eyebrow)eyebrow.textContent=running?"LAUF-AUFZEICHNUNG":"RAD-AUFZEICHNUNG";
     if(intro)intro.textContent=running?"GPS-Lauftracking mit Pace, Laufzeit und Höhenprofil.":"GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.";
     const runButton=$("activityRunChoice"),bikeButton=$("activityBikeChoice");
-    if(runButton){runButton.classList.toggle("selected",running);runButton.setAttribute("aria-pressed",String(running));}
-    if(bikeButton){bikeButton.classList.toggle("selected",!running);bikeButton.setAttribute("aria-pressed",String(!running));}
+    if(runButton)runButton.classList.toggle("selected",running);\n    if(bikeButton)bikeButton.classList.toggle("selected",!running);\n    const ratioTile=$("liveMovingRatioTile");if(ratioTile)ratioTile.hidden=running;\n    const mapCaption=$("liveMapCaption");if(mapCaption)mapCaption.textContent=running?"GPS-LAUFSTRECKE":"GPS-STRECKENVERLAUF";
   }
   async function pauseRide(){
     if(!activeRide)return;
@@ -1073,9 +1070,7 @@
     const last=activeRide&&lastValid(activeRide.points);
     if(followLive&&liveMap&&last)liveMap.setView([last.lat,last.lon],Math.max(liveMap.getZoom(),15));
   });
-  $("startRide").addEventListener("click",()=>{setPage("track");setActivityType(selectedActivityType);});
-  $("activityRunChoice")?.addEventListener("click",()=>setActivityType("running"));
-  $("activityBikeChoice")?.addEventListener("click",()=>setActivityType("cycling"));
+  $("activityRunChoice")?.addEventListener("click",()=>{setActivityType("running");setPage("track");});\n  $("activityBikeChoice")?.addEventListener("click",()=>{setActivityType("cycling");setPage("track");});
   $("trackStartRide")?.addEventListener("click",startRide);
   document.addEventListener("visibilitychange",()=>{
     if(!activeRide)return;
