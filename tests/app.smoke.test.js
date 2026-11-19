@@ -62,7 +62,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  for(let i=0;i<120;i++){t+=1000;d+=5;await geoCbs.ok({timestamp:t,coords:{latitude:LAT,longitude:13.7+d*M_LON,accuracy:5,altitude:200+d*0.03,altitudeAccuracy:6,speed:5}});}
  await sleep(3200);
  ok(/^0?,?\d/.test(els.liveDistance.textContent)&&parseFloat(els.liveDistance.textContent.replace(",","."))>0.5,"Live-Distanz: "+els.liveDistance.textContent+" km");
- ok(/min\/km/.test(els.liveSpeed.innerHTML)&&/3:20/.test(els.liveSpeed.innerHTML),"Live-Pace (Doppler 5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);
+ ok(/km\/h/.test(els.liveSpeed.innerHTML)&&/18/.test(els.liveSpeed.innerHTML),"Live-Geschwindigkeit (5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);
  ok(els.liveSpeedLabel.textContent==="Geschwindigkeit"&&els.liveAverageLabel.textContent==="Ø Geschwindigkeit"&&els.liveDurationLabel.textContent==="Fahrzeit","Fahrrad-Live-Bezeichnungen");
  ok(els.trackingStatus.textContent==="Aufzeichnung läuft","Status: "+els.trackingStatus.textContent);
  ok(els.sensorWakeStatus.textContent==="Bildschirm bleibt an","Wake Lock: "+els.sensorWakeStatus.textContent);
@@ -70,7 +70,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
  ok(data.size===4,"Tour gespeichert (4 in DB): "+data.size);
  const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
- ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===120&&saved.points[5].speed===5,"Laufaktivität vollständig inkl. Sportart und Doppler-Tempo");
+ ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===120&&saved.points[5].speed===5,"Fahrradaktivität vollständig gespeichert");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const same=(a,b)=>Math.abs(a-b)<1e-6;
  ok(same(pro.distanceM,core.distanceM)&&same(pro.movingSeconds,core.movingSeconds),"Pro = Detail: Distanz/Fahrzeit ("+(pro.distanceM/1000).toFixed(3)+" km)");
