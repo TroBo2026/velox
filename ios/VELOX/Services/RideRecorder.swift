@@ -26,7 +26,6 @@ final class RideRecorder: NSObject, ObservableObject {
 
     private let manager = CLLocationManager()
     private let store: RideStore
-    private var lastAcceptedLocation: CLLocation?
     private var persistenceTask: Task<Void, Never>?
     private var barometerSubscription: AnyCancellable?
 
@@ -36,7 +35,7 @@ final class RideRecorder: NSObject, ObservableObject {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 3
+        manager.distanceFilter = kCLDistanceFilterNone
         manager.activityType = .fitness
         manager.pausesLocationUpdatesAutomatically = false
         // Deliberately no background updates or Always permission in this first stage.
@@ -83,7 +82,6 @@ final class RideRecorder: NSObject, ObservableObject {
         manager.stopUpdatingLocation()
         // A resumed ride starts a fresh GPS segment. Never compare its first
         // fix with the pre-pause location or count movement made while paused.
-        lastAcceptedLocation = nil
         barometer.stop()
         let now = Date().timeIntervalSince1970
         ride.status = "paused"
@@ -124,7 +122,6 @@ final class RideRecorder: NSObject, ObservableObject {
         state = .idle
         message = "Tour beendet und lokal gespeichert."
         persist(ride)
-        lastAcceptedLocation = nil
     }
 
     /// Applies a Watch control only when it references the currently active ride.
@@ -182,7 +179,6 @@ final class RideRecorder: NSObject, ObservableObject {
         currentRide = ride
         distanceMeters = 0
         lastAccuracyMeters = nil
-        lastAcceptedLocation = nil
         state = .recording
         message = "Tour wird lokal angelegt. Sensoren starten nach erfolgreicher Speicherung."
         persist(ride, inserting: true, startGPSAfterInsert: true)
@@ -192,7 +188,6 @@ final class RideRecorder: NSObject, ObservableObject {
         guard state == .recording, var ride = currentRide else { return }
         let now = Date()
         guard location.horizontalAccuracy >= 0,
-              location.horizontalAccuracy <= 35,
               abs(location.timestamp.timeIntervalSince(now)) <= 10,
               location.coordinate.latitude.isFinite,
               location.coordinate.longitude.isFinite,
@@ -201,18 +196,8 @@ final class RideRecorder: NSObject, ObservableObject {
             return
         }
 
-        if let previous = lastAcceptedLocation {
-            let elapsed = location.timestamp.timeIntervalSince(previous.timestamp)
-            let segment = location.distance(from: previous)
-            guard elapsed.isFinite, elapsed > 0 else { return }
-            // Ignore short GPS jitter. Long gaps and implausible jumps create a
-            // new segment instead of being connected to the previous fix.
-            if elapsed <= RideRouteMetrics.maximumGapSeconds,
-               segment.isFinite,
-               segment < RideRouteMetrics.minimumSegmentMeters {
-                return
-            }
-        }
+        // Retain every valid raw location observation. Movement quality and
+        // distance filtering happen later in the shared MTB-aware metrics layer.
 
         let altitudeIsValid = location.verticalAccuracy >= 0 && location.altitude.isFinite
         let point = RidePoint(
@@ -227,7 +212,6 @@ final class RideRecorder: NSObject, ObservableObject {
         )
         ride.points.append(point)
         currentRide = ride
-        lastAcceptedLocation = location
         distanceMeters = RideRouteMetrics.distanceMeters(for: ride.points)
         lastAccuracyMeters = location.horizontalAccuracy
         message = "Aufzeichnung aktiv · GPS ±\(Int(location.horizontalAccuracy.rounded())) m"
