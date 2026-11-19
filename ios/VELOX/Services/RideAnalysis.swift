@@ -21,9 +21,31 @@ struct RideSlopePoint: Equatable, Identifiable {
 /// Shared GPS route-distance policy used by live recording, analysis and archive.
 /// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
 enum RideRouteMetrics {
+    /// MTB recordings can contain short technical sections and very fast descents.
+    /// Keep a generous accuracy envelope and judge jumps by elapsed time, not a
+    /// fixed distance cap. Raw observations are never modified by this policy.
     static let maximumGapSeconds = 30.0
-    static let maximumSegmentMeters = 120.0
-    static let minimumSegmentMeters = 2.0
+    static let maximumAcceptedAccuracyMeters = 50.0
+    static let minimumSegmentMeters = 1.0
+    static let minimumJumpAllowanceMeters = 80.0
+    static let maximumPlausibleSpeedMetersPerSecond = 45.0
+
+    static func isPlausibleSegment(
+        distanceMeters: Double,
+        elapsedSeconds: Double,
+        previousAccuracyMeters: Double,
+        currentAccuracyMeters: Double
+    ) -> Bool {
+        guard distanceMeters.isFinite, elapsedSeconds.isFinite, elapsedSeconds > 0 else {
+            return false
+        }
+        let uncertaintyAllowance = max(0, previousAccuracyMeters) + max(0, currentAccuracyMeters)
+        let allowedDistance = max(
+            minimumJumpAllowanceMeters,
+            elapsedSeconds * maximumPlausibleSpeedMetersPerSecond + uncertaintyAllowance
+        )
+        return distanceMeters <= allowedDistance
+    }
 
     static func distanceMeters(for points: [RidePoint]) -> Double {
         var total = 0.0
@@ -35,12 +57,13 @@ enum RideRouteMetrics {
                   point.lat.isFinite, (-90.0...90.0).contains(point.lat),
                   point.lon.isFinite, (-180.0...180.0).contains(point.lon),
                   let accuracy = point.accuracy,
-                  accuracy.isFinite, accuracy >= 0, accuracy <= 35 else {
+                  accuracy.isFinite, accuracy >= 0,
+                  accuracy <= maximumAcceptedAccuracyMeters else {
                 previous = nil
                 continue
             }
 
-            guard let prior = previous else {
+            guard let prior = previous, let priorAccuracy = prior.accuracy else {
                 previous = point
                 continue
             }
@@ -50,9 +73,7 @@ enum RideRouteMetrics {
                 previous = point
                 continue
             }
-
-            // A time gap or a large jump starts a fresh segment.
-            if elapsed > maximumGapSeconds {
+            guard elapsed <= maximumGapSeconds else {
                 previous = point
                 continue
             }
@@ -64,21 +85,27 @@ enum RideRouteMetrics {
                 previous = nil
                 continue
             }
-            if segment > maximumSegmentMeters {
+            guard isPlausibleSegment(
+                distanceMeters: segment,
+                elapsedSeconds: elapsed,
+                previousAccuracyMeters: priorAccuracy,
+                currentAccuracyMeters: accuracy
+            ) else {
                 previous = point
                 continue
             }
+
             if segment >= minimumSegmentMeters {
                 total += segment
                 previous = point
             }
-            // Sub-2 m jitter is ignored without moving the trusted anchor.
+            // Sub-metre jitter is ignored without moving the anchor, allowing
+            // consecutive small movements to accumulate on slow technical climbs.
         }
 
         return total.isFinite ? total : 0
     }
 }
-
 struct RideElevationAnalysis: Equatable {
     enum Reference: String, Equatable {
         case gpsCalibrated = "GPS-kalibriert"
@@ -350,7 +377,7 @@ struct RideElevationAnalysis: Equatable {
                   point.lat.isFinite, (-90.0...90.0).contains(point.lat),
                   point.lon.isFinite, (-180.0...180.0).contains(point.lon),
                   let accuracy = point.accuracy,
-                  accuracy.isFinite, accuracy >= 0, accuracy <= 35 else {
+                  accuracy.isFinite, accuracy >= 0, accuracy <= RideRouteMetrics.maximumAcceptedAccuracyMeters else {
                 if previous != nil { segmentID += 1 }
                 previous = nil
                 continue
@@ -386,14 +413,19 @@ struct RideElevationAnalysis: Equatable {
                 previous = nil
                 continue
             }
-            guard segment <= RideRouteMetrics.maximumSegmentMeters else {
+            guard RideRouteMetrics.isPlausibleSegment(
+                distanceMeters: segment,
+                elapsedSeconds: Double(elapsedMs) / 1_000,
+                previousAccuracyMeters: previousPoint.accuracy ?? .infinity,
+                currentAccuracyMeters: accuracy
+            ) else {
                 segmentID += 1
                 result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
             guard segment >= RideRouteMetrics.minimumSegmentMeters else {
-                // Match live/archive distance: ignore jitter without moving the anchor.
+                // Match live/archive distance: ignore sub-metre jitter without moving the anchor, so slow MTB movement can accumulate.
                 continue
             }
 
