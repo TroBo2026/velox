@@ -8,6 +8,7 @@ const alt=d=>d<2000?200+d*0.05:d<3000?300:d<5000?300-(d-3000)*0.05:200;
 function ride(id,startMs,len){const pts=[];let d=0,t=startMs;while(d<len){pts.push({lat:LAT+gauss()*.8*M_LAT,lon:13.7+(d+gauss()*.8)*M_LON,t,accuracy:5,alt:alt(d)+gauss()*3,altAccuracy:8,altSource:"gps",speed:5});d+=5;t+=1000;if(Math.floor(d)===1000&&pts.length%2===0){for(let i=0;i<40;i++){t+=1000;pts.push({lat:LAT,lon:13.7+d*M_LON,t,accuracy:5,alt:alt(d),altAccuracy:8,speed:0});}t+=1000;d+=0.001;}}
  return{id,name:"Testtour "+id,startedAt:startMs,endedAt:t,pausedMs:0,pauseIntervals:[],status:"completed",points:pts,weather:{condition:"Sonnig",temperatureC:12,source:"open-meteo",sourceLabel:"Open-Meteo"}};}
 const data=new Map();[ride("a",1.7e12,8000),ride("b",1.71e12,6000),ride("c",1.72e12,3000)].forEach(r=>data.set(r.id,r));
+const legacyRun=ride("legacy-run",1.73e12,2000);legacyRun.activityType="running";data.set(legacyRun.id,legacyRun);
 const els={};const docL={};const dialogAnswers=[];
 class El{constructor(id){this.id=id;this.innerHTML="";this.textContent="";this.style={};this.dataset={};this.listeners={};this.hidden=false;this.disabled=false;this.classList={add(){},remove(){},toggle(){},contains(){return false}};}
  addEventListener(t,f){(this.listeners[t]=this.listeners[t]||[]).push(f)} removeEventListener(){} setAttribute(){} getAttribute(){return null} removeAttribute(){}
@@ -32,7 +33,8 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.log("  ✓",m)};
 (async()=>{
  await sleep(150);
- ok(els.totalRides.textContent==3,"Übersicht: 3 Touren ("+els.totalRides.textContent+")");
+ ok(els.totalRides.textContent==3,"Übersicht: 3 Fahrradtouren; alte Laufdatensätze werden ausgeblendet ("+els.totalRides.textContent+")");
+ ok(!els.recentRides.innerHTML.includes("legacy-run"),"Archiv blendet alte Laufdatensätze aus");
  ok(/km/.test(els.totalDistance.innerHTML)&&!/^0,0/.test(els.totalDistance.innerHTML),"Gesamtdistanz: "+els.totalDistance.innerHTML);
  ok(/ride-card/.test(els.recentRides.innerHTML),"Tourenliste gerendert");
  ok(/<table/.test(els.rideComparison.innerHTML),"Tourenvergleich gerendert");
