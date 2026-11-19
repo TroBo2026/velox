@@ -52,15 +52,6 @@
     const s=Math.max(0,Math.floor(seconds||0)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;
     return [h,m,r].map(v=>String(v).padStart(2,"0")).join(":");
   };
-  const isRunning = ride => ride?.activityType === "running";
-  function formatPaceSeconds(seconds){
-    if(!Number.isFinite(seconds)||seconds<=0)return "–";
-    const total=Math.max(1,Math.round(seconds));
-    return Math.floor(total/60)+":"+String(total%60).padStart(2,"0");
-  }
-  function formatPace(speedKmh){
-    return Number.isFinite(speedKmh)&&speedKmh>0?formatPaceSeconds(3600/speedKmh):"–";
-  }
   const haversine = Core.haversine;
   const validRidePoint = Core.validPoint;
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -132,20 +123,14 @@
     saveQueue=saveQueue.catch(()=>{}).then(()=>dbRequest("readwrite","put",snapshot));
     return saveQueue;
   }
-  const allRides=async()=>((await dbRequest("readonly","all"))||[]).sort((a,b)=>b.startedAt-a.startedAt);
+  // Legacy-Laufdatensätze bleiben lokal erhalten, werden aber nicht mehr in VELOX angezeigt.
+  const allRides=async()=>((await dbRequest("readonly","all"))||[]).filter(ride=>ride?.activityType!=="running").sort((a,b)=>b.startedAt-a.startedAt);
   const activeSeconds=(ride)=>Math.max(0,((ride.endedAt||Date.now())-ride.startedAt-(ride.pausedMs||0)-(ride.status==="paused"?Date.now()-(ride.pauseStarted||Date.now()):0))/1000);
 
   /* ---------- Berechnung: dünner Wrapper um den gemeinsamen Kern (ride-core.js) ---------- */
-  function speedZoneStats(intervals,activityType){
-    const zones=activityType==="running"
-      ?[{key:"slow",label:"Unter 8 km/h",seconds:0},{key:"medium",label:"8–12 km/h",seconds:0},{key:"fast",label:"Über 12 km/h",seconds:0}]
-      :[{key:"slow",label:"Unter 15 km/h",seconds:0},{key:"medium",label:"15–25 km/h",seconds:0},{key:"fast",label:"Über 25 km/h",seconds:0}];
-    intervals.forEach(item=>{
-      const zone=activityType==="running"
-        ?(item.speedKmh<8?zones[0]:item.speedKmh<=12?zones[1]:zones[2])
-        :(item.speedKmh<15?zones[0]:item.speedKmh<=25?zones[1]:zones[2]);
-      zone.seconds+=item.durationS;
-    });
+  function speedZoneStats(intervals){
+    const zones=[{key:"slow",label:"Unter 15 km/h",seconds:0},{key:"medium",label:"15–25 km/h",seconds:0},{key:"fast",label:"Über 25 km/h",seconds:0}];
+    intervals.forEach(item=>{const zone=item.speedKmh<15?zones[0]:item.speedKmh<=25?zones[1]:zones[2];zone.seconds+=item.durationS;});
     const total=zones.reduce((sum,zone)=>sum+zone.seconds,0);
     zones.forEach(zone=>zone.percent=total?zone.seconds/total*100:0);return zones;
   }
@@ -154,7 +139,7 @@
       elapsedSeconds:activeSeconds(ride),
       pauses:(Array.isArray(ride.pauseIntervals)?ride.pauseIntervals:[]).map(p=>({start:p&&p.startedAt,end:p&&p.endedAt}))
     });
-    c.speedZones=speedZoneStats(c.intervals,ride.activityType);
+    c.speedZones=speedZoneStats(c.intervals);
     c.movingRatio=c.movingRatio===null?0:c.movingRatio*100;
     c.medianSpeed=c.medianSpeed||0;
     const t=c.gradeTerrain,total=c.gradeDistanceM;
@@ -183,7 +168,7 @@
   function wrappedDate(ride){return new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"long",year:"numeric"});}
   function wrappedRecord(label,entry,value){
     if(!entry)return "";
-    return '<article class="wrapped-record"><span>'+label+'</span><strong>'+value+'</strong><small>'+escapeHtml(entry.ride.name||(isRunning(entry.ride)?"Laufrunde":"Fahrradtour"))+'</small><small>'+wrappedDate(entry.ride)+'</small></article>';
+    return '<article class="wrapped-record"><span>'+label+'</span><strong>'+value+'</strong><small>'+escapeHtml(entry.ride.name||"Fahrradtour")+'</small><small>'+wrappedDate(entry.ride)+'</small></article>';
   }
   function wrappedBar(label,percent,value,key){
     const width=Math.max(0,Math.min(100,Number(percent)||0));
@@ -196,44 +181,32 @@
     return '<div class="panel wrapped-breakdown"><span class="eyebrow">GELÄNDE</span><h3>Steigungsverteilung</h3>'+
       (terrain||'<p class="small-note">Keine auswertbaren GPS-Höhenabschnitte.</p>')+
       '<p class="small-note">Anstieg ab +1,5 %, Gefälle unter −1,5 %; Steigung über mindestens 50 m Strecke aus geglätteten Höhenwerten.</p>'+
-      '<span class="eyebrow">TEMPO & PACE</span><h3>Geschwindigkeitszonen</h3>'+
+      '<span class="eyebrow">FAHRTEMPO</span><h3>Geschwindigkeitszonen</h3>'+
       (speed||'<p class="small-note">Keine gültigen Bewegungsintervalle.</p>')+
       '<p class="small-note">Zeitanteile aus den gleichen GPS-Intervallen wie Distanz und Bewegungszeit.</p></div>';
   }
   function renderWrapped(rides){
     const host=$("wrappedContent");if(!host)return;
-    if(!rides.length){host.innerHTML='<div class="empty-state">Noch keine gespeicherten Aktivitäten. Nach deiner ersten Aktivität erstellt VELOX hier automatisch deinen persönlichen Wrapped-Rückblick.</div>';return;}
+    if(!rides.length){host.innerHTML='<div class="empty-state">Noch keine gespeicherten Fahrradtouren. Nach deiner ersten Tour erstellt VELOX hier automatisch deinen persönlichen Wrapped-Rückblick.</div>';return;}
     const entries=rides.map(ride=>({ride,calc:calcRide(ride)}));
     const totals=entries.reduce((sum,item)=>({distanceM:sum.distanceM+item.calc.distanceM,movingSeconds:sum.movingSeconds+item.calc.movingSeconds,gain:sum.gain+item.calc.elevationGain,loss:sum.loss+item.calc.elevationLoss}),{distanceM:0,movingSeconds:0,gain:0,loss:0});
     const terrain={uphill:0,flat:0,downhill:0},speed=[0,0,0];
     entries.forEach(({calc})=>{(calc.gradeDistribution||[]).forEach(x=>terrain[x.key]+=x.distanceM);(calc.speedZones||[]).forEach((x,i)=>speed[i]+=x.seconds);});
-    const terrainTotal=terrain.uphill+terrain.flat+terrain.downhill,movingHours=totals.movingSeconds/3600;
-    const cyclingEntries=entries.filter(x=>!isRunning(x.ride)),runningEntries=entries.filter(x=>isRunning(x.ride));
-    const avgFor=list=>{const seconds=list.reduce((sum,x)=>sum+x.calc.movingSeconds,0),distance=list.reduce((sum,x)=>sum+x.calc.distanceM,0);return seconds?distance/seconds*3.6:0;};
-    const cyclingAvg=avgFor(cyclingEntries),runningAvg=avgFor(runningEntries),speedTotal=speed.reduce((sum,x)=>sum+x,0);
-    const avgSpeedLabel=cyclingAvg?fmt(cyclingAvg)+" km/h":"–",avgPaceLabel=runningAvg?formatPace(runningAvg)+" min/km":"–";
-    const avgLabels=[cyclingEntries.length?"Rad Ø "+avgSpeedLabel:null,runningEntries.length?"Lauf Ø "+avgPaceLabel:null].filter(Boolean).join(" · ")||"Noch keine Bewegungsdaten";
-    const vamEntries=entries.filter(x=>x.calc.gradeSamples>0&&x.calc.movingSeconds>0);
-    const vamMovingSeconds=vamEntries.reduce((sum,x)=>sum+x.calc.movingSeconds,0);
-    const vamGain=vamEntries.reduce((sum,x)=>sum+x.calc.elevationGain,0);
+    const terrainTotal=terrain.uphill+terrain.flat+terrain.downhill,speedTotal=speed.reduce((sum,x)=>sum+x,0);
+    const avgSpeed=totals.movingSeconds?totals.distanceM/totals.movingSeconds*3.6:0,avgSpeedLabel=avgSpeed?fmt(avgSpeed)+" km/h":"–";
+    const vamEntries=entries.filter(x=>x.calc.gradeSamples>0&&x.calc.movingSeconds>0),vamMovingSeconds=vamEntries.reduce((sum,x)=>sum+x.calc.movingSeconds,0),vamGain=vamEntries.reduce((sum,x)=>sum+x.calc.elevationGain,0);
     const pick=(get,valid=()=>true)=>entries.filter(x=>valid(x.calc)).reduce((best,x)=>!best||get(x.calc)>get(best.calc)?x:best,null);
     const longest=pick(c=>c.distanceM,c=>c.distanceM>0),mostClimb=pick(c=>c.elevationGain,c=>c.elevationProfile.validCount>=2);
-    const fastestAvg=cyclingEntries.filter(x=>x.calc.movingSeconds>0).reduce((best,x)=>!best||x.calc.averageSpeed>best.calc.averageSpeed?x:best,null);
-    const fastestRunAvg=runningEntries.filter(x=>x.calc.movingSeconds>0).reduce((best,x)=>!best||x.calc.averageSpeed>best.calc.averageSpeed?x:best,null);
-    const topSpeedBike=cyclingEntries.filter(x=>x.calc.maxSpeed>0).reduce((best,x)=>!best||x.calc.maxSpeed>best.calc.maxSpeed?x:best,null);
-    const topSpeedRun=runningEntries.filter(x=>x.calc.maxSpeed>0).reduce((best,x)=>!best||x.calc.maxSpeed>best.calc.maxSpeed?x:best,null);
-    const longestTime=pick(c=>c.movingSeconds,c=>c.movingSeconds>0),highPoint=pick(c=>c.elevationMax,c=>c.elevationMax!==null);
-    const bestVam=pick(c=>c.vam,c=>c.movingSeconds>0&&c.elevationGain>0);
+    const fastestAvg=pick(c=>c.averageSpeed,c=>c.movingSeconds>0),topSpeed=pick(c=>c.maxSpeed,c=>c.maxSpeed>0);
+    const longestTime=pick(c=>c.movingSeconds,c=>c.movingSeconds>0),highPoint=pick(c=>c.elevationMax,c=>c.elevationMax!==null),bestVam=pick(c=>c.vam,c=>c.movingSeconds>0&&c.elevationGain>0);
     const climb=entries.filter(x=>x.calc.longestClimb).reduce((best,x)=>!best||x.calc.longestClimb.distanceM>best.calc.longestClimb.distanceM?x:best,null);
     const fastestKm=entries.filter(x=>x.calc.fastestKilometerSeconds!==null).reduce((best,x)=>!best||x.calc.fastestKilometerSeconds<best.calc.fastestKilometerSeconds?x:best,null);
     const records=[
-      wrappedRecord("Längste Aktivität",longest,fmt((longest?.calc.distanceM||0)/1000,2)+" km"),
-      wrappedRecord("Meiste Höhenmeter bei einer Aktivität",mostClimb,"+"+Math.round(mostClimb?.calc.elevationGain||0)+" m"),
+      wrappedRecord("Längste Fahrradtour",longest,fmt((longest?.calc.distanceM||0)/1000,2)+" km"),
+      wrappedRecord("Meiste Höhenmeter bei einer Tour",mostClimb,"+"+Math.round(mostClimb?.calc.elevationGain||0)+" m"),
       wrappedRecord("Längster zusammenhängender Anstieg",climb,climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m · "+fmt(climb.calc.longestClimb.averageGrade)+" %":""),
-      wrappedRecord("Höchste Ø-Radfahrgeschwindigkeit",fastestAvg,fastestAvg?fmt(fastestAvg.calc.averageSpeed)+" km/h":""),
-      wrappedRecord("Schnellste Ø-Laufpace",fastestRunAvg,fastestRunAvg?formatPace(fastestRunAvg.calc.averageSpeed)+" min/km":""),
-      wrappedRecord("Höchste GPS-Geschwindigkeit",topSpeedBike,topSpeedBike?fmt(topSpeedBike.calc.maxSpeed)+" km/h":""),
-      wrappedRecord("Schnellste GPS-Pace",topSpeedRun,topSpeedRun?formatPace(topSpeedRun.calc.maxSpeed)+" min/km":""),
+      wrappedRecord("Höchste Durchschnittsgeschwindigkeit",fastestAvg,fastestAvg?fmt(fastestAvg.calc.averageSpeed)+" km/h":""),
+      wrappedRecord("Höchste GPS-Geschwindigkeit",topSpeed,topSpeed?fmt(topSpeed.calc.maxSpeed)+" km/h":""),
       wrappedRecord("Längste Bewegungszeit",longestTime,fmtTime(longestTime?.calc.movingSeconds||0)),
       wrappedRecord("Höchster aufgezeichneter Punkt",highPoint,highPoint?Math.round(highPoint.calc.elevationMax)+" m":""),
       wrappedRecord("Schnellster voller Kilometer",fastestKm,fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):""),
@@ -244,17 +217,16 @@
       wrappedBar("Flach",terrain.flat/terrainTotal*100,fmt(terrain.flat/1000,1)+" km","flat"),
       wrappedBar("Gefälle",terrain.downhill/terrainTotal*100,fmt(terrain.downhill/1000,1)+" km","downhill")
     ].join(""):'<p class="small-note">Keine auswertbaren GPS-Höhenabschnitte.</p>';
-    const speedBars='<p class="small-note">Tempozonen werden in den einzelnen Aktivitäten sportartspezifisch ausgewertet. Im gemischten Gesamtarchiv werden deshalb keine unterschiedlichen Pace- und Geschwindigkeitsgrenzen zusammengerechnet.</p>';
+    const speedBars=speedTotal?speed.map((seconds,i)=>wrappedBar(["Unter 15 km/h","15–25 km/h","Über 25 km/h"][i],seconds/speedTotal*100,fmtTime(seconds),["slow","medium","fast"][i])).join(""):'<p class="small-note">Keine gültigen Bewegungsintervalle für die Tempoverteilung.</p>';
     host.innerHTML='<section class="wrapped-hero"><span class="eyebrow">DEIN VELOX WRAPPED</span><h2>Deine Kilometer. Deine Höhenmeter. Deine Geschichte.</h2>'+
-      '<p>Aus <strong>'+entries.length+' gespeicherten Aktivitäten</strong> ergibt sich dein persönlicher VELOX-Rückblick: <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> ausgewertete Strecke, <strong>'+fmtTime(totals.movingSeconds)+'</strong> erkannte Bewegungszeit und <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' m</strong> kumulierter GPS-Höhengewinn. Die sportartspezifischen Durchschnittswerte: <strong>'+avgLabels+'</strong>.</p>'+
-      '<div class="wrapped-story-grid"><div><span>Deine längste Aktivität</span><strong>'+(longest?fmt(longest.calc.distanceM/1000,2)+" km":"Noch keine auswertbare Strecke")+'</strong></div><div><span>Dein schnellster voller Kilometer</span><strong>'+(fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):"Noch nicht ermittelt")+'</strong></div><div><span>Dein längster Anstieg</span><strong>'+(climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m":"Noch kein zusammenhängender Anstieg")+'</strong></div></div>'+
-      '<p class="wrapped-hero-note">Jede Zahl entsteht neu aus deinem lokalen Aktivitätenarchiv. Tempo und Distanz nutzen akzeptierte GPS-Abschnitte; fehlende oder unplausible Messpunkte werden nicht künstlich ergänzt.</p></section>'+
-      '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Aktivitäten",String(entries.length))+metric("Ø Streckenlänge",fmt(totals.distanceM/1000/entries.length)+" km")+metric("Höhengewinn je Bewegungsstunde",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Radfahrgeschwindigkeit",avgSpeedLabel)+metric("Ø Laufpace",avgPaceLabel)+'</div>'+
+      '<p>Aus <strong>'+entries.length+' gespeicherten Fahrradtouren</strong> ergibt sich dein persönlicher VELOX-Rückblick: <strong>'+fmt(totals.distanceM/1000,2)+' km</strong> ausgewertete Strecke, <strong>'+fmtTime(totals.movingSeconds)+'</strong> erkannte Bewegungszeit und <strong>'+Math.round(totals.gain).toLocaleString("de-DE")+' m</strong> kumulierter GPS-Höhengewinn. Deine Durchschnittsgeschwindigkeit: <strong>'+avgSpeedLabel+'</strong>.</p>'+
+      '<div class="wrapped-story-grid"><div><span>Deine längste Tour</span><strong>'+(longest?fmt(longest.calc.distanceM/1000,2)+" km":"Noch keine auswertbare Strecke")+'</strong></div><div><span>Dein schnellster voller Kilometer</span><strong>'+(fastestKm?fmtTime(fastestKm.calc.fastestKilometerSeconds):"Noch nicht ermittelt")+'</strong></div><div><span>Dein längster Anstieg</span><strong>'+(climb?fmt(climb.calc.longestClimb.distanceM/1000,2)+" km · +"+Math.round(climb.calc.longestClimb.gainM)+" m":"Noch kein zusammenhängender Anstieg")+'</strong></div></div>'+
+      '<p class="wrapped-hero-note">Jede Zahl entsteht neu aus deinem lokalen Fahrradtourenarchiv. Tempo und Distanz nutzen akzeptierte GPS-Abschnitte; fehlende oder unplausible Messpunkte werden nicht künstlich ergänzt.</p></section>'+
+      '<div class="metric-grid wrapped-kpis">'+metric("Gesamtdistanz",fmt(totals.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(totals.movingSeconds))+metric("Aufstieg gesamt","+"+Math.round(totals.gain)+" m")+metric("Abstieg gesamt","−"+Math.round(totals.loss)+" m")+metric("Fahrradtouren",String(entries.length))+metric("Ø Streckenlänge",fmt(totals.distanceM/1000/entries.length)+" km")+metric("Höhengewinn je Bewegungsstunde",vamMovingSeconds?Math.round(vamGain/(vamMovingSeconds/3600))+" m/h":"–")+metric("Ø Geschwindigkeit",avgSpeedLabel)+'</div>'+
       '<section class="panel wrapped-panel"><span class="eyebrow">DEINE BESTLEISTUNGEN</span><h3>Persönliche Rekorde</h3><div class="wrapped-record-grid">'+(records||'<p class="small-note">Noch keine Rekorde berechenbar.</p>')+'</div></section>'+
-      '<section class="panel wrapped-panel"><span class="eyebrow">DEIN BEWEGUNGSPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="wrapped-context">'+(terrainTotal?fmt(terrainTotal/1000,2)+' km auswertbare Steigungsabschnitte bilden die Grundlage dieser Verteilung.':'Für diese Verteilung liegen keine ausreichend verlässlichen Höhenabschnitte vor.')+'</p><h3>Tempo-Zonen</h3>'+speedBars+'<p class="wrapped-context">'+(speedTotal?fmtTime(speedTotal)+' erkannte Bewegungszeit bilden die Grundlage der Tempoanteile.':'Für die Tempoverteilung liegen keine gültigen Bewegungsintervalle vor.')+'</p><p class="wrapped-context">„Höhengewinn je Bewegungsstunde“ teilt den gesamten Aufstieg durch die Bewegungszeit (kein klassisches VAM, das nur Anstiege zählt) und nutzt nur Aktivitäten mit auswertbaren Steigungsdaten.</p></section>'+
-      '<p class="wrapped-refresh-note">Dein Rückblick wird beim Öffnen und nach jeder gespeicherten oder importierten Aktivität frisch aus dem lokalen Archiv berechnet.</p>';
+      '<section class="panel wrapped-panel"><span class="eyebrow">DEIN GELÄNDEPROFIL</span><h3>Gelände-Verteilung</h3>'+terrainBars+'<p class="wrapped-context">'+(terrainTotal?fmt(terrainTotal/1000,2)+' km auswertbare Steigungsabschnitte bilden die Grundlage dieser Verteilung.':'Für diese Verteilung liegen keine ausreichend verlässlichen Höhenabschnitte vor.')+'</p><h3>Geschwindigkeitszonen</h3>'+speedBars+'<p class="wrapped-context">'+(speedTotal?fmtTime(speedTotal)+' erkannte Bewegungszeit bilden die Grundlage der Tempoanteile.':'Für die Tempoverteilung liegen keine gültigen Bewegungsintervalle vor.')+'</p><p class="wrapped-context">„Höhengewinn je Bewegungsstunde“ teilt den gesamten Aufstieg durch die Bewegungszeit und nutzt nur Touren mit auswertbaren Steigungsdaten.</p></section>'+
+      '<p class="wrapped-refresh-note">Dein Rückblick wird beim Öffnen und nach jeder gespeicherten oder importierten Fahrradtour frisch aus dem lokalen Archiv berechnet.</p>';
   }
-
   /* ---------- Navigation, Karten ---------- */
   function setPage(page){
     currentPage=page;
@@ -431,8 +403,8 @@
     const rows=[
       ["Distanz",c=>fmt(c.distanceM/1000)+" km"],
       ["Bewegungszeit",c=>fmtTime(c.movingSeconds)],
-      ["Ø Tempo",(c,ride)=>isRunning(ride)?formatPace(c.averageSpeed)+" min/km":fmt(c.averageSpeed)+" km/h"],
-      ["Max. Tempo",(c,ride)=>isRunning(ride)?formatPace(c.maxSpeed)+" min/km":fmt(c.maxSpeed)+" km/h"],
+      ["Ø Geschwindigkeit",c=>fmt(c.averageSpeed)+" km/h"],
+      ["Max. Geschwindigkeit",c=>fmt(c.maxSpeed)+" km/h"],
       ["Aufstieg",c=>Math.round(c.elevationGain)+" m"],
       ["Abstieg",c=>Math.round(c.elevationLoss)+" m"],
       ["Höchster Punkt",c=>c.elevationMax===null?"–":Math.round(c.elevationMax)+" m"],
@@ -453,7 +425,7 @@
     host.innerHTML=rides.map(ride=>{
       const id=String(ride.id),checked=personalVisibility.get(id)!==false,color=mapColors[personalRidesCache.indexOf(ride)%mapColors.length];
       const date=new Date(ride.startedAt).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"});
-      return '<label class="map-ride-toggle"><input type="checkbox" data-map-ride="'+escapeHtml(id)+'" '+(checked?'checked':'')+'><span class="map-ride-swatch" style="--ride-color:'+color+'"></span><span class="map-ride-name">'+escapeHtml(ride.name||(isRunning(ride)?"Laufrunde":"Fahrradtour"))+'</span><small>'+date+'</small></label>';
+      return '<label class="map-ride-toggle"><input type="checkbox" data-map-ride="'+escapeHtml(id)+'" '+(checked?'checked':'')+'><span class="map-ride-swatch" style="--ride-color:'+color+'"></span><span class="map-ride-name">'+escapeHtml(ride.name||"Fahrradtour")+'</span><small>'+date+'</small></label>';
     }).join("");
     host.querySelectorAll("[data-map-ride]").forEach(input=>input.addEventListener("change",()=>{
       personalVisibility.set(input.dataset.mapRide,input.checked);
@@ -532,12 +504,11 @@
     if(points.length)personalMap.fitBounds(L.latLngBounds(points),{padding:[24,24],maxZoom:15});
   }
   function renderRideList(container,rides){
-    if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Aktivitäten gespeichert.</div>';return;}
+    if(!rides.length){container.innerHTML='<div class="empty-state">Noch keine Fahrradtouren gespeichert.</div>';return;}
     container.innerHTML=rides.map(r=>{
       const c=calcRide(r),date=new Date(r.startedAt).toLocaleDateString("de-DE",{dateStyle:"medium"}),start=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}),end=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"–";
-      const running=isRunning(r),sport=running?"Laufen":"Radfahren";
-      const average=running?formatPace(c.averageSpeed)+" min/km Ø":fmt(c.averageSpeed)+" km/h Ø";
-      return '<button class="ride-card" data-ride="'+escapeHtml(r.id)+'"><div><h3>'+escapeHtml(r.name||(running?"Laufrunde":"Fahrradtour"))+'</h3><p><span class="activity-tag">'+sport+'</span> · '+date+' · '+start+'–'+end+' Uhr · '+fmt(c.movingSeconds/60,0)+' min · '+average+'</p></div><div class="ride-distance">'+fmt(c.distanceM/1000)+' <small>km</small></div></button>';
+      const average=fmt(c.averageSpeed)+" km/h Ø";
+      return '<button class="ride-card" data-ride="'+escapeHtml(r.id)+'"><div><h3>'+escapeHtml(r.name||"Fahrradtour")+'</h3><p><span class="activity-tag">Radfahren</span> · '+date+' · '+start+'–'+end+' Uhr · '+fmt(c.movingSeconds/60,0)+' min · '+average+'</p></div><div class="ride-distance">'+fmt(c.distanceM/1000)+' <small>km</small></div></button>';
     }).join("");
     container.querySelectorAll("[data-ride]").forEach(el=>el.addEventListener("click",()=>openDetail(el.dataset.ride)));
   }
@@ -772,9 +743,8 @@
   }
   async function stopRide(){
     if(!activeRide)return;
-    const running=isRunning(activeRide);
     const confirmStop=await openSheet({
-      title:running?"Lauf beenden?":"Fahrt beenden?",
+      title:"Fahrradtour beenden?",
       body:'<p>Die Aufzeichnung wird beendet und lokal gespeichert.</p>',
       actions:[{id:"stop",label:"Beenden und speichern",primary:true},{id:"cancel",label:"Weiter fahren",skip:true}]
     });
@@ -814,7 +784,6 @@
     const r=(await allRides()).find(x=>x.id===id);if(!r)return;
     lastDetailRide=r;
     const c=calcRide(r),stops=c.stops,date=new Date(r.startedAt).toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),startTime=new Date(r.startedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),endTime=Number.isFinite(r.endedAt)?new Date(r.endedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"–",weather=r.weather||null;
-    const running=isRunning(r);
     detailRows=c.elevationProfile.samples.map(s=>({x:s.distanceM,y:s.elevationM,segment:s.segment,lat:s.lat,lon:s.lon}));
     const elevationCards=
       metric("Aufstieg",Math.round(c.elevationGain)+" m")+metric("Abstieg",Math.round(c.elevationLoss)+" m")+
@@ -832,33 +801,27 @@
       metric("Luftlinie Start–Ziel",c.straightDistanceM===null?"–":fmt(c.straightDistanceM/1000,2)+" km")+
       metric("Strecken-Geradlinigkeit",c.routeStraightness===null?"–":fmt(c.routeStraightness,0)+" %");
     const timeCards=
-      metric(running?"Laufzeit":"Fahrzeit",fmtTime(c.movingSeconds))+
+      metric("Fahrzeit",fmtTime(c.movingSeconds))+
       metric("Aufzeichnungsdauer",fmtTime(c.elapsedSeconds))+
       metric("Stand- und Lückenzeit",fmtTime(c.stoppedSeconds))+
       metric("Bewegungsanteil",fmt(c.movingRatio,0)+" %")+
-      metric(running?"Schnellster Kilometer":"Schnellster voller Kilometer",c.fastestKilometerSeconds===null?"–":fmtTime(c.fastestKilometerSeconds))+
+      metric("Schnellster voller Kilometer",c.fastestKilometerSeconds===null?"–":fmtTime(c.fastestKilometerSeconds))+
       metric("Erkannte Stopps",stops.count===null?"–":String(stops.count))+
       metric("Längster Stopp",stops.longestSeconds===null?"–":fmtTime(stops.longestSeconds));
-    const speedCards=running
-      ?metric("Ø Pace",c.movingSeconds?formatPace(c.averageSpeed)+" min/km":"–")+
-       metric("Schnellste Pace",c.movingSeconds?formatPace(c.maxSpeed)+" min/km":"–")+
-       metric("Pace-Median",c.movingSeconds?formatPace(c.medianSpeed)+" min/km":"–")
-      :metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–")+
-       metric("Max. GPS-Tempo",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–")+
-       metric("Tempo-Median",c.movingSeconds?fmt(c.medianSpeed)+" km/h":"–");
+    const speedCards=metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–")+metric("Max. GPS-Geschwindigkeit",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–")+metric("Geschwindigkeits-Median",c.movingSeconds?fmt(c.medianSpeed)+" km/h":"–");
     const gpsQuality=c.elevationQuality==="high"?"Gut":c.elevationQuality==="medium"?"Mittel":"Eingeschränkt";
     const autoWeather=weather&&weather.source&&String(weather.source).startsWith("open-meteo");
     $("rideDetail").innerHTML=
-      '<div class="detail-header"><span class="eyebrow">'+(running?"LAUFDETAIL":"FAHRDETAIL")+'</span><h1>'+escapeHtml(r.name||(running?"Laufrunde":"Fahrradtour"))+'</h1><p class="muted">'+date+'</p><div class="ride-time-strip"><div><span>START</span><strong>'+startTime+' Uhr</strong></div><div><span>ENDE</span><strong>'+endTime+' Uhr</strong></div></div></div>'+
+      '<div class="detail-header"><span class="eyebrow">'+"FAHRRADTOUR"+'</span><h1>'+escapeHtml(r.name||"Fahrradtour")+'</h1><p class="muted">'+date+'</p><div class="ride-time-strip"><div><span>START</span><strong>'+startTime+' Uhr</strong></div><div><span>ENDE</span><strong>'+endTime+' Uhr</strong></div></div></div>'+
       '<section class="detail-route-section"><div class="detail-section-heading"><span class="eyebrow">DEINE STRECKE</span><span class="detail-map-distance">'+fmt(c.distanceM/1000,2)+' km</span></div><div class="detail-map detail-map-primary" id="detailMap" role="img" aria-label="Karte der aufgezeichneten Strecke"></div><div class="detail-route-legend"><span>● Start</span><span>● Ziel</span><span>'+validRouteSegments(r.points).length+' GPS-Abschnitte</span></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel weather-panel"><span class="eyebrow">WETTER WÄHREND DIESER AKTIVITÄT</span><h3>'+(weather?escapeHtml(weather.condition||"Wetter erfasst"):"Keine Wetterangabe")+'</h3><div class="metric-grid detail-metrics">'+metric("Temperatur",weather&&Number.isFinite(weather.temperatureC)?fmt(weather.temperatureC,1)+" °C":"–")+metric("Niederschlag",weather&&Number.isFinite(weather.precipitationMm)?fmt(weather.precipitationMm,1)+" mm":"Nicht verfügbar")+metric("Bewölkung",weather&&Number.isFinite(weather.cloudCoverPct)?fmt(weather.cloudCoverPct,0)+" %":"Nicht verfügbar")+metric("Quelle",weather?escapeHtml(weather.sourceLabel||"Fahrerangabe"):"Keine Angabe")+'</div><p>'+(autoWeather?"Wetterdaten am nächstgelegenen Stundenwert und an einer repräsentativen GPS-Position der Aktivität.":"Wetterangabe für diese Aktivität; Temperatur ist eine ungefähre Angabe.")+'</p></div></section>'+
       '<section class="detail-section"><span class="eyebrow">AUF EINEN BLICK</span><div class="metric-grid detail-metrics">'+
       metric("Distanz",fmt(c.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(c.movingSeconds))+
-      (running?metric("Ø Pace",c.movingSeconds?formatPace(c.averageSpeed)+" min/km":"–"):metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–"))+
-      (running?metric("Schnellste Pace",c.movingSeconds?formatPace(c.maxSpeed)+" min/km":"–"):metric("Max. Geschwindigkeit",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–"))+
+      metric("Ø Geschwindigkeit",c.movingSeconds?fmt(c.averageSpeed)+" km/h":"–")+
+      metric("Max. Geschwindigkeit",c.movingSeconds?fmt(c.maxSpeed)+" km/h":"–")+
       '</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">HÖHENPROFIL</span><h3>Höhenverlauf</h3><div class="chart-box" id="elevationChart"></div><p>GPS-Höhenqualität: '+gpsQuality+(Number.isFinite(c.elevationAccuracy)?' · Median der gemeldeten GPS-Höhengenauigkeit: '+fmt(c.elevationAccuracy)+' m':' · Keine durchgängige Genauigkeitsangabe')+'. Höhenmeter werden gefiltert und nicht als Barometer-Messung ausgegeben.</p></div></section>'+
-      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">'+(running?"LAUFTEMPO":"FAHRTEMPO")+'</span><h3>'+(running?"Pace-Verlauf":"Geschwindigkeit über die Strecke")+'</h3><div class="chart-box" id="speedChart"></div><div class="metric-grid detail-metrics">'+speedCards+'</div></div></section>'+
+      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">'+"FAHRTEMPO"+'</span><h3>'+"Geschwindigkeit über die Strecke"+'</h3><div class="chart-box" id="speedChart"></div><div class="metric-grid detail-metrics">'+speedCards+'</div></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">GELÄNDE</span><h3>Steigungsprofil</h3><div class="chart-box" id="gradeChart"></div><div class="metric-grid detail-metrics">'+elevationCards+'</div>'+renderRideBreakdowns(c)+'</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ROUTE</span><h3>Entfernung und Streckenform</h3><div class="metric-grid detail-metrics">'+routeCards+'</div><p>Geradlinigkeit wird nur angezeigt, wenn die Route ohne GPS-Lücken aufgezeichnet wurde. Bei einer Rundtour liegt sie naturgemäß nahe 0 %.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ZEIT & AUFZEICHNUNG</span><h3>Bewegungs- und Standzeiten</h3><div class="metric-grid detail-metrics">'+timeCards+'</div><p>Bewegungszeit wird aus akzeptierten GPS-Intervallen berechnet. Ein Stopp zählt ab 10 Sekunden Stillstand (unter 1,5 km/h oder laut GPS-Geschwindigkeit stehend); GPS-Lücken werden nicht als Stopp gewertet, sind aber in der Stand- und Lückenzeit enthalten. Die Erkennung ist eine GPS-Näherung.</p></div></section>'+
@@ -875,7 +838,7 @@
     },180);
     $("exportGpx").onclick=()=>exportGPX(r);
     $("renameRide").onclick=async()=>{
-      const result=await openSheet({title:"Aktivität umbenennen",body:'<label class="vx-field">Name<input name="name" type="text" maxlength="80" required value="'+escapeHtml(r.name||(running?"Laufrunde":"Fahrradtour"))+'"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
+      const result=await openSheet({title:"Fahrradtour umbenennen",body:'<label class="vx-field">Name<input name="name" type="text" maxlength="80" required value="'+escapeHtml(r.name||"Fahrradtour")+'"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
       const name=String(result.values.name||"").trim().slice(0,80);
       if(result.action!=="save"||!name)return;
       try{await dbRequest("readwrite","put",{...r,name});calcCache.clear();showToast("Name gespeichert.");await openDetail(id);}catch(error){console.error(error);showToast("Umbenennen fehlgeschlagen.");}
@@ -951,41 +914,18 @@
   }
   function renderSpeedProfile(c){
     const box=$("speedChart");if(!box)return;
-    const running=isRunning(lastDetailRide);
-    const speedRows=speedRowsOf(c);
-    if(!Charts||speedRows.length<3){
-      box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Punkte für ein Tempo-Profil vorhanden.</div>';
-      return;
-    }
-    const rows=running?speedRows.map(row=>({...row,y:3600/Math.max(.1,row.y)})):speedRows;
-    const sorted=rows.map(r=>r.y).sort((a,b)=>a-b);
-    const lo=sorted[Math.floor((sorted.length-1)*0.1)]||0,hi=sorted[Math.floor((sorted.length-1)*0.9)]||1;
-    const color=(v)=>{
-      const t=hi>lo?Math.max(0,Math.min(1,(v-lo)/(hi-lo))):0.5;
-      const relative=running?1-t:t;
-      return "hsl("+(8+214*relative).toFixed(0)+" 72% 62%)";
-    };
-    const gaps=new Set(rows.map(r=>r.segment)).size-1;
-    const peak=running?Math.min(...rows.map(r=>r.y)):Math.max(...rows.map(r=>r.y));
-    const avg=running?formatPace(c.averageSpeed)+" min/km":fmt(c.averageSpeed)+" km/h";
-    const extreme=running?formatPace(3600/peak)+" min/km":fmt(peak)+" km/h";
-    const median=running?formatPace(c.medianSpeed)+" min/km":fmt(c.medianSpeed)+" km/h";
-    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø '+(running?"Pace":"Geschwindigkeit")+' <strong>'+avg+'</strong></span><span class="elevation-stat">'+(running?"Schnellste":"Spitze (geglättet)")+' <strong>'+extreme+'</strong></span><span class="elevation-stat">Median <strong>'+median+'</strong></span></div>'+
-      '<div class="vx-plot" id="speedPlot"></div>'+
-      '<div class="elevation-legend"><span>'+(running?"Schneller":"Langsamer")+'</span><i aria-hidden="true"></i><span>'+(running?"Langsamer":"Schneller")+'</span><span class="legend-context">Farbe relativ zu dieser Aktivität</span></div>'+
+    const rows=speedRowsOf(c);
+    if(!Charts||rows.length<3){box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Punkte für ein Geschwindigkeitsprofil vorhanden.</div>';return;}
+    const sorted=rows.map(r=>r.y).sort((x,y)=>x-y),lo=sorted[Math.floor((sorted.length-1)*.1)]||0,hi=sorted[Math.floor((sorted.length-1)*.9)]||1;
+    const color=v=>{const t=hi>lo?Math.max(0,Math.min(1,(v-lo)/(hi-lo))):.5;return "hsl("+(8+214*t).toFixed(0)+" 72% 62%)";};
+    const gaps=new Set(rows.map(r=>r.segment)).size-1,peak=Math.max(...rows.map(r=>r.y));
+    box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Geschwindigkeit <strong>'+fmt(c.averageSpeed)+' km/h</strong></span><span class="elevation-stat">Spitze (geglättet) <strong>'+fmt(peak)+' km/h</strong></span><span class="elevation-stat">Median <strong>'+fmt(c.medianSpeed)+' km/h</strong></span></div>'+
+      '<div class="vx-plot" id="speedPlot"></div><div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zu dieser Tour</span></div>'+
       '<p class="elevation-footnote">'+c.intervals.length+' gültige GPS-Bewegungsintervalle'+(gaps>0?', '+gaps+' GPS-Lücke(n) werden nicht überbrückt':'')+'. Die Kurve zeigt den Median über 5 Intervalle; einzelne GPS-Ausreißer werden dadurch gedämpft.</p>';
-    const yMin=running?Math.max(0,Math.floor((lo-30)/30)*30):0;
-    const yMax=running?Math.max(yMin+60,Math.ceil((hi+30)/30)*30):undefined;
-    Charts.profileChart($("speedPlot"),{
-      rows,xMax:Math.max(1,c.elevationProfile.distanceM||rows[rows.length-1].x),yTitle:running?"min/km":"km/h",unit:running?"min/km":"km/h",height:180,
-      ...(running?{yMin,yMax,yFormat:v=>formatPaceSeconds(v)}:{yMin:0,snapMin:true,minPad:2}),
-      colorAt:(a,b)=>color((a.y+b.y)/2),
-      tooltip:(row)=>{const e=nearRow(detailRows,row.x,60);return [["Distanz",fmt(row.x/1000,2)+" km"],[running?"Pace":"Tempo",running?formatPaceSeconds(row.y)+" min/km":fmt(row.y)+" km/h"]].concat(e?[["Höhe",Math.round(e.y)+" m"]]:[]);},
-      onHover:(row)=>setDetailHover(row?row.x:null),
-      ariaLabel:running?"Pace-Verlauf, durchschnittlich "+formatPace(c.averageSpeed)+" Minuten pro Kilometer.":"Geschwindigkeitsprofil, durchschnittlich "+fmt(c.averageSpeed)+" Kilometer pro Stunde."
-    });
+    Charts.profileChart($("speedPlot"),{rows,xMax:Math.max(1,c.elevationProfile.distanceM||rows[rows.length-1].x),yTitle:"km/h",unit:"km/h",height:180,yMin:0,snapMin:true,minPad:2,colorAt:(x,y)=>color((x.y+y.y)/2),
+      tooltip:row=>{const e=nearRow(detailRows,row.x,60);return [["Distanz",fmt(row.x/1000,2)+" km"],["Tempo",fmt(row.y)+" km/h"]].concat(e?[["Höhe",Math.round(e.y)+" m"]]:[]);},
+      onHover:row=>setDetailHover(row?row.x:null),ariaLabel:"Geschwindigkeitsprofil, durchschnittlich "+fmt(c.averageSpeed)+" Kilometer pro Stunde."});
   }
-
   /* ---------- Export / Import ---------- */
   function exportGPX(r){
     const pts=Array.isArray(r.points)?r.points:[],segments=validRouteSegments(pts,true);
