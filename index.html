@@ -29,7 +29,7 @@
           <div class="eyebrow">DEIN SPORT. DEINE DATEN.</div>
           <h1>Bereit für<br><em>deine nächste Aktivität?</em></h1>
           <p>Laufen oder Radfahren. Präzise aufgezeichnet. Lokal gespeichert.</p>
-          <button class="primary-button start-button" id="startRide"><span class="button-play"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="currentColor" stroke="none"/></svg></span><span>Aktivität starten</span><span class="button-arrow"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></button>
+          <div class="activity-home-choices" aria-label="Sportart auswählen"><button class="activity-home-choice run" id="activityRunChoice" type="button" data-activity-choice="running"><span class="activity-home-icon">↗</span><span class="activity-home-copy"><strong>Laufen</strong><small>Distanz · Pace · Höhenprofil</small></span><span class="activity-home-arrow">›</span></button><button class="activity-home-choice bike" id="activityBikeChoice" type="button" data-activity-choice="cycling"><span class="activity-home-icon">↗</span><span class="activity-home-copy"><strong>Radfahren</strong><small>Distanz · Geschwindigkeit · Höhenprofil</small></span><span class="activity-home-arrow">›</span></button></div>
         </div>
         <div id="backupHint" class="vx-hint" role="status" hidden></div>
         <div class="section-heading"><div><span class="eyebrow">ÜBERSICHT</span><h2>Deine Aktivität</h2></div><span class="period-pill">Gesamt</span></div>
@@ -45,13 +45,7 @@
 
       <section class="page" id="page-track">
         <div class="page-title"><span class="eyebrow" id="trackPageEyebrow">RAD-AUFZEICHNUNG</span><h1 id="trackPageTitle">Deine Fahrt</h1></div>
-        <section class="activity-mode-picker" id="activityModePicker" aria-label="Sportart auswählen">
-          <div class="activity-mode-heading"><span class="eyebrow">SPORTART</span><strong>Was möchtest du aufzeichnen?</strong><p id="trackModeDescription">GPS-Aufzeichnung mit Geschwindigkeit, Fahrzeit und Höhenprofil.</p></div>
-          <div class="activity-mode-options">
-            <button class="activity-mode-option" id="activityRunChoice" type="button" data-activity-choice="running" aria-pressed="false"><span class="activity-mode-icon">🏃</span><span><strong>Laufen</strong><small>Pace · min/km</small></span><span class="activity-mode-check">✓</span></button>
-            <button class="activity-mode-option selected" id="activityBikeChoice" type="button" data-activity-choice="cycling" aria-pressed="true"><span class="activity-mode-icon">🚴</span><span><strong>Radfahren</strong><small>Geschwindigkeit · km/h</small></span><span class="activity-mode-check">✓</span></button>
-          </div>
-        </section>
+        
         <div class="tracking-status"><span class="status-dot" id="trackingDot"></span><span id="trackingStatus">Bereit</span><span id="gpsAccuracy" class="accuracy">GPS nicht aktiv</span></div>
         <button class="primary-button start-button track-start-button" id="trackStartRide" type="button"><span class="button-play">▶</span><span data-start-label>Fahrt starten</span><span class="button-arrow">↗</span></button>
         <div class="live-distance"><strong id="liveDistance">0,00</strong><span>KM</span></div>
@@ -62,10 +56,10 @@
           <div><span id="liveAverageLabel">Ø Geschwindigkeit</span><strong id="liveAverage">0,0 <small>km/h</small></strong></div>
           <div><span>Aktuelle Höhe</span><strong id="liveAltitude">– <small>m</small></strong></div>
           <div><span>Aktuelle Steigung</span><strong id="liveGrade">– <small>%</small></strong></div>
-          <div><span id="liveMovingRatioLabel">Fahranteil</span><strong id="liveMovingRatio">– <small>%</small></strong></div>
+          <div id="liveMovingRatioTile"><span id="liveMovingRatioLabel">Fahranteil</span><strong id="liveMovingRatio">– <small>%</small></strong></div>
           <div><span>GPS-Höhenqualität</span><strong id="liveAltitudeQuality">–</strong></div>
         </div>
-        <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption">GPS-STRECKENVERLAUF</div><button class="map-tool-button vx-follow active" id="mapFollow" type="button" aria-pressed="true">Folgen: an</button></div>
+        <div class="map-wrap"><div id="liveMap" class="map"></div><div class="map-caption" id="liveMapCaption">GPS-STRECKENVERLAUF</div><button class="map-tool-button vx-follow active" id="mapFollow" type="button" aria-pressed="true">Folgen: an</button></div>
         <div class="tracking-actions"><button class="secondary-button" id="pauseRide" disabled>Pause</button><button class="danger-button" id="stopRide" disabled>Fahrt beenden</button></div>
         <div class="panel sensor-panel"><span class="eyebrow">SENSORSTATUS</span><div class="sensor-status-grid"><div><span>GPS-Höhe</span><strong id="sensorGpsStatus">Wird geprüft …</strong></div><div><span>Barometer</span><strong id="sensorBarometerStatus">In dieser Web-App nicht verfügbar</strong></div><div><span>Höhenquelle</span><strong id="sensorAltitudeSource">Noch keine Messung</strong></div><div><span>Bildschirm</span><strong id="sensorWakeStatus">Nicht aktiv</strong></div></div></div>
       </section>
