@@ -51,11 +51,11 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Wrapped
  docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"wrapped"}})},preventDefault(){}}));await sleep(300);
  ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN|undefined/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
- // Laufmodus vor der Aufzeichnung auswählen und die sportartspezifische Oberfläche prüfen.
- els.activityRunChoice.listeners.click[0]();
- ok(els.trackPageTitle.textContent==="Dein Lauf","Laufmodus stellt die passende Oberfläche ein");
- ok(els.liveMovingRatioTile.hidden===true,"Fahranteil wird im Laufmodus ausgeblendet");
- ok(els.liveMapCaption.textContent==="GPS-LAUFSTRECKE","Laufkarte erhält sportartspezifische Beschriftung");
+ // Fahrradmodus ist der einzige verfügbare Aufzeichnungsmodus.
+ els.startRide.listeners.click[0]();
+ ok(els.trackPageTitle.textContent==="Deine Fahrt","Startseite öffnet die Fahrrad-Aufzeichnung");
+ ok(els.liveMovingRatioTile.hidden===false,"Fahranteil bleibt in der Fahrradansicht sichtbar");
+ ok(els.liveMapCaption.textContent==="GPS-STRECKENVERLAUF","Karte verwendet Fahrrad-Streckenbeschriftung");
  await els.trackStartRide.listeners.click[0]();await sleep(100);
  ok(geoCbs.ok,"GPS-Watch gestartet (kein liveLine-Fehler)");
  let t=Date.now()-130000,d=0;
@@ -63,14 +63,14 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  await sleep(3200);
  ok(/^0?,?\d/.test(els.liveDistance.textContent)&&parseFloat(els.liveDistance.textContent.replace(",","."))>0.5,"Live-Distanz: "+els.liveDistance.textContent+" km");
  ok(/min\/km/.test(els.liveSpeed.innerHTML)&&/3:20/.test(els.liveSpeed.innerHTML),"Live-Pace (Doppler 5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);
- ok(els.liveSpeedLabel.textContent==="Aktuelle Pace"&&els.liveAverageLabel.textContent==="Ø Pace"&&els.liveDurationLabel.textContent==="Laufzeit","Lauf-spezifische Live-Bezeichnungen");
+ ok(els.liveSpeedLabel.textContent==="Geschwindigkeit"&&els.liveAverageLabel.textContent==="Ø Geschwindigkeit"&&els.liveDurationLabel.textContent==="Fahrzeit","Fahrrad-Live-Bezeichnungen");
  ok(els.trackingStatus.textContent==="Aufzeichnung läuft","Status: "+els.trackingStatus.textContent);
  ok(els.sensorWakeStatus.textContent==="Bildschirm bleibt an","Wake Lock: "+els.sensorWakeStatus.textContent);
  // Tour beenden: Bestätigung "stop", Wetter "skip"
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
  ok(data.size===4,"Tour gespeichert (4 in DB): "+data.size);
  const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
- ok(saved&&saved.status==="completed"&&saved.activityType==="running"&&saved.name==="Laufrunde"&&saved.points.length===120&&saved.points[5].speed===5,"Laufaktivität vollständig inkl. Sportart und Doppler-Tempo");
+ ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===120&&saved.points[5].speed===5,"Laufaktivität vollständig inkl. Sportart und Doppler-Tempo");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const same=(a,b)=>Math.abs(a-b)<1e-6;
  ok(same(pro.distanceM,core.distanceM)&&same(pro.movingSeconds,core.movingSeconds),"Pro = Detail: Distanz/Fahrzeit ("+(pro.distanceM/1000).toFixed(3)+" km)");
