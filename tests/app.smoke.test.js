@@ -70,7 +70,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(els.sensorWakeStatus.textContent==="Bildschirm bleibt an","Wake Lock: "+els.sensorWakeStatus.textContent);
  // Tour beenden: Bestätigung "stop", Wetter "skip"
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
- ok(data.size===4,"Tour gespeichert (4 in DB): "+data.size);
+ ok(data.size===5&&data.has("legacy-run"),"Neue Fahrradtour gespeichert; vorhandener Legacy-Datensatz bleibt erhalten ("+data.size+" in DB)");
  const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
  ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===120&&saved.points[5].speed===5,"Fahrradaktivität vollständig gespeichert");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
