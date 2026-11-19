@@ -71,7 +71,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Tour beenden: Bestätigung "stop", Wetter "skip"
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
  ok(data.size===5&&data.has("legacy-run"),"Neue Fahrradtour gespeichert; vorhandener Legacy-Datensatz bleibt erhalten ("+data.size+" in DB)");
- const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
+ const saved=[...data.values()].find(r=>String(r.id).startsWith("ride-"));
  ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===120&&saved.points[5].speed===5,"Fahrradaktivität vollständig gespeichert");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const same=(a,b)=>Math.abs(a-b)<1e-6;
