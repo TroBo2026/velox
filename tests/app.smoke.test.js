@@ -50,7 +50,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(!/Strecken-Geradlinigkeit<\/span><strong>–/.test(els.rideDetail.innerHTML),"Geradlinigkeit trotz Stopp berechnet");
  // Wrapped
  docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"wrapped"}})},preventDefault(){}}));await sleep(300);
- ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN| ok(/km\\/h/.test(els.liveSpeed.innerHTML)&&/18/.test(els.liveSpeed.innerHTML),"Live-Geschwindigkeit (5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
+ ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN|undefined/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
  // Fahrradmodus ist der einzige verfügbare Aufzeichnungsmodus.
  els.startRide.listeners.click[0]();
  ok(els.trackPageTitle.textContent==="Deine Fahrt","Startseite öffnet die Fahrrad-Aufzeichnung");
