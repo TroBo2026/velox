@@ -66,7 +66,7 @@
 
 /* Begin PBXNativeTarget section */
   D10000000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = E10000000000000000000002; buildPhases = (F10000000000000000000001, F10000000000000000000002, F10000000000000000000003, F10000000000000000000007, ); buildRules = (); dependencies = (T10000000000000000000001, ); name = VELOX; productName = VELOX; productReference = B10000000000000000000010; productType = "com.apple.product-type.application"; };
-  D10000000000000000000003 = {isa = PBXNativeTarget; buildConfigurationList = E10000000000000000000009; buildPhases = (F10000000000000000000004, F10000000000000000000005, F10000000000000000000006, ); buildRules = (); dependencies = (); name = VELOXWatch; productName = VELOXWatch; productReference = B10000000000000000000020; productType = "com.apple.product-type.application.watchapp2"; };
+  D10000000000000000000003 = {isa = PBXNativeTarget; buildConfigurationList = E10000000000000000000009; buildPhases = (F10000000000000000000004, F10000000000000000000005, F10000000000000000000006, ); buildRules = (); dependencies = (); name = VELOXWatch; productName = VELOXWatch; productReference = B10000000000000000000020; productType = "com.apple.product-type.application"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -81,7 +81,7 @@
   F10000000000000000000004 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000016, A10000000000000000000017, A10000000000000000000018, A10000000000000000000021, ); runOnlyForDeploymentPostprocessing = 0; };
   F10000000000000000000005 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
   F10000000000000000000006 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-  F10000000000000000000007 = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 16; files = (A10000000000000000000020, ); name = "Embed Watch Content"; runOnlyForDeploymentPostprocessing = 0; };
+  F10000000000000000000007 = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = "$(CONTENTS_FOLDER_PATH)/Watch"; dstSubfolderSpec = 16; files = (A10000000000000000000020, ); name = "Embed Watch Content"; runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXBuildFile section */
 
 /* Begin XCBuildConfiguration section */

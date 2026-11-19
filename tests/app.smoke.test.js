@@ -8,6 +8,7 @@ const alt=d=>d<2000?200+d*0.05:d<3000?300:d<5000?300-(d-3000)*0.05:200;
 function ride(id,startMs,len){const pts=[];let d=0,t=startMs;while(d<len){pts.push({lat:LAT+gauss()*.8*M_LAT,lon:13.7+(d+gauss()*.8)*M_LON,t,accuracy:5,alt:alt(d)+gauss()*3,altAccuracy:8,altSource:"gps",speed:5});d+=5;t+=1000;if(Math.floor(d)===1000&&pts.length%2===0){for(let i=0;i<40;i++){t+=1000;pts.push({lat:LAT,lon:13.7+d*M_LON,t,accuracy:5,alt:alt(d),altAccuracy:8,speed:0});}t+=1000;d+=0.001;}}
  return{id,name:"Testtour "+id,startedAt:startMs,endedAt:t,pausedMs:0,pauseIntervals:[],status:"completed",points:pts,weather:{condition:"Sonnig",temperatureC:12,source:"open-meteo",sourceLabel:"Open-Meteo"}};}
 const data=new Map();[ride("a",1.7e12,8000),ride("b",1.71e12,6000),ride("c",1.72e12,3000)].forEach(r=>data.set(r.id,r));
+const legacyRun=ride("legacy-run",1.73e12,2000);legacyRun.activityType="running";data.set(legacyRun.id,legacyRun);
 const els={};const docL={};const dialogAnswers=[];
 class El{constructor(id){this.id=id;this.innerHTML="";this.textContent="";this.style={};this.dataset={};this.listeners={};this.hidden=false;this.disabled=false;this.classList={add(){},remove(){},toggle(){},contains(){return false}};}
  addEventListener(t,f){(this.listeners[t]=this.listeners[t]||[]).push(f)} removeEventListener(){} setAttribute(){} getAttribute(){return null} removeAttribute(){}
@@ -32,7 +33,8 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.log("  ✓",m)};
 (async()=>{
  await sleep(150);
- ok(els.totalRides.textContent==3,"Übersicht: 3 Touren ("+els.totalRides.textContent+")");
+ ok(els.totalRides.textContent==3,"Übersicht: 3 Fahrradtouren; alte Laufdatensätze werden ausgeblendet ("+els.totalRides.textContent+")");
+ ok(!els.recentRides.innerHTML.includes("legacy-run"),"Archiv blendet alte Laufdatensätze aus");
  ok(/km/.test(els.totalDistance.innerHTML)&&!/^0,0/.test(els.totalDistance.innerHTML),"Gesamtdistanz: "+els.totalDistance.innerHTML);
  ok(/ride-card/.test(els.recentRides.innerHTML),"Tourenliste gerendert");
  ok(/<table/.test(els.rideComparison.innerHTML),"Tourenvergleich gerendert");
@@ -51,25 +53,26 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  // Wrapped
  docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"wrapped"}})},preventDefault(){}}));await sleep(300);
  ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN|undefined/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
- // Laufmodus vor der Aufzeichnung auswählen und die sportartspezifische Oberfläche prüfen.
+ // Fahrradmodus ist der einzige verfügbare Aufzeichnungsmodus.
  els.startRide.listeners.click[0]();
- els.activityRunChoice.listeners.click[0]();
- ok(els.trackPageTitle.textContent==="Dein Lauf","Laufmodus stellt die passende Oberfläche ein");
+ ok(els.trackPageTitle.textContent==="Deine Fahrt","Startseite öffnet die Fahrrad-Aufzeichnung");
+ ok(els.liveMovingRatioTile.hidden===false,"Fahranteil bleibt in der Fahrradansicht sichtbar");
+ ok(els.liveMapCaption.textContent==="GPS-STRECKENVERLAUF","Karte verwendet Fahrrad-Streckenbeschriftung");
  await els.trackStartRide.listeners.click[0]();await sleep(100);
  ok(geoCbs.ok,"GPS-Watch gestartet (kein liveLine-Fehler)");
  let t=Date.now()-130000,d=0;
  for(let i=0;i<120;i++){t+=1000;d+=5;await geoCbs.ok({timestamp:t,coords:{latitude:LAT,longitude:13.7+d*M_LON,accuracy:5,altitude:200+d*0.03,altitudeAccuracy:6,speed:5}});}
  await sleep(3200);
  ok(/^0?,?\d/.test(els.liveDistance.textContent)&&parseFloat(els.liveDistance.textContent.replace(",","."))>0.5,"Live-Distanz: "+els.liveDistance.textContent+" km");
- ok(/min\/km/.test(els.liveSpeed.innerHTML)&&/3:20/.test(els.liveSpeed.innerHTML),"Live-Pace (Doppler 5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);
- ok(els.liveSpeedLabel.textContent==="Aktuelle Pace"&&els.liveAverageLabel.textContent==="Ø Pace"&&els.liveDurationLabel.textContent==="Laufzeit","Lauf-spezifische Live-Bezeichnungen");
+ ok(/km\/h/.test(els.liveSpeed.innerHTML)&&/18/.test(els.liveSpeed.innerHTML),"Live-Geschwindigkeit (5 m/s ≈ 18 km/h): "+els.liveSpeed.innerHTML);
+ ok(els.liveSpeedLabel.textContent==="Geschwindigkeit"&&els.liveAverageLabel.textContent==="Ø Geschwindigkeit"&&els.liveDurationLabel.textContent==="Fahrzeit","Fahrrad-Live-Bezeichnungen");
  ok(els.trackingStatus.textContent==="Aufzeichnung läuft","Status: "+els.trackingStatus.textContent);
  ok(els.sensorWakeStatus.textContent==="Bildschirm bleibt an","Wake Lock: "+els.sensorWakeStatus.textContent);
  // Tour beenden: Bestätigung "stop", Wetter "skip"
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
- ok(data.size===4,"Tour gespeichert (4 in DB): "+data.size);
- const saved=[...data.values()].find(r=>!["a","b","c"].includes(r.id));
- ok(saved&&saved.status==="completed"&&saved.activityType==="running"&&saved.name==="Laufrunde"&&saved.points.length===120&&saved.points[5].speed===5,"Laufaktivität vollständig inkl. Sportart und Doppler-Tempo");
+ ok(data.size===5&&data.has("legacy-run"),"Neue Fahrradtour gespeichert; vorhandener Legacy-Datensatz bleibt erhalten ("+data.size+" in DB)");
+ const saved=[...data.values()].find(r=>String(r.id).startsWith("ride-"));
+ ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===120&&saved.points[5].speed===5,"Fahrradaktivität vollständig gespeichert");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const same=(a,b)=>Math.abs(a-b)<1e-6;
  ok(same(pro.distanceM,core.distanceM)&&same(pro.movingSeconds,core.movingSeconds),"Pro = Detail: Distanz/Fahrzeit ("+(pro.distanceM/1000).toFixed(3)+" km)");

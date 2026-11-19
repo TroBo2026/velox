@@ -18,6 +18,94 @@ struct RideSlopePoint: Equatable, Identifiable {
     let segmentID: Int
 }
 
+/// Shared GPS route-distance policy used by live recording, analysis and archive.
+/// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
+enum RideRouteMetrics {
+    /// MTB recordings can contain short technical sections and very fast descents.
+    /// Keep a generous accuracy envelope and judge jumps by elapsed time, not a
+    /// fixed distance cap. Raw observations are never modified by this policy.
+    static let maximumGapSeconds = 30.0
+    static let maximumAcceptedAccuracyMeters = 50.0
+    static let minimumSegmentMeters = 1.0
+    static let minimumJumpAllowanceMeters = 80.0
+    static let maximumPlausibleSpeedMetersPerSecond = 45.0
+
+    static func isPlausibleSegment(
+        distanceMeters: Double,
+        elapsedSeconds: Double,
+        previousAccuracyMeters: Double,
+        currentAccuracyMeters: Double
+    ) -> Bool {
+        guard distanceMeters.isFinite, elapsedSeconds.isFinite, elapsedSeconds > 0 else {
+            return false
+        }
+        let uncertaintyAllowance = max(0, previousAccuracyMeters) + max(0, currentAccuracyMeters)
+        let allowedDistance = max(
+            minimumJumpAllowanceMeters,
+            elapsedSeconds * maximumPlausibleSpeedMetersPerSecond + uncertaintyAllowance
+        )
+        return distanceMeters <= allowedDistance
+    }
+
+    static func distanceMeters(for points: [RidePoint]) -> Double {
+        var total = 0.0
+        var previous: RidePoint?
+
+        for point in points {
+            guard point.t.isFinite,
+                  point.t > 0,
+                  point.lat.isFinite, (-90.0...90.0).contains(point.lat),
+                  point.lon.isFinite, (-180.0...180.0).contains(point.lon),
+                  let accuracy = point.accuracy,
+                  accuracy.isFinite, accuracy >= 0,
+                  accuracy <= maximumAcceptedAccuracyMeters else {
+                previous = nil
+                continue
+            }
+
+            guard let prior = previous, let priorAccuracy = prior.accuracy else {
+                previous = point
+                continue
+            }
+
+            let elapsed = point.t - prior.t
+            guard elapsed.isFinite, elapsed > 0 else {
+                previous = point
+                continue
+            }
+            guard elapsed <= maximumGapSeconds else {
+                previous = point
+                continue
+            }
+
+            let first = CLLocation(latitude: prior.lat, longitude: prior.lon)
+            let second = CLLocation(latitude: point.lat, longitude: point.lon)
+            let segment = second.distance(from: first)
+            guard segment.isFinite else {
+                previous = nil
+                continue
+            }
+            guard isPlausibleSegment(
+                distanceMeters: segment,
+                elapsedSeconds: elapsed,
+                previousAccuracyMeters: priorAccuracy,
+                currentAccuracyMeters: accuracy
+            ) else {
+                previous = point
+                continue
+            }
+
+            if segment >= minimumSegmentMeters {
+                total += segment
+                previous = point
+            }
+            // Sub-metre jitter is ignored without moving the anchor, allowing
+            // consecutive small movements to accumulate on slow technical climbs.
+        }
+
+        return total.isFinite ? total : 0
+    }
+}
 struct RideElevationAnalysis: Equatable {
     enum Reference: String, Equatable {
         case gpsCalibrated = "GPS-kalibriert"
@@ -138,7 +226,9 @@ struct RideElevationAnalysis: Equatable {
             .max()
         let totalAnchorCount = calibrationBySession.values.reduce(0) { $0 + $1.anchorCount }
 
-        let route = Self.makeRoute(gps)
+        // Keep invalid observations in the route input so they explicitly break continuity.
+        // The calibration set above remains filtered to trusted GPS fixes.
+        let route = Self.makeRoute(ride.points)
         var plotted: [RideElevationProfilePoint] = []
         var profileSegmentIDs: [String: Int] = [:]
 
@@ -274,30 +364,71 @@ struct RideElevationAnalysis: Equatable {
     }
 
     private static func makeRoute(_ points: [RidePoint]) -> [RoutePoint] {
+        // Preserve observation order so malformed timestamps also break continuity,
+        // exactly as they do in the shared live/archive distance calculation.
+        let ordered = points
         var result: [RoutePoint] = []
         var distance = 0.0
         var segmentID = 0
         var previous: RidePoint?
-        for point in points {
-            guard let timestamp = Self.timestampMilliseconds(from: point.t) else { continue }
+
+        for point in ordered {
+            guard let timestamp = Self.timestampMilliseconds(from: point.t),
+                  point.lat.isFinite, (-90.0...90.0).contains(point.lat),
+                  point.lon.isFinite, (-180.0...180.0).contains(point.lon),
+                  let accuracy = point.accuracy,
+                  accuracy.isFinite, accuracy >= 0, accuracy <= RideRouteMetrics.maximumAcceptedAccuracyMeters else {
+                if previous != nil { segmentID += 1 }
+                previous = nil
+                continue
+            }
+
             guard let previousPoint = previous,
                   let previousTimestamp = Self.timestampMilliseconds(from: previousPoint.t) else {
                 result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
+
             let elapsedMs = timestamp - previousTimestamp
-            guard elapsedMs > 0 else { continue }
-            let a = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
-            let b = CLLocation(latitude: point.lat, longitude: point.lon)
-            let segment = b.distance(from: a)
-            guard elapsedMs <= 30_000, segment.isFinite, segment >= 0, segment <= 120 else {
-                // Start a new segment; never connect or total elevation across this gap.
+            guard elapsedMs > 0 else {
                 segmentID += 1
                 result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
                 previous = point
                 continue
             }
+
+            guard elapsedMs <= Int64(RideRouteMetrics.maximumGapSeconds * 1_000) else {
+                segmentID += 1
+                result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
+
+            let first = CLLocation(latitude: previousPoint.lat, longitude: previousPoint.lon)
+            let second = CLLocation(latitude: point.lat, longitude: point.lon)
+            let segment = second.distance(from: first)
+            guard segment.isFinite else {
+                segmentID += 1
+                previous = nil
+                continue
+            }
+            guard RideRouteMetrics.isPlausibleSegment(
+                distanceMeters: segment,
+                elapsedSeconds: Double(elapsedMs) / 1_000,
+                previousAccuracyMeters: previousPoint.accuracy ?? .infinity,
+                currentAccuracyMeters: accuracy
+            ) else {
+                segmentID += 1
+                result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
+                previous = point
+                continue
+            }
+            guard segment >= RideRouteMetrics.minimumSegmentMeters else {
+                // Match live/archive distance: ignore sub-metre jitter without moving the anchor, so slow MTB movement can accumulate.
+                continue
+            }
+
             distance += segment
             result.append(RoutePoint(timestampMs: timestamp, distanceM: distance, segmentID: segmentID))
             previous = point

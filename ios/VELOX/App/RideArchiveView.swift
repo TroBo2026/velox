@@ -195,17 +195,7 @@ private struct RideDetailView: View {
     }
 
     private var distanceMeters: Double {
-        let valid = ride.points.filter {
-            $0.lat.isFinite && $0.lon.isFinite &&
-            (-90...90).contains($0.lat) && (-180...180).contains($0.lon)
-        }
-        guard valid.count > 1 else { return 0 }
-        return zip(valid, valid.dropFirst()).reduce(0.0) { total, pair in
-            let first = CLLocation(latitude: pair.0.lat, longitude: pair.0.lon)
-            let second = CLLocation(latitude: pair.1.lat, longitude: pair.1.lon)
-            let segment = first.distance(from: second)
-            return total + (segment.isFinite ? segment : 0)
-        }
+        RideRouteMetrics.distanceMeters(for: ride.points)
     }
 
     private var watchCounts: [WatchCountRow] {
