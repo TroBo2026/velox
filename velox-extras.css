@@ -50,30 +50,6 @@ dialog.vx-sheet::backdrop{background:rgba(3,8,14,.72);backdrop-filter:blur(2px);
 .vx-follow{position:absolute;right:10px;bottom:10px;z-index:500;min-height:38px;padding:0 14px;background:rgba(8,19,31,.88);touch-action:manipulation}
 
 
-/* ---------- Sportart-Kennzeichnung ---------- */
-.activity-tag{display:inline-flex;align-items:center;padding:2px 7px;border:1px solid rgba(91,214,197,.28);border-radius:999px;color:var(--teal,#5bd6c5);font-size:10px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
 
-
-/* ---------- Einheitliche Lauf- und Radfahr-Oberfläche ---------- */
-.activity-mode-picker{margin:16px 0 18px;padding:16px;border:1px solid var(--line,#203546);border-radius:18px;background:linear-gradient(145deg,rgba(91,214,197,.07),rgba(11,25,37,.72))}
-.activity-mode-heading{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
-.activity-mode-heading>strong{font-size:16px;color:var(--text,#f4f8fb)}
-.activity-mode-heading>p{margin:0;color:var(--muted,#8ea3b5);font-size:12px;line-height:1.5}
-.activity-mode-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.activity-mode-option{display:flex;align-items:center;gap:9px;min-width:0;min-height:68px;padding:11px;border:1px solid var(--line,#203546);border-radius:14px;background:#102131;color:var(--text,#f4f8fb);text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
-.activity-mode-option.selected{border-color:var(--teal,#5bd6c5);background:rgba(91,214,197,.12);box-shadow:inset 0 0 0 1px rgba(91,214,197,.18)}
-.activity-mode-icon{font-size:24px;line-height:1}
-.activity-mode-option>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
-.activity-mode-option strong{font-size:13px}
-.activity-mode-option small{font-size:10px;color:var(--muted,#8ea3b5)}
-.activity-mode-check{display:grid;place-items:center;width:20px;height:20px;border:1px solid var(--line,#365064);border-radius:50%;color:transparent;font-size:12px}
-.activity-mode-option.selected .activity-mode-check{border-color:var(--teal,#5bd6c5);background:var(--teal,#5bd6c5);color:#07131f}
-.activity-mode-option:focus-visible{outline:3px solid var(--teal,#5bd6c5);outline-offset:3px}
-@media(max-width:360px){.activity-mode-option{padding:9px;gap:6px}.activity-mode-option small{font-size:9px}}
-
-/* VELOX activity selection: clear sport-specific entry */
-.activity-home-choices{display:grid;gap:12px;margin-top:24px}.activity-home-choice{width:100%;display:flex;align-items:center;gap:14px;text-align:left;padding:18px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(135deg,var(--panel2),var(--panel));transition:transform .16s,border-color .16s}.activity-home-choice:active{transform:scale(.985)}.activity-home-choice.run{border-color:rgba(91,214,197,.28)}.activity-home-choice.bike{border-color:rgba(217,184,121,.25)}.activity-home-icon{display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;border-radius:15px;background:rgba(91,214,197,.12);color:var(--teal);font-size:25px;font-weight:700}.activity-home-choice.bike .activity-home-icon{background:rgba(217,184,121,.12);color:var(--amber)}.activity-home-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}.activity-home-copy strong{font-size:17px;font-weight:700}.activity-home-copy small{font-size:12px;color:var(--muted)}.activity-home-arrow{font-size:28px;color:var(--muted)}#liveMovingRatioTile[hidden]{display:none!important}
-
-.activity-home-icon svg{width:26px;height:26px}.activity-home-choice.selected{box-shadow:0 0 0 1px rgba(91,214,197,.42);border-color:rgba(91,214,197,.42)}
 /* Cycling-only home action */
 .cycling-home-action{margin-top:22px}.cycling-home-action:active{transform:scale(.985)}
