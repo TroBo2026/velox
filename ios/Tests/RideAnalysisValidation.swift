@@ -126,7 +126,7 @@ struct RideAnalysisValidation {
             status: "completed",
             points: [
                 gpsPoint(time: start, altitude: nil),
-                gpsPoint(time: start + 10, altitude: nil),
+                gpsPoint(time: start + 10, altitude: nil, longitude: 13.0001),
                 gpsPoint(time: start + 70, altitude: nil),
                 gpsPoint(time: start + 80, altitude: nil)
             ],
