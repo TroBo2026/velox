@@ -149,12 +149,14 @@ test("Höhen-Ausreißer werden verworfen", () => {
 
 test("manuelle Pause trennt GPS-Intervalle und Höhenprofil", () => {
   const ride = makeRide({ lengthM: 1000, hNoise: 0.1 });
+  const baselineDistance = Core.analyze(ride).distanceM;
+  const crossingSegmentMeters = Core.haversine(ride.points[50], ride.points[51]);
   const pauseStart = ride.points[50].t + 100;
   const pauseEnd = ride.points[51].t - 100;
   for (let i = 51; i < ride.points.length; i++) ride.points[i].lon += 20 * M_LON;
   ride.pauseIntervals = [{ startedAt: pauseStart, endedAt: pauseEnd }];
   const r = Core.analyze(ride, { pauses: ride.pauseIntervals });
-  near(r.distanceM, 1000, 8, "Bewegung während der Pause wird nicht als Strecke gezählt");
+  near(r.distanceM, baselineDistance - crossingSegmentMeters, 1, "Bewegung während der Pause wird nicht als Strecke gezählt");
   assert.equal(r.rejected.pause, 1, "das Intervall über die Pause wird verworfen");
   assert.ok(new Set(r.elevationProfile.samples.map((sample) => sample.segment)).size >= 2,
     "Höhenprofil wird an der Pause getrennt");
