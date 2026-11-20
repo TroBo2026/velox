@@ -45,9 +45,15 @@
     return { kind: moving ? "moving" : "stopped", distanceM, durationS, speedKmh };
   }
 
-  function scan(points) {
+  function scan(points, pauses) {
+    const pauseList = Array.isArray(pauses) ? pauses : [];
+    const overlapsPause = (start, end) => pauseList.some((pause) => {
+      const pauseStart = pause && (finite(pause.start) ? pause.start : pause.startedAt);
+      const pauseEnd = pause && (finite(pause.end) ? pause.end : pause.endedAt);
+      return finite(pauseStart) && Math.max(start, pauseStart) < Math.min(end, finite(pauseEnd) ? pauseEnd : Infinity);
+    });
     const cls = new Array(points.length).fill(null), intervals = [], speedValues = [];
-    const rejected = { invalid: 0, clock: 0, gap: 0, jump: 0, speed: 0, accuracy: 0 };
+    const rejected = { invalid: 0, clock: 0, gap: 0, jump: 0, speed: 0, accuracy: 0, pause: 0 };
     let run = 0, distanceM = 0, movingSeconds = 0, gapSeconds = 0, stoppedGpsSeconds = 0, acceptedIntervals = 0;
     let firstGapAfterFirst = Infinity, hasMoving = false, lastMovingIndex = -1;
     // Liefert das Gerät nie eine Doppler-Geschwindigkeit ≥ 1 m/s, sind die Werte (z. B. dauerhaft 0) nicht vertrauenswürdig.
@@ -55,6 +61,14 @@
     for (let i = 0; i < points.length; i++) {
       if (!validPoint(points[i])) { rejected.invalid++; run++; continue; }
       if (i === 0 || !validPoint(points[i - 1])) continue;
+      if (overlapsPause(points[i - 1].t, points[i].t)) {
+        const pauseGap = { kind: "gap", reason: "pause", durationS: 0 };
+        cls[i] = pauseGap;
+        rejected.pause++;
+        run++;
+        if (hasMoving && firstGapAfterFirst === Infinity) firstGapAfterFirst = i;
+        continue;
+      }
       const c = classify(points[i - 1], points[i], dopplerUsable);
       cls[i] = c;
       if (c.kind === "gap") {
@@ -223,7 +237,7 @@
   function analyze(ride, options) {
     const opts = options || {};
     const points = Array.isArray(ride && ride.points) ? ride.points : [];
-    const s = scan(points);
+    const s = scan(points, opts.pauses || (ride && ride.pauseIntervals));
     const profile = buildElevation(points, s.cls);
     const series = gradeSeries(profile.samples);
     const grades = gradeStats(series);
