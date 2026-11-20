@@ -16,7 +16,7 @@ struct Ride: Codable, Identifiable, Equatable {
     var importedFromId: String?
     var additionalFields: [String: JSONValue] = [:]
 
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case id, name, startedAt, endedAt, pausedMs, pauseStarted
         case status, points, barometerSamples, watchSamples, importedFromId
     }
@@ -78,8 +78,6 @@ private enum DynamicCodingKey: CodingKey {
     }
     var intValue: Int? { if case .int(let value) = self { return value }; return nil }
 }
-
-extension Ride.CodingKeys: CaseIterable {}
 
 /// JSON value tree used to preserve fields unknown to this version of VELOX.
 enum JSONValue: Codable, Equatable {

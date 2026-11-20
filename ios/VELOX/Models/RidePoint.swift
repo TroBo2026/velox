@@ -13,7 +13,7 @@ struct RidePoint: Codable, Equatable {
     var accuracy: Double?
     var additionalFields: [String: JSONValue] = [:]
 
-    private enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case lat, lon, t, alt, altAccuracy, altSource, pressureKPa, accuracy
     }
 }
@@ -51,8 +51,6 @@ extension RidePoint {
         }
     }
 }
-
-extension RidePoint.CodingKeys: CaseIterable {}
 
 private enum PointDynamicKey: CodingKey {
     case string(String)
