@@ -1,7 +1,7 @@
 {
-  "name": "VELOX – Your activity. Your world.",
+  "name": "VELOX – Your ride. Your world.",
   "short_name": "VELOX",
-  "description": "Lokaler GPS-Sporttracker für Laufen und Radfahren mit Aktivitätsanalyse.",
+  "description": "Lokaler GPS-Fahrradtracker mit Schwerpunkt Mountainbike, Tourenaufzeichnung und Analyse.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

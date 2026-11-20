@@ -1,4 +1,4 @@
-/* VELOX 0.12.0 — local-first cycling tracker */
+/* VELOX 0.12.1 — local-first cycling tracker */
 (() => {
   "use strict";
   if(!window.VELOXCore||!window.VELOXCharts){
@@ -9,7 +9,7 @@
   const DB_NAME = "velox-local";
   const DB_VERSION = 1;
   const STORE = "rides";
-  const APP_VERSION = "0.12.0";
+  const APP_VERSION = "0.12.1";
   const Core = window.VELOXCore;
   const Charts = window.VELOXCharts;
   const $ = (id) => document.getElementById(id);

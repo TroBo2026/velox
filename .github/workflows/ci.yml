@@ -30,7 +30,13 @@ jobs:
           node --check sw.js
           node --check tests/core.test.js
           node --check tests/app.smoke.test.js
+          node --check tests/plus.test.js
+          node --check tests/consistency.test.js
       - name: Run deterministic calculation tests
         run: node tests/core.test.js
       - name: Run application smoke test
         run: node tests/app.smoke.test.js
+      - name: Run VELOX Plus tests
+        run: node tests/plus.test.js
+      - name: Run repository consistency test
+        run: node tests/consistency.test.js
