@@ -116,7 +116,7 @@ Empfohlene Cloudflare-Pages-Einstellungen:
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
 
-**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v37`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
+**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v38`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
 
 ## Entwicklung und Tests
 
