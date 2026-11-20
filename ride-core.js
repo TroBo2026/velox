@@ -93,7 +93,8 @@
       const hasAcc = p.altAccuracy !== undefined && p.altAccuracy !== null;
       const acc = finite(p.altAccuracy) ? p.altAccuracy : null;
       const ok = finite(p.alt) && p.alt >= -1000 && p.alt <= 10000 && (!hasAcc || (acc !== null && acc >= 0 && acc <= 35));
-      if (!ok) continue;
+      // Missing or unreliable altitude is a real profile break: never interpolate across it.
+      if (!ok) { segment++; continue; }
       raw.push({ distanceM: distance, altitude: p.alt, time: p.t, segment, accuracy: acc,
         source: p.altSource || "gps", lat: p.lat, lon: p.lon });
     }

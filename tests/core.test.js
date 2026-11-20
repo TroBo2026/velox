@@ -147,6 +147,18 @@ test("Höhen-Ausreißer werden verworfen", () => {
   assert.ok(p.gain < 3 && p.loss < 3, `kein Phantom-Anstieg: +${p.gain} −${p.loss}`);
 });
 
+test("fehlende und unbrauchbare Höhenwerte trennen das Profil, ohne GPS-Distanz zu verlieren", () => {
+  const ride = makeRide({ hNoise: 0.1 });
+  delete ride.points[200].alt;
+  ride.points[900].altAccuracy = -1;
+  const r = Core.analyze(ride);
+  const segments = new Set(r.elevationProfile.samples.map((sample) => sample.segment));
+  assert.equal(segments.size, 3, "vor und nach beiden Höhenlücken entstehen getrennte Profilsegmente");
+  near(r.distanceM, 8000, 160, "GPS-Distanz bleibt trotz fehlender Höhenwerte erhalten");
+  assert.equal(ride.points[200].alt, undefined, "Rohdaten bleiben unverändert");
+  assert.equal(ride.points[900].altAccuracy, -1, "ungültige Genauigkeit bleibt als Rohwert erhalten");
+});
+
 test("leere und kaputte Eingaben stürzen nicht ab", () => {
   const r = Core.analyze({ points: [] });
   assert.equal(r.distanceM, 0);
