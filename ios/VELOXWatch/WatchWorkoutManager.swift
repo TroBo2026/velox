@@ -149,7 +149,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     }
 
     private func requestAuthorization(share: Set<HKSampleType>, read: Set<HKObjectType>) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             healthStore.requestAuthorization(toShare: share, read: read) { success, error in
                 if let error {
                     continuation.resume(throwing: error)
