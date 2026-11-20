@@ -5,7 +5,7 @@
 [![Web Check](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ci.yml)
 [![iOS Build](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml/badge.svg)](https://github.com/TroBo2026/Velox/actions/workflows/ios-build.yml)
 
-VELOX ist ein local-first Fahrrad-Tracker. Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
+VELOX ist ein local-first Fahrrad-Tracker. Die Produktvision steht in [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md). Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
 
 **Inhalt:** [Aktueller Stand](#aktueller-stand--version-0121) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
 
@@ -89,7 +89,6 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 | `styles.css` | Basis der responsiven VELOX-Oberfläche |
 | `velox-extras.css` | Ergänzende Oberflächenstile |
 | `velox-polish.css` | Feinschliff für Safe-Area, Grafiken und Touch-Bedienung; nach den übrigen Styles geladen |
-| `velox-polish.css` | Ergänzende Korrekturen (Safe-Area, Schrift, Touch-Ziele); wird nach `styles.css` geladen |
 | `app.js` | GPS, Berechnungen, IndexedDB, Touren, Wrapped, Export/Import |
 | `elevation-core.js` | Gemeinsame Höhen-Engine (Ausreißerprüfung, Glättung, Höhenmeter) |
 | `analysis-pro.js` | Zusätzliche lesende Tourenanalyse, Splits, Tempo-/Steigungszonen, GPS-Datenqualität |
@@ -97,8 +96,9 @@ Beim Beenden fragt VELOX zuerst nach Zustimmung, ob Wetterdaten von Open-Meteo m
 | `sw.js` | Service Worker: Cache der App-Shell, Offline-Start |
 | `manifest.webmanifest` | PWA-Metadaten und App-Icon |
 | `icon.svg` | VELOX-App-/Browser-Icon |
-| `tests/` | Logik-Tests (Node.js) für `app.js` und `sensor-core.js` |
-| `ios/` | Natives SwiftUI-Xcode-Projekt (siehe [`ios/README.md`](ios/README.md)) |
+| `tests/` | Rechenkern-, App-Rauch-, Wochenlogik- und Repository-Konsistenztests |
+| `ios/` | Native iOS- und watchOS-Projekte (siehe [`ios/README.md`](ios/README.md)) |
+| `docs/PRODUCT_VISION.md` | Langfristige Produktvision und Entwicklungsreihenfolge |
 | `.github/workflows/` | CI: `ci.yml` (Web), `ios-build.yml` (iOS-Simulator) |
 | `CHANGELOG.md` | Versionsverlauf und dokumentierte Änderungen |
 
@@ -130,7 +130,7 @@ node tests/plus.test.js          # Wochenziele und Wochenstatistiken
 node tests/consistency.test.js   # Offline-Cache und Versionskonsistenz
 ```
 
-Der Workflow `ci.yml` führt JavaScript-Syntaxprüfung, deterministische Rechenkern-Tests und den App-Rauchtest bei jedem Push und Pull Request aus. Der Workflow `ios-build.yml` baut das native Projekt für den iOS-Simulator.
+Der Workflow `ci.yml` führt JavaScript-Syntaxprüfung, Rechenkern-, App-Rauch-, Wochenlogik- und Konsistenztests bei jedem Push und Pull Request aus. Der Workflow `ios-build.yml` baut die iOS- und watchOS-Simulator-Targets und führt zusätzliche Swift-Validierungen aus.
 
 ---
 
@@ -180,7 +180,7 @@ Die Swift-Modelle bewahren unbekannte zusätzliche Felder in Touren und GPS-Punk
 
 **0.10.0** – Zwischenstand der Web-App; siehe Git-Verlauf.
 
-**0.9.8** – Fehlerbehebungen und Feinschliff (Details in [`CHANGELOG-0.9.8.md`](CHANGELOG-0.9.8.md)): behobener Startfehler der GPS-Aufzeichnung, kein Doppelstart, keine Geisterstrecken auf der Live-Karte, Stillstand trennt Routen nicht mehr, sicheres Speichern beim Pausieren/Beenden, funktionierendes Wetter für frische Fahrten, Wake Lock, geringere Rechenlast bei langen Touren, echtes Stale-While-Revalidate im Service Worker, iOS-Sicherheitsbereiche, Barometer-Zeitstempel-Toleranz, CI und Tests.
+**0.9.8** – Fehlerbehebungen und Feinschliff (Details in [`CHANGELOG.md`](CHANGELOG.md)): behobener Startfehler der GPS-Aufzeichnung, kein Doppelstart, keine Geisterstrecken auf der Live-Karte, Stillstand trennt Routen nicht mehr, sicheres Speichern beim Pausieren/Beenden, funktionierendes Wetter für frische Fahrten, Wake Lock, geringere Rechenlast bei langen Touren, echtes Stale-While-Revalidate im Service Worker, iOS-Sicherheitsbereiche, Barometer-Zeitstempel-Toleranz, CI und Tests.
 
 **0.9.4 bis 0.9.7** – Zwischenstände (u. a. Wrapped-Überarbeitung, Tourendetails, Abschlussprüfung vom 12.11.2026: segmentbewusste Höhenanalyse, GPX-Tracksegmente, strikter JSON-v1-Import). Nicht einzeln dokumentiert; siehe Git-Verlauf.
 
