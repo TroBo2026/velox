@@ -43,7 +43,7 @@ struct RideAnalysisValidation {
         )
         let points = [
             gpsPoint(time: start, altitude: nil),
-            gpsPoint(time: start + 10, altitude: nil),
+            gpsPoint(time: start + 10, altitude: nil, longitude: 13.0001),
             invalidTimestamp,
             invalidLatitude,
             invalidLongitude
@@ -127,8 +127,8 @@ struct RideAnalysisValidation {
             points: [
                 gpsPoint(time: start, altitude: nil),
                 gpsPoint(time: start + 10, altitude: nil, longitude: 13.0001),
-                gpsPoint(time: start + 70, altitude: nil),
-                gpsPoint(time: start + 80, altitude: nil)
+                gpsPoint(time: start + 70, altitude: nil, longitude: 13.0010),
+                gpsPoint(time: start + 80, altitude: nil, longitude: 13.0011)
             ],
             barometerSamples: [
                 sample(time: start + 1, altitude: 0),
@@ -152,8 +152,8 @@ struct RideAnalysisValidation {
         let secondSession = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
         let gpsTimes = [0.0, 10, 20, 100, 110, 120]
         let gpsAltitudes = [100.0, 101, 102, 200, 201, 202]
-        let gps = zip(gpsTimes, gpsAltitudes).map { time, altitude in
-            gpsPoint(time: start + time, altitude: altitude)
+        let gps = zip(gpsTimes, gpsAltitudes).enumerated().map { index, pair in
+            gpsPoint(time: start + pair.0, altitude: pair.1, longitude: 13.0 + Double(index) * 0.0001)
         }
         let barometer = [
             sample(time: start + 1, altitude: 0, sessionID: firstSession),
@@ -319,7 +319,7 @@ struct RideAnalysisValidation {
     ) -> Ride {
         let start = 1_700_000_000.0
         let gps = gpsAltitudes.enumerated().map { index, altitude in
-            gpsPoint(time: start + Double(index * 10), altitude: altitude)
+            gpsPoint(time: start + Double(index * 10), altitude: altitude, longitude: 13.0 + Double(index) * 0.0001)
         }
         let barometer = zip(offsetsInSeconds, barometerAltitudes).map { offset, altitude in
             sample(time: start + offset, altitude: altitude)
