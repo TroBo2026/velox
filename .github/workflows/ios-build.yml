@@ -38,6 +38,7 @@ jobs:
 
       - name: Validate Xcode project
         run: |
+          cmp ios/VELOX/Models/WatchSensorSample.swift ios/VELOXWatch/WatchSensorSample.swift
           plutil -lint ios/VELOX.xcodeproj/project.pbxproj ios/VELOX/VELOX-Info.plist ios/VELOXWatch/Info.plist ios/VELOXWatch/VELOXWatch.entitlements
           xcodebuild -list -project ios/VELOX.xcodeproj
 

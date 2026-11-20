@@ -90,7 +90,7 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
     private static func isValid(_ value: Double, for kind: Kind, source: Source) -> Bool {
         let sourceIsAllowed: Bool
         switch kind {
-        case .heartRateBPM, .cadenceRPM, .activeEnergyKcal, .stepCount:
+        case .heartRateBPM, .cadenceRPM, .cyclingPowerWatts, .activeEnergyKcal, .stepCount:
             sourceIsAllowed = source == .healthKit
         case .relativeAltitudeM:
             sourceIsAllowed = source == .coreMotion
