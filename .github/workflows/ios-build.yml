@@ -92,6 +92,19 @@ jobs:
             -o "$RUNNER_TEMP/VELOX-Watch-Sensor-Validation"
           "$RUNNER_TEMP/VELOX-Watch-Sensor-Validation"
 
+      - name: Validate lossless JSON-v1 backup round-trip
+        run: |
+          set -o pipefail
+          swiftc -parse-as-library \
+            ios/VELOX/Models/RidePoint.swift \
+            ios/VELOX/Models/BarometerSample.swift \
+            ios/VELOX/Models/WatchSensorSample.swift \
+            ios/VELOX/Models/Ride.swift \
+            ios/VELOX/Services/RideBackupCodec.swift \
+            ios/Tests/RideBackupCodecValidation.swift \
+            -o "$RUNNER_TEMP/VELOX-Backup-Validation"
+          "$RUNNER_TEMP/VELOX-Backup-Validation"
+
       - name: Package simulator build
         if: success()
         run: |
