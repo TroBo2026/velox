@@ -22,6 +22,15 @@ struct WatchSensorSampleValidation {
         expect(sample?.timestampMs == 1_800_000_000_000, "original timestamp is preserved")
         expect(sample?.transferPayload["rideID"] as? String == "ride-001", "ride ID is preserved")
 
+        var validPower = valid
+        validPower["kind"] = "cyclingPowerWatts"
+        validPower["value"] = 250.0
+        expect(WatchSensorSample(payload: validPower) != nil, "valid HealthKit cycling-power sample is accepted")
+
+        var wrongPowerSource = validPower
+        wrongPowerSource["source"] = "coreMotion"
+        expect(WatchSensorSample(payload: wrongPowerSource) == nil, "cycling power from the wrong source is rejected")
+
         var missingTimestamp = valid
         missingTimestamp.removeValue(forKey: "timestampMs")
         expect(WatchSensorSample(payload: missingTimestamp) == nil, "missing timestamp is rejected")
@@ -46,6 +55,6 @@ struct WatchSensorSampleValidation {
         nonFinite["value"] = Double.nan
         expect(WatchSensorSample(payload: nonFinite) == nil, "non-finite sensor value is rejected")
 
-        print("Watch sensor validation: 7/7 checks passed")
+        print("Watch sensor validation: 9/9 checks passed")
     }
 }
