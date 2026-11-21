@@ -583,23 +583,34 @@ extension RideElevationAnalysis {
         guard let first = samples.first else { return (0, 0) }
         var ascent = 0.0
         var descent = 0.0
-        var previous = first
+        // Keep the last trusted altitude separate from the last observed timestamp.
+        // This lets the summary recover after one rejected spike without treating
+        // the following, otherwise continuous sensor sample as a long data gap.
+        var trustedBaseline = first
+        var lastObservedTimestampMs = first.timestampMs
+
         for sample in samples.dropFirst() {
-            guard sample.sessionID == previous.sessionID else {
-                previous = sample
+            guard sample.sessionID == trustedBaseline.sessionID else {
+                trustedBaseline = sample
+                lastObservedTimestampMs = sample.timestampMs
                 continue
             }
-            let elapsed = sample.timestampMs - previous.timestampMs
-            guard elapsed > 0, elapsed <= 15_000 else {
-                previous = sample
+
+            let observedInterval = sample.timestampMs - lastObservedTimestampMs
+            lastObservedTimestampMs = sample.timestampMs
+            guard observedInterval > 0, observedInterval <= 15_000 else {
+                trustedBaseline = sample
                 continue
             }
-            let delta = sample.relativeAltitudeM - previous.relativeAltitudeM
-            // Keep the last trusted baseline after an isolated spike.
+
+            let delta = sample.relativeAltitudeM - trustedBaseline.relativeAltitudeM
+            // Reject isolated spikes without advancing the trusted altitude.
+            // The observation timestamp still advances, so the next normal
+            // sample can be compared with the last trusted altitude.
             guard delta.isFinite, abs(delta) <= 8 else { continue }
             if delta >= 1 { ascent += delta }
             else if delta <= -1 { descent += abs(delta) }
-            previous = sample
+            trustedBaseline = sample
         }
         return (ascent, descent)
     }
