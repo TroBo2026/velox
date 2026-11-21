@@ -32,8 +32,11 @@ jobs:
           node --check tests/app.smoke.test.js
           node --check tests/plus.test.js
           node --check tests/consistency.test.js
+          node --check tests/analysis-contract.test.js
       - name: Run deterministic calculation tests
         run: node tests/core.test.js
+      - name: Run ANALYZE contract regressions
+        run: node tests/analysis-contract.test.js
       - name: Run application smoke test
         run: node tests/app.smoke.test.js
       - name: Run VELOX Plus tests
