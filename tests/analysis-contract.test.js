@@ -5,7 +5,7 @@ const Core = require("../ride-core.js");
 
 const base = 1_700_000_000_000;
 const latitude = 51;
-const metersPerLongitudeDegree = 111_320 * Math.cos(latitude * Math.PI / 180);
+const metersPerLongitudeDegree = 6_371_000 * Math.PI / 180 * Math.cos(latitude * Math.PI / 180);
 const point = (seconds, distanceM) => ({
   lat: latitude,
   lon: 13 + distanceM / metersPerLongitudeDegree,

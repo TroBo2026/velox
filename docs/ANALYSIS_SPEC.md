@@ -9,7 +9,7 @@ Die Analyse muss dieselbe Fahrt nachvollziehbar beschreiben, ohne Rohdaten zu ve
 ## 1. Eingabedaten
 
 - GPS-Punkte und Sensorbeobachtungen sind Quelldaten. Analysefunktionen lesen sie nur.
-- Zeitstempel müssen endlich, positiv und chronologisch verwertbar sein.
+- Zeitstempel müssen endlich und chronologisch verwertbar sein.
 - Ungültige Koordinaten, unplausible Sprünge, ungeeignete Genauigkeit und zu große Zeitlücken dürfen keine Strecke erzeugen.
 - Fehlende Höhenwerte bleiben fehlend. Höhenprofile dürfen keine künstliche Verbindung über fehlende oder unbrauchbare Höhenwerte zeichnen.
 - Abgeleitete Werte müssen von Rohmessungen unterscheidbar bleiben.
