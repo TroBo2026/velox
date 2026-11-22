@@ -22,6 +22,7 @@ struct RideBackupCodecValidation {
         expect(imported.rides.count == 1, "one web ride imported")
         let nativeRide = imported.rides[0]
         expect(abs(nativeRide.startedAt - 1_795_000_000) < 0.001, "PWA start milliseconds convert to native seconds")
+        expect(abs(nativeRide.points[0].t - 1_795_000_000) < 0.001, "PWA GPS timestamp milliseconds convert to native seconds")
         expect(abs((nativeRide.endedAt ?? 0) - 1_795_003_600) < 0.001, "PWA end milliseconds convert to native seconds")
         expect(abs((nativeRide.pauseStarted ?? 0) - 1_795_002_000) < 0.001, "PWA pause timestamp converts to native seconds")
         expect(nativeRide.watchSamples?.first?.isValidObservation() == true, "real PWA Watch sample validates against converted ride times")
@@ -37,6 +38,7 @@ struct RideBackupCodecValidation {
         expect(ride["futureRideField"] != nil, "unknown top-level fields preserved")
         let points = ride["points"] as! [[String: Any]]
         expect((points[0]["speed"] as? NSNumber)?.doubleValue == 7.2, "GPS speed preserved")
+        expect((points[0]["t"] as? NSNumber)?.doubleValue == 1_795_000_000_000, "native GPS timestamp exports as PWA milliseconds")
         expect(points[0]["futurePointField"] != nil, "unknown GPS point fields preserved")
         let barometer = (ride["barometerSamples"] as! [[String: Any]])[0]
         expect(barometer["futureBarometerField"] != nil, "unknown barometer fields preserved")
