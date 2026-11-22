@@ -18,8 +18,6 @@ struct RideSlopePoint: Equatable, Identifiable {
     let segmentID: Int
 }
 
-/// Shared GPS route-distance policy used by live recording, analysis and archive.
-/// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
 /// Pause intervals use the PWA JSON-v1 wire representation (Unix milliseconds)
 /// inside Ride.additionalFields so older archives remain lossless and compatible.
 struct RidePauseInterval: Equatable {
@@ -82,6 +80,8 @@ enum RidePauseIntervals {
     }
 }
 
+/// Shared GPS route-distance policy used by live recording, analysis and archive.
+/// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
 /// A GPS interval accepted by the shared route-quality policy.
 struct RideRouteSegment: Equatable {
     let startTimeSeconds: Double
@@ -191,7 +191,7 @@ enum RideRouteMetrics {
 
     static func acceptedSegments(for ride: Ride) -> [RideRouteSegment] {
         let start = ride.startedAt.isFinite ? ride.startedAt : 0
-        let latestGPS = ride.points.map(\\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
+        let latestGPS = ride.points.map(\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
         let candidateEnd = ride.endedAt ?? ride.pauseStarted ?? latestGPS
         let end = max(start, candidateEnd.isFinite ? candidateEnd : start)
         let points = ride.points.filter {
@@ -779,9 +779,6 @@ struct RidePerformanceAnalysis: Equatable {
         let completedPauseSeconds = max(0, (ride.pausedMs ?? 0).isFinite ? (ride.pausedMs ?? 0) / 1_000 : 0)
         elapsedSeconds = max(0, wallDuration - completedPauseSeconds)
 
-        let routePoints = ride.points.filter {
-            $0.t.isFinite && $0.t >= start - 10 && $0.t <= effectiveEnd + 10
-        }
         let segments = RideRouteMetrics.acceptedSegments(for: ride)
         let distance = segments.reduce(0) { $0 + $1.distanceMeters }
         let measuredMovingSeconds = segments.reduce(0) { $0 + $1.elapsedSeconds }
