@@ -40,7 +40,7 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
     let value: Double
     let source: Source
     /// Unknown future JSON fields survive stored backup round-trips.
-    var additionalFields: [String: JSONValue] = [:]
+    private var additionalFields: [String: WatchJSONValue] = [:]
 
     init?(payload: [String: Any]) {
         guard
@@ -82,11 +82,11 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         timestampMs = try c.decode(Int64.self, forKey: .timestampMs)
         value = try c.decode(Double.self, forKey: .value)
         source = try c.decode(Source.self, forKey: .source)
-        let known = Set(CodingKeys.allCases.map(\\.stringValue))
+        let known = Set(CodingKeys.allCases.map(\.stringValue))
         let all = try decoder.container(keyedBy: WatchDynamicCodingKey.self)
-        var extras: [String: JSONValue] = [:]
+        var extras: [String: WatchJSONValue] = [:]
         for key in all.allKeys where !known.contains(key.stringValue) {
-            extras[key.stringValue] = try all.decode(JSONValue.self, forKey: key)
+            extras[key.stringValue] = try all.decode(WatchJSONValue.self, forKey: key)
         }
         additionalFields = extras
     }
@@ -100,7 +100,7 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         try c.encode(value, forKey: .value)
         try c.encode(source, forKey: .source)
         var all = encoder.container(keyedBy: WatchDynamicCodingKey.self)
-        let known = Set(CodingKeys.allCases.map(\\.stringValue))
+        let known = Set(CodingKeys.allCases.map(\.stringValue))
         for (key, value) in additionalFields where !known.contains(key) {
             try all.encode(value, forKey: WatchDynamicCodingKey(stringValue: key)!)
         }
@@ -147,6 +147,40 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         case .activeEnergyKcal: return (0...10_000).contains(value)
         case .distanceMeters: return (0...1_000_000).contains(value)
         case .stepCount: return (0...200_000).contains(value) && value.rounded() == value
+        }
+    }
+}
+
+
+
+private enum WatchJSONValue: Codable, Equatable {
+    case null
+    case bool(Bool)
+    case number(Double)
+    case string(String)
+    case array([WatchJSONValue])
+    case object([String: WatchJSONValue])
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer()
+        if try value.decodeNil() { self = .null }
+        else if let v = try? value.decode(Bool.self) { self = .bool(v) }
+        else if let v = try? value.decode(Double.self) { self = .number(v) }
+        else if let v = try? value.decode(String.self) { self = .string(v) }
+        else if let v = try? value.decode([WatchJSONValue].self) { self = .array(v) }
+        else if let v = try? value.decode([String: WatchJSONValue].self) { self = .object(v) }
+        else { throw DecodingError.dataCorruptedError(in: value, debugDescription: "Unsupported JSON value") }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var value = encoder.singleValueContainer()
+        switch self {
+        case .null: try value.encodeNil()
+        case .bool(let v): try value.encode(v)
+        case .number(let v): try value.encode(v)
+        case .string(let v): try value.encode(v)
+        case .array(let v): try value.encode(v)
+        case .object(let v): try value.encode(v)
         }
     }
 }
