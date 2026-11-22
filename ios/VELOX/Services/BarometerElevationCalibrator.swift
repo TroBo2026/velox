@@ -24,7 +24,7 @@ enum BarometerElevationCalibrator {
         var errorDescription: String? {
             switch self {
             case .invalidBarometerSample:
-                return "Der Barometer-Messwert ist ungültig."
+                return "Der Barometer-Messwert ist ungültig oder stammt aus einer anderen bzw. zu alten Sitzung."
             case .invalidGPSReference:
                 return "Die GPS-Höhe ist für eine Kalibrierung nicht genau genug."
             case .timestampsTooFarApart:
@@ -42,7 +42,12 @@ enum BarometerElevationCalibrator {
     ) throws -> CalibratedBarometerReading {
         guard sample.pressureKPa.isFinite, sample.pressureKPa > 0,
               sample.relativeAltitudeM.isFinite, sample.timestampMs > 0,
-              baseline.relativeAltitudeM.isFinite, baseline.timestampMs > 0 else {
+              baseline.relativeAltitudeM.isFinite, baseline.timestampMs > 0,
+              let sampleSessionID = sample.sessionID,
+              let baselineSessionID = baseline.sessionID,
+              sampleSessionID == baselineSessionID,
+              sample.timestampMs >= baseline.timestampMs,
+              sample.timestampMs - baseline.timestampMs <= 15_000 else {
             throw CalibrationError.invalidBarometerSample
         }
 
