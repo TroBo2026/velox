@@ -38,11 +38,11 @@ Der Workflow `.github/workflows/ios-build.yml` läuft auf einem macOS-Runner und
 1. validiert die Xcode-Projektdateien,
 2. baut das iPhone-Target für den iOS-Simulator,
 3. baut das Watch-Target für den watchOS-Simulator,
-4. führt die Swift-Höhen- und Streckenvalidierung aus,
+4. führt die Swift-Höhen-, Strecken- und Kalibrierungsvalidierung aus,
 5. führt die Watch-Sensorpaket-Validierung aus,
 6. stellt bei Erfolg ein Simulator-Build-Artefakt bereit.
 
-Die Swift-Prüfprogramme verwenden synthetische Daten. Sie prüfen Rechenregeln und Datenvalidierung, ersetzen aber weder einen manuellen Simulatorstart noch einen echten iPhone- oder Watch-Test.
+Die Swift-Prüfprogramme verwenden synthetische Daten. Die Elevationsvalidierung deckt 15 Regressionstestfälle ab, darunter GPS-/Barometerkalibrierung, Pause/Fortsetzen, Ausreißer, GPS- und Barometerlücken sowie MTB-Route. Native Barometerprofile und Summen werden bei mehr als 15 Sekunden Probenabstand getrennt; die Kompatibilitätssumme verwendet dieselbe Grenze. Der eigenständige Kalibrierungshelfer verlangt identische, nicht-leere Sitzungs-IDs, chronologische Samples und höchstens 15 Sekunden Baseline-Alter. Diese Prüfungen ersetzen weder einen manuellen Simulatorstart noch einen echten iPhone- oder Watch-Test.
 
 Der Web-Workflow prüft unabhängig davon die PWA. Ein erfolgreicher Web-Build sagt nichts über native Hardwarefunktionen aus.
 
