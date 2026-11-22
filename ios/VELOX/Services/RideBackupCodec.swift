@@ -53,9 +53,25 @@ enum RideBackupCodec {
         var remappedCount = 0
 
         for (index, sourceRide) in archive.rides.enumerated() {
-            try validate(sourceRide, index: index)
-
             var ride = sourceRide
+            // JSON-v1 is the PWA wire format: these three fields are Unix milliseconds.
+            // The native model deliberately stores absolute ride times in Unix seconds.
+            ride.startedAt /= 1_000
+            ride.endedAt = ride.endedAt.map { $0 / 1_000 }
+            ride.pauseStarted = ride.pauseStarted.map { $0 / 1_000 }
+            ride.points = ride.points.map { point in
+                var nativePoint = point
+                // GPS point timestamps are milliseconds in the PWA and seconds natively.
+                nativePoint = RidePoint(
+                    lat: point.lat, lon: point.lon, t: point.t / 1_000,
+                    alt: point.alt, altAccuracy: point.altAccuracy, altSource: point.altSource,
+                    pressureKPa: point.pressureKPa, accuracy: point.accuracy,
+                    additionalFields: point.additionalFields
+                )
+                return nativePoint
+            }
+            try validate(ride, index: index)
+
             let originalID = sourceRide.id
             if usedIDs.contains(originalID) {
                 var candidate = "\(originalID)-import-\(UUID().uuidString)"
@@ -82,18 +98,37 @@ enum RideBackupCodec {
     /// Produces the same envelope and field names as the Web/PWA JSON-v1 export.
     static func exportBackup(rides: [Ride], exportedAt: Date = Date()) throws -> Data {
         let formatter = ISO8601DateFormatter()
+        // Validate native values before converting them to the PWA's millisecond wire format.
+        for (index, ride) in rides.enumerated() {
+            try validate(ride, index: index)
+        }
+        let pwaRides = rides.map { source -> Ride in
+            var ride = source
+            ride.startedAt *= 1_000
+            ride.endedAt = ride.endedAt.map { $0 * 1_000 }
+            ride.pauseStarted = ride.pauseStarted.map { $0 * 1_000 }
+            ride.points = ride.points.map { point in
+                RidePoint(
+                    lat: point.lat, lon: point.lon, t: point.t * 1_000,
+                    alt: point.alt, altAccuracy: point.altAccuracy, altSource: point.altSource,
+                    pressureKPa: point.pressureKPa, accuracy: point.accuracy,
+                    additionalFields: point.additionalFields
+                )
+            }
+            return ride
+        }
         let archive = RideBackupArchive(
             app: "VELOX",
             version: 1,
             exportedAt: formatter.string(from: exportedAt),
-            rides: rides
+            rides: pwaRides
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(archive)
     }
 
-    private static func validate(_ ride: Ride, index: Int) throws {
+    static func validate(_ ride: Ride, index: Int) throws {
         guard !ride.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw BackupError.invalidRide(index: index, reason: "ID fehlt")
         }

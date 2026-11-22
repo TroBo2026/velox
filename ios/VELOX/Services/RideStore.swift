@@ -99,6 +99,7 @@ actor RideStore {
 
     /// Inserts a new ride. Duplicate IDs are rejected, never overwritten.
     func insert(_ ride: Ride) throws {
+        try RideBackupCodec.validate(ride, index: 0)
         var rides = try loadAll()
         guard !rides.contains(where: { $0.id == ride.id }) else {
             throw StoreError.duplicateID(ride.id)
@@ -109,6 +110,7 @@ actor RideStore {
 
     /// Replaces an existing ride only. This cannot create a new ID.
     func replace(_ ride: Ride) throws {
+        try RideBackupCodec.validate(ride, index: 0)
         var rides = try loadAll()
         guard let index = rides.firstIndex(where: { $0.id == ride.id }) else {
             throw StoreError.rideNotFound(ride.id)

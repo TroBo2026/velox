@@ -79,6 +79,7 @@ jobs:
             ios/VELOX/Models/Ride.swift \
             ios/VELOX/Models/WatchSensorSample.swift \
             ios/VELOX/Services/RideAnalysis.swift \
+            ios/VELOX/Services/BarometerElevationCalibrator.swift \
             ios/Tests/RideAnalysisValidation.swift \
             -o "$RUNNER_TEMP/VELOX-Elevation-Validation"
           "$RUNNER_TEMP/VELOX-Elevation-Validation"
@@ -104,6 +105,20 @@ jobs:
             ios/Tests/RideBackupCodecValidation.swift \
             -o "$RUNNER_TEMP/VELOX-Backup-Validation"
           "$RUNNER_TEMP/VELOX-Backup-Validation"
+
+      - name: Validate local ride store integrity
+        run: |
+          set -o pipefail
+          swiftc -parse-as-library \
+            ios/VELOX/Models/RidePoint.swift \
+            ios/VELOX/Models/BarometerSample.swift \
+            ios/VELOX/Models/WatchSensorSample.swift \
+            ios/VELOX/Models/Ride.swift \
+            ios/VELOX/Services/RideBackupCodec.swift \
+            ios/VELOX/Services/RideStore.swift \
+            ios/Tests/RideStoreValidation.swift \
+            -o "$RUNNER_TEMP/VELOX-RideStore-Validation"
+          "$RUNNER_TEMP/VELOX-RideStore-Validation"
 
       - name: Package simulator build
         if: success()
