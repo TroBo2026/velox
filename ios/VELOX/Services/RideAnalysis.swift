@@ -782,17 +782,22 @@ struct RidePerformanceAnalysis: Equatable {
         let lastGPS = ride.points.map(\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
         let candidateEnd = ride.endedAt ?? ride.pauseStarted ?? lastGPS
         let effectiveEnd = max(start, candidateEnd.isFinite ? candidateEnd : start)
-        let wallDuration = max(0, effectiveEnd - start)
-        let completedPauseSeconds = max(0, (ride.pausedMs ?? 0).isFinite ? (ride.pausedMs ?? 0) / 1_000 : 0)
+        let rawWallDuration = effectiveEnd - start
+        let wallDuration = rawWallDuration.isFinite ? max(0, rawWallDuration) : 0
+        let pauseMilliseconds = ride.pausedMs ?? 0
+        let completedPauseSeconds = pauseMilliseconds.isFinite ? max(0, pauseMilliseconds / 1_000) : 0
         elapsedSeconds = max(0, wallDuration - completedPauseSeconds)
 
         let segments = RideRouteMetrics.acceptedSegments(for: ride)
         let distance = segments.reduce(0) { $0 + $1.distanceMeters }
         let measuredMovingSeconds = segments.reduce(0) { $0 + $1.elapsedSeconds }
-        movingSeconds = min(elapsedSeconds, max(0, measuredMovingSeconds))
-        gpsDistanceMeters = distance.isFinite ? distance : 0
+        let safeMovingSeconds = measuredMovingSeconds.isFinite ? max(0, measuredMovingSeconds) : 0
+        movingSeconds = min(elapsedSeconds, safeMovingSeconds)
+        let safeDistance = distance.isFinite ? distance : 0
+        gpsDistanceMeters = safeDistance
         gpsSegmentCount = segments.count
-        averageSpeedMetersPerSecond = movingSeconds > 0 ? gpsDistanceMeters / movingSeconds : nil
+        let averageGPSspeed = movingSeconds > 0 ? safeDistance / movingSeconds : nil
+        averageSpeedMetersPerSecond = averageGPSspeed?.isFinite == true ? averageGPSspeed : nil
         maximumSpeedMetersPerSecond = segments.map(\.speedMetersPerSecond).filter(\.isFinite).max()
 
         let lowerBoundMs = max(0, (start - 10) * 1_000)
