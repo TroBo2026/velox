@@ -73,7 +73,7 @@ struct RideStoreValidation {
         let preservedCorruptData = try Data(contentsOf: corruptURL)
         expect(preservedCorruptData == corruptData, "corrupt archive bytes remain untouched")
 
-        print("VELOX local ride store validation: 11/11 checks passed")
+        print("VELOX local ride store validation: 13/13 checks passed")
     }
 
     private static func makeRide(id: String, startedAt: Double) -> Ride {
