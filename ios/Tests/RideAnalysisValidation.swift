@@ -536,13 +536,13 @@ struct RideAnalysisValidation {
         let segmentedPoints = [
             gpsPoint(time: start, altitude: nil, longitude: 13.0),
             gpsPoint(time: start + 3, altitude: nil, longitude: 13.0 + 30 / metersPerLongitudeDegree),
-            gpsPoint(time: start + 7, altitude: nil, longitude: 13.0 + 30 / metersPerLongitudeDegree),
+            gpsPoint(time: start + 7, altitude: nil, longitude: 13.0 + 35 / metersPerLongitudeDegree),
             gpsPoint(time: start + 10, altitude: nil, longitude: 13.0 + 60 / metersPerLongitudeDegree)
         ]
         var segmentedRide = ride
         segmentedRide.points = segmentedPoints
         let segmented = RidePerformanceAnalysis(ride: segmentedRide)
-        expect(segmented.gpsDistanceMeters > 55 && segmented.gpsDistanceMeters < 65, "GPS intervals before and after pause remain countable")
+        expect(segmented.gpsDistanceMeters > 50 && segmented.gpsDistanceMeters < 60, "GPS intervals before and after pause remain countable")
         expect(close(segmented.movingSeconds, to: 6), "moving time excludes the paused interval")
     }
 
