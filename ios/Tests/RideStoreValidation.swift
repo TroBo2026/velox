@@ -33,6 +33,15 @@ struct RideStoreValidation {
         let afterReplace = try await store.loadAll()
         expect(afterReplace.first?.name == "updated ride", "replace updates exact existing ride")
 
+        let missingRide = makeRide(id: "does-not-exist", startedAt: 1_795_200_000)
+        var missingReplacementRejected = false
+        do {
+            try await store.replace(missingRide)
+        } catch {
+            missingReplacementRejected = true
+        }
+        expect(missingReplacementRejected, "replace cannot create a missing ride")
+
         var invalid = edited
         invalid.points = [RidePoint(
             lat: 91, lon: 13, t: 1_795_000_001,
@@ -57,6 +66,10 @@ struct RideStoreValidation {
         let finalRides = try await store.loadAll()
         expect(finalRides.count == 2, "backup import retains both rides")
         expect(finalRides.first(where: { $0.id == "store-ride-1" })?.name == "updated ride", "collision import never overwrites original")
+        try await store.delete(id: imported.rides[0].id)
+        let afterDelete = try await store.loadAll()
+        expect(afterDelete.count == 1, "delete removes only the requested ride")
+        expect(afterDelete.first?.id == "store-ride-1", "delete preserves the unrelated original ride")
 
         let corruptURL = directory.appendingPathComponent("Corrupt-v1.json")
         let corruptData = Data("{not valid json".utf8)
@@ -73,7 +86,7 @@ struct RideStoreValidation {
         let preservedCorruptData = try Data(contentsOf: corruptURL)
         expect(preservedCorruptData == corruptData, "corrupt archive bytes remain untouched")
 
-        print("VELOX local ride store validation: 13/13 checks passed")
+        print("VELOX local ride store validation: 16/16 checks passed")
     }
 
     private static func makeRide(id: String, startedAt: Double) -> Ride {
