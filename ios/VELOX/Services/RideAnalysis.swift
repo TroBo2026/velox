@@ -687,7 +687,7 @@ struct RidePerformanceAnalysis: Equatable {
 
     init(ride: Ride) {
         let start = ride.startedAt.isFinite ? ride.startedAt : 0
-        let lastGPS = ride.points.map(\\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
+        let lastGPS = ride.points.map(\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
         let candidateEnd = ride.endedAt ?? ride.pauseStarted ?? lastGPS
         let effectiveEnd = max(start, candidateEnd.isFinite ? candidateEnd : start)
         let wallDuration = max(0, effectiveEnd - start)
@@ -704,7 +704,7 @@ struct RidePerformanceAnalysis: Equatable {
         gpsDistanceMeters = distance.isFinite ? distance : 0
         gpsSegmentCount = segments.count
         averageSpeedMetersPerSecond = movingSeconds > 0 ? gpsDistanceMeters / movingSeconds : nil
-        maximumSpeedMetersPerSecond = segments.map(\\.speedMetersPerSecond).filter(\\.isFinite).max()
+        maximumSpeedMetersPerSecond = segments.map(\.speedMetersPerSecond).filter(\.isFinite).max()
 
         let lowerBoundMs = max(0, (start - 10) * 1_000)
         let upperBoundMs = (effectiveEnd + 10) * 1_000
@@ -717,7 +717,7 @@ struct RidePerformanceAnalysis: Equatable {
         watchSampleCount = watchSamples.count
 
         func values(_ kind: WatchSensorSample.Kind) -> [Double] {
-            watchSamples.filter { $0.kind == kind }.map(\\.value)
+            watchSamples.filter { $0.kind == kind }.map(\.value)
         }
         func average(_ kind: WatchSensorSample.Kind) -> Double? {
             let items = values(kind)
