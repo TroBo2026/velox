@@ -5,14 +5,15 @@ struct RideStoreValidation {
     static func main() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory
-            .appendingPathComponent("VELOX-RideStore-\\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("VELOX-RideStore-\(UUID().uuidString)", isDirectory: true)
         let archiveURL = directory.appendingPathComponent("Rides-v1.json")
         defer { try? fileManager.removeItem(at: directory) }
 
         let store = RideStore(fileURL: archiveURL)
         let original = makeRide(id: "store-ride-1", startedAt: 1_795_000_000)
         try await store.insert(original)
-        expect(try await store.loadAll().count == 1, "insert persists one ride")
+        let afterInsert = try await store.loadAll()
+        expect(afterInsert.count == 1, "insert persists one ride")
 
         var attemptedOverwrite = original
         attemptedOverwrite.name = "must-not-overwrite"
@@ -29,7 +30,8 @@ struct RideStoreValidation {
         var edited = original
         edited.name = "updated ride"
         try await store.replace(edited)
-        expect(try await store.loadAll().first?.name == "updated ride", "replace updates exact existing ride")
+        let afterReplace = try await store.loadAll()
+        expect(afterReplace.first?.name == "updated ride", "replace updates exact existing ride")
 
         var invalid = edited
         invalid.points = [RidePoint(
@@ -43,7 +45,8 @@ struct RideStoreValidation {
             invalidRejected = true
         }
         expect(invalidRejected, "invalid replacement is rejected")
-        expect(try await store.loadAll().first?.name == "updated ride", "invalid replacement cannot damage stored ride")
+        let afterInvalidReplace = try await store.loadAll()
+        expect(afterInvalidReplace.first?.name == "updated ride", "invalid replacement cannot damage stored ride")
 
         let incoming = makeRide(id: "store-ride-1", startedAt: 1_795_100_000)
         let backup = try RideBackupCodec.exportBackup(rides: [incoming])
@@ -67,7 +70,8 @@ struct RideStoreValidation {
             corruptRejected = true
         }
         expect(corruptRejected, "corrupt archive is reported")
-        expect(try Data(contentsOf: corruptURL) == corruptData, "corrupt archive bytes remain untouched")
+        let preservedCorruptData = try Data(contentsOf: corruptURL)
+        expect(preservedCorruptData == corruptData, "corrupt archive bytes remain untouched")
 
         print("VELOX local ride store validation: 11/11 checks passed")
     }
@@ -82,7 +86,7 @@ struct RideStoreValidation {
             pauseStarted: nil,
             status: "completed",
             points: [RidePoint(
-                lat: 51, lon: 13, t: startedAt * 1_000,
+                lat: 51, lon: 13, t: startedAt,
                 alt: nil, altAccuracy: nil, altSource: nil, pressureKPa: nil, accuracy: 5
             )],
             barometerSamples: [],
