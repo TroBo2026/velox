@@ -33,8 +33,15 @@ enum RidePauseIntervals {
                   case .number(let startMs)? = fields["startedAt"],
                   startMs.isFinite, startMs > 0 else { return nil }
             let endMs: Double?
-            if case .number(let value)? = fields["endedAt"], value.isFinite, value >= startMs {
-                endMs = value
+            if let rawEnd = fields["endedAt"] {
+                switch rawEnd {
+                case .null:
+                    endMs = nil
+                case .number(let value) where value.isFinite && value >= startMs:
+                    endMs = value
+                default:
+                    return nil
+                }
             } else {
                 endMs = nil
             }
