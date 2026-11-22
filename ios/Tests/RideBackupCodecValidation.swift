@@ -46,12 +46,20 @@ struct RideBackupCodecValidation {
         let roundTrip = try RideBackupCodec.importBackup(from: exported, existingIDs: [])
         expect(roundTrip.rides[0].additionalFields == imported.rides[0].additionalFields, "unknown ride values stable after second decode")
         expect(roundTrip.rides[0].points[0].additionalFields == imported.rides[0].points[0].additionalFields, "unknown point values stable after second decode")
+        let originalBarometerFields = imported.rides[0].barometerSamples?.first?.additionalFields
+        let roundTripBarometerFields = roundTrip.rides[0].barometerSamples?.first?.additionalFields
+        expect(roundTripBarometerFields == originalBarometerFields, "unknown barometer values stable after second decode")
+        let originalWatch = try JSONEncoder().encode(imported.rides[0].watchSamples?.first)
+        let roundTripWatch = try JSONEncoder().encode(roundTrip.rides[0].watchSamples?.first)
+        let originalWatchObject = try JSONSerialization.jsonObject(with: originalWatch) as? [String: Any]
+        let roundTripWatchObject = try JSONSerialization.jsonObject(with: roundTripWatch) as? [String: Any]
+        expect(originalWatchObject?["futureWatchField"] != nil && roundTripWatchObject?["futureWatchField"] != nil, "unknown Watch values stable after second decode")
 
         let duplicate = try RideBackupCodec.importBackup(from: Data(fixture.utf8), existingIDs: ["web-ride-1"])
         expect(duplicate.remappedIDCount == 1, "colliding ID remapped")
         expect(duplicate.rides[0].additionalFields["weather"] != nil, "unknown data retained after ID remap")
         expect(duplicate.rides[0].watchSamples?.first?.rideID == duplicate.rides[0].id, "Watch ride ID remapped with colliding ride")
-        print("VELOX JSON-v1 lossless round-trip validation: 20/20 checks passed")
+        print("VELOX JSON-v1 lossless round-trip validation: 23/23 checks passed")
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
