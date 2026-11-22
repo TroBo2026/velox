@@ -11,6 +11,7 @@ struct RideAnalysisValidation {
         testInsufficientAnchorsStayRelative()
         testUnstableAnchorsStayRelative()
         testGPSGapSplitsElevationTotals()
+        testBarometerGapSplitsProfileAndTotals()
         testPauseResumeSessionsCalibrateIndependently()
         testElevationOutlierAndRawDataIntegrity()
         testCompatibilitySummarySeparatesSessionsAndOutliers()
@@ -18,7 +19,8 @@ struct RideAnalysisValidation {
         testMTBSlowTechnicalMovementIsAccumulated()
         testMTBFastDescentIsPreserved()
         testMTBAccuracyEnvelopeIsNotOverlyStrict()
-        print("VELOX elevation and route-distance validation: 13/13 checks passed")
+        testCalibratorRejectsCrossSessionAndOutOfOrderSamples()
+        print("VELOX elevation, route-distance and calibration validation: 15 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -144,6 +146,51 @@ struct RideAnalysisValidation {
         expect(abs(result.ascentM - 6) < 0.001, "elevation total excludes gap jump")
         expect(abs(result.netChangeM) < 0.001, "net change is not joined across segments")
         expect(result.rawBarometerCount == 4, "raw samples remain counted")
+    }
+
+    private static func testBarometerGapSplitsProfileAndTotals() {
+        let start = 1_700_000_000.0
+        let session = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
+        let ride = Ride(
+            id: "barometer-gap-test", name: nil, startedAt: start, endedAt: nil,
+            pausedMs: 0, pauseStarted: nil, status: "completed",
+            points: [0.0, 10, 40, 50].enumerated().map { index, offset in
+                gpsPoint(time: start + offset, altitude: nil, longitude: 13.0 + Double(index) * 0.0001)
+            },
+            barometerSamples: [
+                sample(time: start + 1, altitude: 0, sessionID: session),
+                sample(time: start + 11, altitude: 2, sessionID: session),
+                sample(time: start + 41, altitude: 10, sessionID: session),
+                sample(time: start + 51, altitude: 11, sessionID: session)
+            ], importedFromId: nil
+        )
+        let result = RideElevationAnalysis(ride: ride)
+        expect(result.profile.count == 4, "all samples remain plotted")
+        expect(result.profile[1].segmentID != result.profile[2].segmentID, "15-second barometer gap splits profile")
+        expect(abs(result.ascentM - 3) < 0.001, "profile ascent excludes gap but counts both continuous segments")
+        expect(abs(result.netChangeM) < 0.001, "net change is undefined across separated segments")
+        let summary = RideElevationSummary(samples: ride.barometerSamples ?? [])
+        expect(abs(summary.ascentM - 3) < 0.001, "compatibility summary uses the same gap policy")
+        expect(abs(summary.descentM) < 0.001, "summary excludes gap-induced descent")
+    }
+
+    private static func testCalibratorRejectsCrossSessionAndOutOfOrderSamples() {
+        let firstSession = UUID(uuidString: "66666666-6666-6666-6666-666666666666")!
+        let secondSession = UUID(uuidString: "77777777-7777-7777-7777-777777777777")!
+        let baseline = sample(time: 1_700_000_000, altitude: 0, sessionID: firstSession)
+        let reference = GPSAltitudeReference(altitudeM: 100, verticalAccuracyM: 3, timestampMs: baseline.timestampMs)
+        let sameSession = sample(time: 1_700_000_005, altitude: 5, sessionID: firstSession)
+        let calibrated = try? BarometerElevationCalibrator.calibrate(sample: sameSession, baseline: baseline, against: reference)
+        expect(close(calibrated?.altitudeM, to: 105), "same-session chronological calibration succeeds")
+        let crossSession = sample(time: 1_700_000_005, altitude: 5, sessionID: secondSession)
+        expect((try? BarometerElevationCalibrator.calibrate(sample: crossSession, baseline: baseline, against: reference)) == nil,
+               "cross-session sample is rejected")
+        let outOfOrder = sample(time: 1_699_999_999, altitude: -1, sessionID: firstSession)
+        expect((try? BarometerElevationCalibrator.calibrate(sample: outOfOrder, baseline: baseline, against: reference)) == nil,
+               "sample before baseline is rejected")
+        let stale = sample(time: 1_700_000_020, altitude: 20, sessionID: firstSession)
+        expect((try? BarometerElevationCalibrator.calibrate(sample: stale, baseline: baseline, against: reference)) == nil,
+               "baseline older than 15 seconds is rejected")
     }
 
     private static func testPauseResumeSessionsCalibrateIndependently() {
