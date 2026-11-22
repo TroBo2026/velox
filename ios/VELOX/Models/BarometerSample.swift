@@ -48,7 +48,7 @@ struct BarometerSample: Codable, Identifiable, Equatable {
         accuracyM = try c.decodeIfPresent(Double.self, forKey: .accuracyM)
         sessionID = try c.decodeIfPresent(UUID.self, forKey: .sessionID)
 
-        let known = Set(CodingKeys.allCases.map(\\.stringValue))
+        let known = Set(CodingKeys.allCases.map(\.stringValue))
         let all = try decoder.container(keyedBy: BarometerDynamicCodingKey.self)
         var extras: [String: JSONValue] = [:]
         for key in all.allKeys where !known.contains(key.stringValue) {
@@ -68,7 +68,7 @@ struct BarometerSample: Codable, Identifiable, Equatable {
         try c.encodeIfPresent(sessionID, forKey: .sessionID)
 
         var all = encoder.container(keyedBy: BarometerDynamicCodingKey.self)
-        let known = Set(CodingKeys.allCases.map(\\.stringValue))
+        let known = Set(CodingKeys.allCases.map(\.stringValue))
         for (key, value) in additionalFields where !known.contains(key) {
             try all.encode(value, forKey: BarometerDynamicCodingKey(stringValue: key)!)
         }
