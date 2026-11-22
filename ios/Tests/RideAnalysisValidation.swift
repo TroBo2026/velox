@@ -154,7 +154,8 @@ struct RideAnalysisValidation {
         let ride = Ride(
             id: "barometer-gap-test", name: nil, startedAt: start, endedAt: nil,
             pausedMs: 0, pauseStarted: nil, status: "completed",
-            points: [0.0, 10, 40, 50].enumerated().map { index, offset in
+            // Keep the final GPS fix after the last barometer sample so every sample can be projected.
+            points: [0.0, 10, 40, 52].enumerated().map { index, offset in
                 gpsPoint(time: start + offset, altitude: nil, longitude: 13.0 + Double(index) * 0.0001)
             },
             barometerSamples: [
