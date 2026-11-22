@@ -61,7 +61,7 @@ struct RideBackupCodecValidation {
         expect(duplicate.remappedIDCount == 1, "colliding ID remapped")
         expect(duplicate.rides[0].additionalFields["weather"] != nil, "unknown data retained after ID remap")
         expect(duplicate.rides[0].watchSamples?.first?.rideID == duplicate.rides[0].id, "Watch ride ID remapped with colliding ride")
-        print("VELOX JSON-v1 lossless round-trip validation: 23/23 checks passed")
+        print("VELOX JSON-v1 lossless round-trip validation: 25/25 checks passed")
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
