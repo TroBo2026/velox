@@ -233,14 +233,23 @@ struct RideElevationAnalysis: Equatable {
         var profileSegmentIDs: [String: Int] = [:]
 
         if !barometer.isEmpty {
+            var previousSample: BarometerSample?
+            var barometerGapSegment = 0
             for sample in barometer {
+                if let previous = previousSample {
+                    let elapsedMs = sample.timestampMs - previous.timestampMs
+                    if sample.sessionID != previous.sessionID || elapsedMs <= 0 || elapsedMs > 15_000 {
+                        barometerGapSegment += 1
+                    }
+                }
+                previousSample = sample
                 guard let position = Self.distance(at: sample.timestampMs, on: route) else { continue }
                 let sessionKey = sample.sessionID?.uuidString ?? "legacy"
                 let calibration = calibrationBySession[sessionKey]
                 let altitude = sample.relativeAltitudeM +
                     ((calibration?.calibrated == true) ? (calibration?.offset ?? 0) : 0)
                 guard altitude.isFinite else { continue }
-                let segmentKey = "\(sessionKey)|\(position.segmentID)"
+                let segmentKey = "\(sessionKey)|\(position.segmentID)|\(barometerGapSegment)"
                 if profileSegmentIDs[segmentKey] == nil {
                     profileSegmentIDs[segmentKey] = profileSegmentIDs.count
                 }
@@ -530,11 +539,19 @@ struct RideElevationAnalysis: Equatable {
         var ascent = 0.0
         var descent = 0.0
         var previous = first.altitudeM
+        var previousTimestampMs = points[0].timestampMs
         var previousSegment = points[0].segmentID
         for point in points.dropFirst() {
             if point.segmentID != previousSegment {
                 previous = point.altitudeM
+                previousTimestampMs = point.timestampMs
                 previousSegment = point.segmentID
+                continue
+            }
+            let elapsedMs = point.timestampMs - previousTimestampMs
+            previousTimestampMs = point.timestampMs
+            guard elapsedMs > 0, elapsedMs <= 15_000 else {
+                previous = point.altitudeM
                 continue
             }
             let delta = point.altitudeM - previous
@@ -552,6 +569,7 @@ struct RideElevationAnalysis: Equatable {
 
 /// Compatibility summary for the existing dashboard.
 struct RideElevationSummary: Equatable {
+    static let maximumSampleGapMs: Int64 = 15_000
     let ascentM: Double
     let descentM: Double
     let netChangeM: Double
@@ -598,7 +616,7 @@ extension RideElevationAnalysis {
 
             let observedInterval = sample.timestampMs - lastObservedTimestampMs
             lastObservedTimestampMs = sample.timestampMs
-            guard observedInterval > 0, observedInterval <= 15_000 else {
+            guard observedInterval > 0, observedInterval <= RideElevationSummary.maximumSampleGapMs else {
                 trustedBaseline = sample
                 continue
             }
