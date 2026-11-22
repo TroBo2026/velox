@@ -39,6 +39,8 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
     let timestampMs: Int64
     let value: Double
     let source: Source
+    /// Unknown future JSON fields survive stored backup round-trips.
+    var additionalFields: [String: JSONValue] = [:]
 
     init?(payload: [String: Any]) {
         guard
@@ -65,6 +67,43 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
         self.timestampMs = timestamp
         self.value = value
         self.source = source
+        self.additionalFields = [:]
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case id, rideID, kind, timestampMs, value, source
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        rideID = try c.decode(String.self, forKey: .rideID)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        timestampMs = try c.decode(Int64.self, forKey: .timestampMs)
+        value = try c.decode(Double.self, forKey: .value)
+        source = try c.decode(Source.self, forKey: .source)
+        let known = Set(CodingKeys.allCases.map(\\.stringValue))
+        let all = try decoder.container(keyedBy: WatchDynamicCodingKey.self)
+        var extras: [String: JSONValue] = [:]
+        for key in all.allKeys where !known.contains(key.stringValue) {
+            extras[key.stringValue] = try all.decode(JSONValue.self, forKey: key)
+        }
+        additionalFields = extras
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(rideID, forKey: .rideID)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(timestampMs, forKey: .timestampMs)
+        try c.encode(value, forKey: .value)
+        try c.encode(source, forKey: .source)
+        var all = encoder.container(keyedBy: WatchDynamicCodingKey.self)
+        let known = Set(CodingKeys.allCases.map(\\.stringValue))
+        for (key, value) in additionalFields where !known.contains(key) {
+            try all.encode(value, forKey: WatchDynamicCodingKey(stringValue: key)!)
+        }
     }
 
     func isValidObservation() -> Bool {
@@ -112,6 +151,17 @@ struct WatchSensorSample: Codable, Equatable, Identifiable {
     }
 }
 
+
+private enum WatchDynamicCodingKey: CodingKey {
+    case string(String)
+    case int(Int)
+    init?(stringValue: String) { self = .string(stringValue) }
+    init?(intValue: Int) { self = .int(intValue) }
+    var stringValue: String {
+        switch self { case .string(let value): return value; case .int(let value): return String(value) }
+    }
+    var intValue: Int? { if case .int(let value) = self { return value }; return nil }
+}
 
 /// A user-initiated Watch control action for the active iPhone ride.
 struct WatchRideCommand: Equatable {
