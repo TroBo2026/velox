@@ -191,8 +191,7 @@ private struct RideDetailView: View {
     private var performance: RidePerformanceAnalysis { RidePerformanceAnalysis(ride: ride) }
 
     private var durationSeconds: Double {
-        let end = ride.endedAt ?? ride.startedAt
-        return max(0, end - ride.startedAt - (ride.pausedMs ?? 0) / 1_000)
+        performance.elapsedSeconds
     }
 
     private var distanceMeters: Double {
@@ -280,7 +279,9 @@ private struct RideDetailView: View {
     }
 
     private func formattedDuration(_ seconds: Double) -> String {
-        let total = max(0, Int(seconds.rounded(.down)))
+        guard seconds.isFinite else { return "Nicht verfügbar" }
+        let safeSeconds = min(max(0, seconds), Double(Int.max / 2))
+        let total = Int(safeSeconds.rounded(.down))
         return String(format: "%02d:%02d:%02d", total / 3_600, (total % 3_600) / 60, total % 60)
     }
 
