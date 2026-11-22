@@ -23,7 +23,8 @@ struct RideAnalysisValidation {
         testPerformanceAnalysisUsesAcceptedGPSIntervals()
         testPerformanceAnalysisAggregatesWatchSamples()
         testPerformanceAnalysisLeavesMissingSensorsUnavailable()
-        print("VELOX elevation, route-distance and performance validation: 18 checks passed")
+        testPauseIntervalsExcludeShortGPSBridges()
+        print("VELOX elevation, route-distance and performance validation: 19 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -499,6 +500,50 @@ struct RideAnalysisValidation {
             fatalError("Failed to create Watch validation sample")
         }
         return sample
+    }
+
+    private static func testPauseIntervalsExcludeShortGPSBridges() {
+        let start = 1_700_000_000.0
+        let metersPerLongitudeDegree = 111_320.0 * cos(51.0 * .pi / 180.0)
+        let points = [
+            gpsPoint(time: start, altitude: nil, longitude: 13.0),
+            gpsPoint(time: start + 10, altitude: nil, longitude: 13.0 + 100 / metersPerLongitudeDegree)
+        ]
+        var ride = Ride(
+            id: "short-pause",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 10,
+            pausedMs: 2_000,
+            pauseStarted: nil,
+            status: "completed",
+            points: points,
+            barometerSamples: [],
+            importedFromId: nil
+        )
+        RidePauseIntervals.begin(&ride, at: start + 4)
+        expect(RidePauseIntervals.intervals(in: ride).count == 1, "pause start is stored in compatible metadata")
+        expect(RidePauseIntervals.intervals(in: ride)[0].endedAtSeconds == nil, "open pause remains open until resume")
+        RidePauseIntervals.end(&ride, at: start + 6)
+        let interval = RidePauseIntervals.intervals(in: ride).first
+        expect(close(interval?.startedAtSeconds, to: start + 4), "pause start round-trips from milliseconds")
+        expect(close(interval?.endedAtSeconds, to: start + 6), "pause end round-trips from milliseconds")
+
+        let result = RidePerformanceAnalysis(ride: ride)
+        expect(result.gpsDistanceMeters == 0, "GPS interval crossing a short pause is not counted")
+        expect(result.movingSeconds == 0, "GPS interval crossing a short pause does not inflate moving time")
+
+        let segmentedPoints = [
+            gpsPoint(time: start, altitude: nil, longitude: 13.0),
+            gpsPoint(time: start + 3, altitude: nil, longitude: 13.0 + 30 / metersPerLongitudeDegree),
+            gpsPoint(time: start + 7, altitude: nil, longitude: 13.0 + 30 / metersPerLongitudeDegree),
+            gpsPoint(time: start + 10, altitude: nil, longitude: 13.0 + 60 / metersPerLongitudeDegree)
+        ]
+        var segmentedRide = ride
+        segmentedRide.points = segmentedPoints
+        let segmented = RidePerformanceAnalysis(ride: segmentedRide)
+        expect(segmented.gpsDistanceMeters > 55 && segmented.gpsDistanceMeters < 65, "GPS intervals before and after pause remain countable")
+        expect(close(segmented.movingSeconds, to: 6), "moving time excludes the paused interval")
     }
 
     private static func makeRide(
