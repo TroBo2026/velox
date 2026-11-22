@@ -59,6 +59,17 @@ enum RideBackupCodec {
             ride.startedAt /= 1_000
             ride.endedAt = ride.endedAt.map { $0 / 1_000 }
             ride.pauseStarted = ride.pauseStarted.map { $0 / 1_000 }
+            ride.points = ride.points.map { point in
+                var nativePoint = point
+                // GPS point timestamps are milliseconds in the PWA and seconds natively.
+                nativePoint = RidePoint(
+                    lat: point.lat, lon: point.lon, t: point.t / 1_000,
+                    alt: point.alt, altAccuracy: point.altAccuracy, altSource: point.altSource,
+                    pressureKPa: point.pressureKPa, accuracy: point.accuracy,
+                    additionalFields: point.additionalFields
+                )
+                return nativePoint
+            }
             try validate(ride, index: index)
 
             let originalID = sourceRide.id
@@ -96,6 +107,14 @@ enum RideBackupCodec {
             ride.startedAt *= 1_000
             ride.endedAt = ride.endedAt.map { $0 * 1_000 }
             ride.pauseStarted = ride.pauseStarted.map { $0 * 1_000 }
+            ride.points = ride.points.map { point in
+                RidePoint(
+                    lat: point.lat, lon: point.lon, t: point.t * 1_000,
+                    alt: point.alt, altAccuracy: point.altAccuracy, altSource: point.altSource,
+                    pressureKPa: point.pressureKPa, accuracy: point.accuracy,
+                    additionalFields: point.additionalFields
+                )
+            }
             return ride
         }
         let archive = RideBackupArchive(
