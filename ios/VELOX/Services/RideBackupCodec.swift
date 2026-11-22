@@ -109,7 +109,7 @@ enum RideBackupCodec {
         return try encoder.encode(archive)
     }
 
-    private static func validate(_ ride: Ride, index: Int) throws {
+    static func validate(_ ride: Ride, index: Int) throws {
         guard !ride.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw BackupError.invalidRide(index: index, reason: "ID fehlt")
         }
