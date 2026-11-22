@@ -53,9 +53,14 @@ enum RideBackupCodec {
         var remappedCount = 0
 
         for (index, sourceRide) in archive.rides.enumerated() {
-            try validate(sourceRide, index: index)
-
             var ride = sourceRide
+            // JSON-v1 is the PWA wire format: these three fields are Unix milliseconds.
+            // The native model deliberately stores absolute ride times in Unix seconds.
+            ride.startedAt /= 1_000
+            ride.endedAt = ride.endedAt.map { $0 / 1_000 }
+            ride.pauseStarted = ride.pauseStarted.map { $0 / 1_000 }
+            try validate(ride, index: index)
+
             let originalID = sourceRide.id
             if usedIDs.contains(originalID) {
                 var candidate = "\(originalID)-import-\(UUID().uuidString)"
@@ -82,11 +87,22 @@ enum RideBackupCodec {
     /// Produces the same envelope and field names as the Web/PWA JSON-v1 export.
     static func exportBackup(rides: [Ride], exportedAt: Date = Date()) throws -> Data {
         let formatter = ISO8601DateFormatter()
+        // Validate native values before converting them to the PWA's millisecond wire format.
+        for (index, ride) in rides.enumerated() {
+            try validate(ride, index: index)
+        }
+        let pwaRides = rides.map { source -> Ride in
+            var ride = source
+            ride.startedAt *= 1_000
+            ride.endedAt = ride.endedAt.map { $0 * 1_000 }
+            ride.pauseStarted = ride.pauseStarted.map { $0 * 1_000 }
+            return ride
+        }
         let archive = RideBackupArchive(
             app: "VELOX",
             version: 1,
             exportedAt: formatter.string(from: exportedAt),
-            rides: rides
+            rides: pwaRides
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
