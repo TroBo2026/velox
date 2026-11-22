@@ -311,7 +311,6 @@ private struct RideDetailView: View {
     }
 
     private var durationText: String {
-        let total = Int(durationSeconds)
-        return String(format: "%02d:%02d:%02d", total / 3_600, (total % 3_600) / 60, total % 60)
+        formattedDuration(durationSeconds)
     }
 }
