@@ -163,7 +163,7 @@ private enum WatchJSONValue: Codable, Equatable {
 
     init(from decoder: Decoder) throws {
         let value = try decoder.singleValueContainer()
-        if try value.decodeNil() { self = .null }
+        if value.decodeNil() { self = .null }
         else if let v = try? value.decode(Bool.self) { self = .bool(v) }
         else if let v = try? value.decode(Double.self) { self = .number(v) }
         else if let v = try? value.decode(String.self) { self = .string(v) }
