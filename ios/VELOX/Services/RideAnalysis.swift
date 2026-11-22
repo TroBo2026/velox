@@ -20,6 +20,68 @@ struct RideSlopePoint: Equatable, Identifiable {
 
 /// Shared GPS route-distance policy used by live recording, analysis and archive.
 /// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
+/// Pause intervals use the PWA JSON-v1 wire representation (Unix milliseconds)
+/// inside Ride.additionalFields so older archives remain lossless and compatible.
+struct RidePauseInterval: Equatable {
+    let startedAtSeconds: Double
+    let endedAtSeconds: Double?
+}
+
+enum RidePauseIntervals {
+    static func intervals(in ride: Ride) -> [RidePauseInterval] {
+        guard case .array(let items) = ride.additionalFields["pauseIntervals"] else { return [] }
+        return items.compactMap { item in
+            guard case .object(let fields) = item,
+                  case .number(let startMs)? = fields["startedAt"],
+                  startMs.isFinite, startMs > 0 else { return nil }
+            let endMs: Double?
+            if case .number(let value)? = fields["endedAt"], value.isFinite, value >= startMs {
+                endMs = value
+            } else {
+                endMs = nil
+            }
+            return RidePauseInterval(
+                startedAtSeconds: startMs / 1_000,
+                endedAtSeconds: endMs.map { $0 / 1_000 }
+            )
+        }
+    }
+
+    static func begin(_ ride: inout Ride, at seconds: Double) {
+        guard seconds.isFinite, seconds > 0 else { return }
+        var items: [JSONValue]
+        if case .array(let existing) = ride.additionalFields["pauseIntervals"] {
+            items = existing
+        } else {
+            items = []
+        }
+        items.append(.object([
+            "startedAt": .number(seconds * 1_000),
+            "endedAt": .null
+        ]))
+        ride.additionalFields["pauseIntervals"] = .array(items)
+    }
+
+    static func end(_ ride: inout Ride, at seconds: Double) {
+        guard seconds.isFinite, seconds > 0,
+              case .array(var items) = ride.additionalFields["pauseIntervals"] else { return }
+        for index in items.indices.reversed() {
+            guard case .object(var fields) = items[index] else { continue }
+            let isOpen: Bool
+            if let end = fields["endedAt"] {
+                if case .null = end { isOpen = true } else { isOpen = false }
+            } else {
+                isOpen = true
+            }
+            guard isOpen else { continue }
+            fields["endedAt"] = .number(seconds * 1_000)
+            items[index] = .object(fields)
+            break
+        }
+        ride.additionalFields["pauseIntervals"] = .array(items)
+    }
+}
+
 /// A GPS interval accepted by the shared route-quality policy.
 struct RideRouteSegment: Equatable {
     let startTimeSeconds: Double
@@ -127,8 +189,31 @@ enum RideRouteMetrics {
         return result
     }
 
+    static func acceptedSegments(for ride: Ride) -> [RideRouteSegment] {
+        let start = ride.startedAt.isFinite ? ride.startedAt : 0
+        let latestGPS = ride.points.map(\\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
+        let candidateEnd = ride.endedAt ?? ride.pauseStarted ?? latestGPS
+        let end = max(start, candidateEnd.isFinite ? candidateEnd : start)
+        let points = ride.points.filter {
+            $0.t.isFinite && $0.t >= start - 10 && $0.t <= end + 10
+        }
+        let pauses = RidePauseIntervals.intervals(in: ride)
+        return acceptedSegments(for: points).filter { segment in
+            !pauses.contains { pause in
+                let pauseEnd = pause.endedAtSeconds ?? .infinity
+                return pause.startedAtSeconds < segment.endTimeSeconds &&
+                    pauseEnd > segment.startTimeSeconds
+            }
+        }
+    }
+
     static func distanceMeters(for points: [RidePoint]) -> Double {
         let total = acceptedSegments(for: points).reduce(0) { $0 + $1.distanceMeters }
+        return total.isFinite ? total : 0
+    }
+
+    static func distanceMeters(for ride: Ride) -> Double {
+        let total = acceptedSegments(for: ride).reduce(0) { $0 + $1.distanceMeters }
         return total.isFinite ? total : 0
     }
 }
@@ -697,7 +782,7 @@ struct RidePerformanceAnalysis: Equatable {
         let routePoints = ride.points.filter {
             $0.t.isFinite && $0.t >= start - 10 && $0.t <= effectiveEnd + 10
         }
-        let segments = RideRouteMetrics.acceptedSegments(for: routePoints)
+        let segments = RideRouteMetrics.acceptedSegments(for: ride)
         let distance = segments.reduce(0) { $0 + $1.distanceMeters }
         let measuredMovingSeconds = segments.reduce(0) { $0 + $1.elapsedSeconds }
         movingSeconds = min(elapsedSeconds, max(0, measuredMovingSeconds))
