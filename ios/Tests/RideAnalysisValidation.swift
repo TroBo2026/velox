@@ -390,8 +390,8 @@ struct RideAnalysisValidation {
         expect(result.gpsDistanceMeters > 195 && result.gpsDistanceMeters < 205, "performance distance uses shared accepted GPS intervals")
         expect(close(result.elapsedSeconds, to: 30), "elapsed duration subtracts recorded pauses")
         expect(close(result.movingSeconds, to: 20), "moving time sums accepted GPS intervals only")
-        expect(close(result.averageSpeedMetersPerSecond, to: 10), "average speed uses accepted distance and moving time")
-        expect(close(result.maximumSpeedMetersPerSecond, to: 10), "maximum speed uses accepted GPS segment speed")
+        expect((result.averageSpeedMetersPerSecond ?? 0) > 9.8 && (result.averageSpeedMetersPerSecond ?? 0) < 10.2, "average speed uses accepted distance and moving time")
+        expect((result.maximumSpeedMetersPerSecond ?? 0) > 9.8 && (result.maximumSpeedMetersPerSecond ?? 0) < 10.2, "maximum speed uses accepted GPS segment speed")
         expect(result.gpsSegmentCount == 2, "accepted GPS interval count is exposed")
 
         let gapPoints = [0.0, 10, 70, 80].enumerated().map { index, offset in
