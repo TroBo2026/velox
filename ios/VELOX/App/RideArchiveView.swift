@@ -195,7 +195,7 @@ private struct RideDetailView: View {
     }
 
     private var distanceMeters: Double {
-        RideRouteMetrics.distanceMeters(for: ride.points)
+        RideRouteMetrics.distanceMeters(for: ride)
     }
 
     private var watchCounts: [WatchCountRow] {
