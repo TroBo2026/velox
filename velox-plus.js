@@ -1,4 +1,4 @@
-/* VELOX Plus 0.12.1 — Wochenziel, Wochenüberblick und Aufzeichnungs-Puls.
+/* VELOX Plus 0.12.2 — Wochenziel, Wochenüberblick und Aufzeichnungs-Puls.
    Reine Zusatzdatei: liest nur vorhandene IndexedDB-Daten (wie analysis-pro.js) und verändert nie eine Tour.
    Browser: window.VELOXPlus · Node: module.exports (für tests/plus.test.js). */
 (function (root, factory) {

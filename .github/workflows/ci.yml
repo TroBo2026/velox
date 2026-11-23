@@ -24,6 +24,7 @@ jobs:
           node --check app.js
           node --check analysis-pro.js
           node --check charts.js
+          node --check tests/charts.test.js
           node --check elevation-core.js
           node --check ride-core.js
           node --check sensor-core.js
@@ -33,6 +34,8 @@ jobs:
           node --check tests/plus.test.js
           node --check tests/consistency.test.js
           node --check tests/analysis-contract.test.js
+      - name: Run chart rendering and interaction tests
+        run: node tests/charts.test.js
       - name: Run deterministic calculation tests
         run: node tests/core.test.js
       - name: Run ANALYZE contract regressions

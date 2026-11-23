@@ -1,4 +1,4 @@
-/* VELOX 0.12.1 — Feinschliff: Sicherheitsbereiche, ruhigere Grafiken, Wochenziel.
+/* VELOX 0.12.2 — Feinschliff: Sicherheitsbereiche, ruhigere Grafiken, Wochenziel.
    Wird nach styles.css und velox-extras.css geladen und überschreibt nur gezielt.
    Bewusst zurückhaltend: eine einzige Bewegung (Aufdecken der Profile), Rest reagiert auf Eingaben. */
 
@@ -80,4 +80,40 @@ dialog.vx-sheet[open]{animation:vxSheet .22s var(--vx-ease)}
 @media(prefers-reduced-motion:reduce){
   .vx-recording .status-dot{animation:none}
   dialog.vx-sheet[open]{animation:none}
+}
+
+
+/* ---------- VELOX Analysis Charts 1.1 ---------- */
+.vx-plot{margin:12px -2px 5px;padding:9px 8px 5px;border:1px solid rgba(184,207,221,.10);border-radius:16px;background:linear-gradient(180deg,rgba(24,43,58,.72),rgba(8,19,31,.32))}
+.vx-chart{min-width:0}
+.vx-svg{overflow:visible}
+.vx-grid{stroke-dasharray:2 5;opacity:.72}
+.vx-axis{stroke:rgba(184,207,221,.36);stroke-width:1.15}
+.vx-tick{stroke:rgba(184,207,221,.3)}
+.vx-axis-label{font-size:10px;letter-spacing:.01em}
+.vx-axis-title{font-size:10px;letter-spacing:.08em;font-weight:750}
+.vx-x-axis-title{fill:rgba(184,207,221,.68)}
+.vx-area{pointer-events:none}
+.vx-line{stroke-width:3.1;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.22))}
+.vx-band{opacity:.10}
+.vx-reference{stroke:rgba(217,184,121,.75);stroke-width:1.2;stroke-dasharray:5 4}
+.vx-mark{r:4;fill:var(--text);stroke:#102131;stroke-width:2}
+.vx-mark-label{font-size:10px;font-weight:750}
+.vx-end{stroke:#102131;stroke-width:2}
+.vx-start{fill:var(--teal)}
+.vx-finish{fill:var(--vx-amber)}
+.vx-cross{stroke:rgba(238,245,248,.72);stroke-width:1.2;stroke-dasharray:3 4}
+.vx-dot{stroke:#f4f8fb;stroke-width:2.2;filter:drop-shadow(0 0 5px rgba(98,223,207,.45))}
+.vx-tip{top:8px;min-width:148px;max-width:min(220px,72%);padding:9px 12px;border-color:rgba(184,207,221,.2);background:rgba(7,18,29,.94);box-shadow:0 12px 32px rgba(0,0,0,.35);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);font-size:11px}
+.vx-chart-caption{margin:5px 4px 1px;color:var(--muted);font-size:10px;line-height:1.5}
+@media(max-width:420px){
+  .vx-plot{margin-left:-5px;margin-right:-5px;padding:7px 4px 4px;border-radius:13px}
+  .vx-axis-label{font-size:9.5px}
+  .vx-axis-title{font-size:9.5px}
+  .vx-line{stroke-width:3}
+  .vx-tip{top:5px;min-width:136px;padding:8px 10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .vx-svg{animation:none!important}
+  .vx-tip{transition:none!important}
 }
