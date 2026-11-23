@@ -548,7 +548,16 @@
     const status=$("sensorWakeStatus");if(status)status.textContent="Nicht aktiv";
   }
   function startWatching(){
-    watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+    // iOS Safari kann den Geolocation-Watcher nach einem App-Wechsel aussetzen.
+    // Vor einem Neustart den alten Watcher sicher entfernen, damit nie zwei parallel laufen.
+    if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+    try{
+      watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+    }catch(error){
+      console.error("GPS-Watcher konnte nicht gestartet werden:",error);
+      $("trackingStatus").textContent="GPS konnte nicht gestartet werden – Standortfreigabe prüfen";
+      showToast("GPS konnte nicht gestartet werden. Bitte Standortfreigabe prüfen.");
+    }
   }
   async function startRide(){
     if(!navigator.geolocation){showToast("GPS wird von diesem Browser nicht unterstützt.");return;}
@@ -583,8 +592,8 @@
     activeRide.points.push(point);
     if(point.speed!==null&&point.speed>=1)dopplerSeen=true;
     liveDirty=true;pointsSincePersist++;
-    // Speichern gebündelt (alle 5 Punkte bzw. 5 s) statt bei jedem Fix – sonst wächst der Aufwand mit der Tourlänge quadratisch.
-    if(activeRide.points.length===1||pointsSincePersist>=5||Date.now()-lastPersistAt>=5000){
+    // Häufige, gebündelte Checkpoints begrenzen den möglichen Datenverlust bei iOS-Safari-Unterbrechungen.
+    if(activeRide.points.length===1||pointsSincePersist>=3||Date.now()-lastPersistAt>=3000){
       pointsSincePersist=0;lastPersistAt=Date.now();
       try{await persistActiveRide();}catch(error){console.error("GPS-Punkte konnten nicht dauerhaft gespeichert werden:",error);$("trackingStatus").textContent="Speicherfehler – Tourdaten prüfen";showToast("Lokales Speichern fehlgeschlagen.");return;}
     }
@@ -998,8 +1007,23 @@
   $("trackStartRide")?.addEventListener("click",startRide);
   document.addEventListener("visibilitychange",()=>{
     if(!activeRide)return;
-    if(document.visibilityState==="hidden")persistActiveRide().catch(error=>console.error("Checkpoint fehlgeschlagen:",error));
-    else{if(activeRide.status==="recording")acquireWakeLock();updateLive(true);scheduleLiveClock();}
+    if(document.visibilityState==="hidden"){
+      // Letzten Stand sichern, bevor iOS den Tab möglicherweise anhält.
+      persistActiveRide().catch(error=>console.error("Checkpoint fehlgeschlagen:",error));
+    }else{
+      if(activeRide.status==="recording"){
+        // Nach Rückkehr aus Sperrbildschirm/App-Wechsel den iOS-GPS-Watcher neu abonnieren.
+        startWatching();
+        acquireWakeLock();
+        $("trackingStatus").textContent="GPS-Verbindung wird aktualisiert …";
+      }
+      updateLive(true);scheduleLiveClock();
+    }
+  });
+  window.addEventListener("pageshow",()=>{
+    if(activeRide&&activeRide.status==="recording"&&document.visibilityState==="visible"){
+      startWatching();acquireWakeLock();
+    }
   });
   window.addEventListener("pagehide",()=>{
     if(activeRide)persistActiveRide().catch(error=>console.error("Letzter Checkpoint fehlgeschlagen:",error));
