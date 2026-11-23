@@ -241,3 +241,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .grade-profile-legend .grade-up{background:#df7774}
 .grade-profile-legend .grade-flat{background:#9aaab5}
 .grade-profile-legend .grade-down{background:#5799df}
+
+
+/* iPhone ride-readiness note */
+.ride-device-note{display:grid;gap:4px;margin:10px 0 14px;padding:11px 13px;border:1px solid rgba(112,225,210,.22);border-radius:12px;background:rgba(37,104,103,.12);color:var(--muted);font-size:11px;line-height:1.45}
+.ride-device-note strong{color:var(--text);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+@media(max-width:390px){.ride-device-note{font-size:10px;padding:10px 11px}}
