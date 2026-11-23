@@ -893,7 +893,7 @@
       box.innerHTML='<div class="empty-state">Für die Steigungsanalyse liegen nicht genügend verlässliche Höhenabschnitte vor.</div>';
       return;
     }
-    const limit=Math.max(4,Math.ceil(Math.max(...rows.map(x=>Math.abs(x.y)))/2)*2);
+    const limit=Math.max(4,Math.ceil(rows.reduce((max,row)=>Math.max(max,Math.abs(row.y)),0)/2)*2);
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Steigung <strong>'+fmt(c.gradeAverage)+' %</strong></span><span class="elevation-stat">Max. Anstieg <strong>+'+fmt(Math.max(0,c.gradeMax))+' %</strong></span><span class="elevation-stat">Max. Gefälle <strong>'+fmt(Math.abs(Math.min(0,c.gradeMin)))+' %</strong></span></div>'+
       '<div class="vx-plot" id="gradePlot"></div>'+
       '<div class="grade-profile-legend"><span><i class="grade-up"></i>Anstieg</span><span><i class="grade-flat"></i>Flach</span><span><i class="grade-down"></i>Gefälle</span></div>'+
@@ -927,7 +927,7 @@
     if(!Charts||rows.length<3){box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Punkte für ein Geschwindigkeitsprofil vorhanden.</div>';return;}
     const sorted=rows.map(r=>r.y).sort((x,y)=>x-y),lo=sorted[Math.floor((sorted.length-1)*.1)]||0,hi=sorted[Math.floor((sorted.length-1)*.9)]||1;
     const color=v=>{const t=hi>lo?Math.max(0,Math.min(1,(v-lo)/(hi-lo))):.5;return "hsl("+(8+214*t).toFixed(0)+" 72% 62%)";};
-    const gaps=new Set(rows.map(r=>r.segment)).size-1,peak=Math.max(...rows.map(r=>r.y));
+    const gaps=new Set(rows.map(r=>r.segment)).size-1,peak=rows.reduce((max,row)=>Math.max(max,row.y),-Infinity);
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Geschwindigkeit <strong>'+fmt(c.averageSpeed)+' km/h</strong></span><span class="elevation-stat">Spitze (geglättet) <strong>'+fmt(peak)+' km/h</strong></span><span class="elevation-stat">Median <strong>'+fmt(c.medianSpeed)+' km/h</strong></span></div>'+
       '<div class="vx-plot" id="speedPlot"></div><div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zu dieser Tour</span></div>'+
       '<p class="elevation-footnote">'+c.intervals.length+' gültige GPS-Bewegungsintervalle'+(gaps>0?', '+gaps+' GPS-Lücke(n) werden nicht überbrückt':'')+'. Die Kurve zeigt den Median über 5 Intervalle; einzelne GPS-Ausreißer werden dadurch gedämpft.</p>';
