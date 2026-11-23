@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.2 – Hochwertigere Analysegrafiken
+
+- Höhen-, Steigungs- und Geschwindigkeitsprofile erhalten klarere Achsen, eine explizite Distanzachse, bessere Kontraste und eine ruhigere, hochwertigere Darstellung.
+- Messwerte lassen sich auf Touchscreens per Finger und zusätzlich per Tastatur präziser auswählen; der ausgewählte Punkt wird mit Distanz und Messwert angezeigt und kann weiterhin auf der Routenkarte hervorgehoben werden.
+- Beim Reduzieren sehr dichter GPS-Datenreihen bleiben lokale Spitzen und Täler erhalten. Getrennte GPS-Segmente bleiben auch in der Grafik getrennt.
+- Die Steigungsgrafik zeigt eine klare Nulllinie. Die Diagramme bleiben unabhängig von externen Chart-Bibliotheken.
+- Ergänzt wurden eigenständige Regressionstests für die Grafik-Engine. Die vorhandenen Tourdaten, GPS-Rohpunkte und JSON-v1-Sicherungen werden nicht verändert.
+
+Die GitHub-Webtests wurden für 0.12.2 erweitert. Ein visueller Test auf einem echten iPhone steht weiterhin aus.
+
 ## 0.12.1 – Fehlerbehebungen, Feinschliff und Wochenziel
 
 Geprüft per Code-Durchsicht und automatischen Tests (`node tests/plus.test.js`, `node tests/consistency.test.js`, bestehende Tests). Auf einem echten iPhone ist 0.12.1 **noch nicht** getestet.
