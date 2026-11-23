@@ -47,7 +47,8 @@
       <section class="page" id="page-track">
         <div class="page-title"><span class="eyebrow" id="trackPageEyebrow">RAD-AUFZEICHNUNG</span><h1 id="trackPageTitle">Deine Fahrt</h1></div>
         
-        <div class="tracking-status"><span class="status-dot" id="trackingDot"></span><span id="trackingStatus">Bereit</span><span id="gpsAccuracy" class="accuracy">GPS nicht aktiv</span></div>
+        <div class="tracking-status"><span class="status-dot" id="trackingDot"></span><span id="trackingStatus" role="status" aria-live="polite">Bereit</span><span id="gpsAccuracy" class="accuracy">GPS nicht aktiv</span></div>
+        <aside class="ride-device-note" aria-label="Hinweis zur GPS-Aufzeichnung"><strong>iPhone-Aufzeichnung</strong><span>VELOX während der Tour geöffnet lassen und das Display möglichst nicht sperren. iOS kann GPS im Hintergrund unterbrechen. Deine Messpunkte werden lokal auf diesem iPhone gespeichert – auch ohne Internet.</span></aside>
         <button class="primary-button start-button track-start-button" id="trackStartRide" type="button"><span class="button-play">▶</span><span data-start-label>Fahrt starten</span><span class="button-arrow">↗</span></button>
         <div class="live-distance"><strong id="liveDistance">0,00</strong><span>KM</span></div>
         <div class="live-grid">
