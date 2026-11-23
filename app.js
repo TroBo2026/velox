@@ -878,7 +878,7 @@
       '<div class="grade-profile-legend"><span><i class="grade-up"></i>Anstieg</span><span><i class="grade-flat"></i>Flach</span><span><i class="grade-down"></i>Gefälle</span><span class="legend-context">Farbe = Steigung</span></div>'+
       '<p class="elevation-footnote">Höhenprofil aus '+p.validCount+' von '+p.totalCount+' GPS-Punkten, über Strecke geglättet und alle '+p.stepM+' m abgetastet. Aufstieg und Abstieg zählen erst ab '+fmt(p.climbThresholdM,1)+' m echter Höhenänderung, damit GPS-Rauschen nicht als Höhenmeter zählt. Tippe oder ziehe über die Grafik, um Werte zu sehen; die Position erscheint auf der Karte.</p>';
     Charts.profileChart($("elevationPlot"),{
-      rows:detailRows,xMax:Math.max(1,p.distanceM),yTitle:"Höhe (m)",unit:"m",height:210,extremes:true,minPad:4,
+      rows:detailRows,xMax:Math.max(1,p.distanceM),xTitle:"DISTANZ (KM)",yTitle:"HÖHE (M)",unit:"m",height:220,extremes:true,minPad:4,
       bands:climb?[{from:climb.startM,to:climb.endM,label:"Längster Anstieg"}]:[],
       colorAt:(a,b)=>{const g=nearRow(gradeRows,(a.x+b.x)/2,60);return g?Charts.gradeColor(g.y):"#8fa6b8";},
       tooltip:(row)=>{const g=nearRow(gradeRows,row.x,60);return [["Distanz",fmt(row.x/1000,2)+" km"],["Höhe",Math.round(row.y)+" m"],["Steigung",g?gradeLabel(g.y):"–"]];},
@@ -899,7 +899,7 @@
       '<div class="grade-profile-legend"><span><i class="grade-up"></i>Anstieg</span><span><i class="grade-flat"></i>Flach</span><span><i class="grade-down"></i>Gefälle</span></div>'+
       '<p class="elevation-footnote">Steigung = Höhenunterschied über mindestens 50 m Strecke aus geglätteten GPS-Höhen. Kurze Spitzen sind GPS-Näherungen, keine vermessenen Straßensteigungen. GPS-Lücken bleiben getrennt.</p>';
     Charts.profileChart($("gradePlot"),{
-      rows,xMax:Math.max(1,c.elevationProfile.distanceM),yTitle:"Steigung (%)",height:170,baseline:"zero",yMin:-limit,yMax:limit,
+      rows,xMax:Math.max(1,c.elevationProfile.distanceM),xTitle:"DISTANZ (KM)",yTitle:"STEIGUNG (%)",height:190,baseline:"zero",yMin:-limit,yMax:limit,referenceLine:0,
       yFormat:(v)=>fmt(v,0),
       colorAt:(a,b)=>Charts.gradeColor((a.y+b.y)/2),
       tooltip:(row)=>[["Distanz",fmt(row.x/1000,2)+" km"],["Steigung",gradeLabel(row.y)],["Höhe",Math.round(row.elevationM)+" m"]],
@@ -931,7 +931,7 @@
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Geschwindigkeit <strong>'+fmt(c.averageSpeed)+' km/h</strong></span><span class="elevation-stat">Spitze (geglättet) <strong>'+fmt(peak)+' km/h</strong></span><span class="elevation-stat">Median <strong>'+fmt(c.medianSpeed)+' km/h</strong></span></div>'+
       '<div class="vx-plot" id="speedPlot"></div><div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zu dieser Tour</span></div>'+
       '<p class="elevation-footnote">'+c.intervals.length+' gültige GPS-Bewegungsintervalle'+(gaps>0?', '+gaps+' GPS-Lücke(n) werden nicht überbrückt':'')+'. Die Kurve zeigt den Median über 5 Intervalle; einzelne GPS-Ausreißer werden dadurch gedämpft.</p>';
-    Charts.profileChart($("speedPlot"),{rows,xMax:Math.max(1,c.elevationProfile.distanceM||rows[rows.length-1].x),yTitle:"km/h",unit:"km/h",height:180,yMin:0,snapMin:true,minPad:2,colorAt:(x,y)=>color((x.y+y.y)/2),
+    Charts.profileChart($("speedPlot"),{rows,xMax:Math.max(1,c.elevationProfile.distanceM||rows[rows.length-1].x),xTitle:"DISTANZ (KM)",yTitle:"TEMPO (KM/H)",unit:"km/h",height:195,yMin:0,snapMin:true,minPad:2,colorAt:(x,y)=>color((x.y+y.y)/2),
       tooltip:row=>{const e=nearRow(detailRows,row.x,60);return [["Distanz",fmt(row.x/1000,2)+" km"],["Tempo",fmt(row.y)+" km/h"]].concat(e?[["Höhe",Math.round(e.y)+" m"]]:[]);},
       onHover:row=>setDetailHover(row?row.x:null),ariaLabel:"Geschwindigkeitsprofil, durchschnittlich "+fmt(c.averageSpeed)+" Kilometer pro Stunde."});
   }
