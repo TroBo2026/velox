@@ -81,14 +81,16 @@
     const plotW = W - L - R, plotH = H - T - B;
     const id = "vx" + (++uid), zeroBase = cfg.baseline === "zero";
     const xMax = Math.max(1, finite(cfg.xMax) ? cfg.xMax : rows[rows.length - 1].x);
-    let yLo = Math.min(...rows.map(row => row.y)), yHi = Math.max(...rows.map(row => row.y));
+    let yLo = Infinity, yHi = -Infinity;
+    rows.forEach(row => { yLo = Math.min(yLo, row.y); yHi = Math.max(yHi, row.y); });
     if (finite(cfg.yMin)) yLo = Math.min(yLo, cfg.yMin);
     if (finite(cfg.yMax)) yHi = Math.max(yHi, cfg.yMax);
     if (zeroBase) { yLo = Math.min(yLo, 0); yHi = Math.max(yHi, 0); }
     const padding = Math.max((yHi - yLo) * .12, cfg.minPad || 2);
     const step = niceStep(yHi - yLo + padding * 2, 4);
-    const yMin = finite(cfg.yMin) && cfg.snapMin && !zeroBase ? cfg.yMin : Math.floor((yLo - padding) / step) * step;
-    const yMax = finite(cfg.yMax) ? Math.max(cfg.yMax, Math.ceil((yHi + padding) / step) * step) : Math.ceil((yHi + padding) / step) * step;
+    const fixedBounds = finite(cfg.yMin) && finite(cfg.yMax);
+    const yMin = fixedBounds ? cfg.yMin : (finite(cfg.yMin) && cfg.snapMin && !zeroBase ? cfg.yMin : Math.floor((yLo - padding) / step) * step);
+    const yMax = fixedBounds ? cfg.yMax : Math.ceil((yHi + padding) / step) * step;
     const safeYMax = yMax > yMin ? yMax : yMin + 1;
     const xFor = value => L + value / xMax * plotW;
     const yFor = value => T + (safeYMax - value) / (safeYMax - yMin) * plotH;
