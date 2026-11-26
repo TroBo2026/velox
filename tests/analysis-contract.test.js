@@ -56,4 +56,16 @@ assert.equal(result.scan.hasGapBetween, true, "internal GPS gap is detected");
 assert.equal(result.routeStraightness, null, "route straightness is withheld across an internal gap");
 assert.equal(JSON.stringify(ride), rawBefore, "analysis leaves source ride data unchanged");
 
+const invalidPointRide = {...ride, points: [
+  {lat: 51, lon: 13, t: 1000},
+  {lat: 51, lon: 13.0001, t: 2000},
+  {lat: 91, lon: 13, t: 3000},
+  {lat: 51, lon: 13.001, t: 4000},
+  {lat: 51, lon: 13.0011, t: 5000}
+]};
+const invalidPointResult = Core.analyze(invalidPointRide);
+assert.equal(invalidPointResult.scan.intervals.length, 2);
+assert.equal(invalidPointResult.scan.rejected.invalid, 1);
+assert.equal(invalidPointResult.routeStraightness, null, "invalid coordinates split the route");
+
 console.log("VELOX ANALYZE contract: all checks passed");

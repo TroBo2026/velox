@@ -55,7 +55,6 @@
     const cls = new Array(points.length).fill(null), intervals = [], speedValues = [];
     const rejected = { invalid: 0, clock: 0, gap: 0, jump: 0, speed: 0, accuracy: 0, pause: 0 };
     let run = 0, distanceM = 0, movingSeconds = 0, gapSeconds = 0, stoppedGpsSeconds = 0, acceptedIntervals = 0;
-    let firstGapAfterFirst = Infinity, hasMoving = false, lastMovingIndex = -1;
     // Liefert das Gerät nie eine Doppler-Geschwindigkeit ≥ 1 m/s, sind die Werte (z. B. dauerhaft 0) nicht vertrauenswürdig.
     const dopplerUsable = points.some((p) => p && finite(p.speed) && p.speed >= 1);
     for (let i = 0; i < points.length; i++) {
@@ -66,7 +65,6 @@
         cls[i] = pauseGap;
         rejected.pause++;
         run++;
-        if (hasMoving && firstGapAfterFirst === Infinity) firstGapAfterFirst = i;
         continue;
       }
       const c = classify(points[i - 1], points[i], dopplerUsable);
@@ -75,7 +73,6 @@
         rejected[c.reason] = (rejected[c.reason] || 0) + 1;
         if (c.reason === "gap") gapSeconds += c.durationS;
         run++;
-        if (hasMoving && firstGapAfterFirst === Infinity) firstGapAfterFirst = i;
         continue;
       }
       acceptedIntervals++;
@@ -83,9 +80,8 @@
       intervals.push({ distanceM: c.distanceM, durationS: c.durationS, speedKmh: c.speedKmh,
         from: points[i - 1], to: points[i], fromIndex: i - 1, toIndex: i, run });
       distanceM += c.distanceM; movingSeconds += c.durationS; speedValues.push(c.speedKmh);
-      hasMoving = true; lastMovingIndex = i;
     }
-    const hasGapBetween = firstGapAfterFirst < lastMovingIndex;
+    const hasGapBetween = intervals.length > 1 && intervals[0].run !== intervals[intervals.length - 1].run;
     return { cls, intervals, speedValues, rejected, distanceM, movingSeconds, gapSeconds,
       stoppedGpsSeconds, acceptedIntervals, intervalCount: Math.max(0, points.length - 1), hasGapBetween };
   }
