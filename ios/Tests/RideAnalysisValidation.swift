@@ -20,7 +20,11 @@ struct RideAnalysisValidation {
         testMTBFastDescentIsPreserved()
         testMTBAccuracyEnvelopeIsNotOverlyStrict()
         testCalibratorRejectsCrossSessionAndOutOfOrderSamples()
-        print("VELOX elevation, route-distance and calibration validation: 15 checks passed")
+        testPerformanceAnalysisUsesAcceptedGPSIntervals()
+        testPerformanceAnalysisAggregatesWatchSamples()
+        testPerformanceAnalysisLeavesMissingSensorsUnavailable()
+        testPauseIntervalsExcludeShortGPSBridges()
+        print("VELOX elevation, route-distance and performance validation: 19 checks passed")
     }
 
     private static func testEmptyRide() {
@@ -358,6 +362,188 @@ struct RideAnalysisValidation {
         ]
         let distance = RideRouteMetrics.distanceMeters(for: points)
         expect(distance > 11 && distance < 13, "moderate tree-cover GPS accuracy remains usable")
+    }
+
+    private static func testPerformanceAnalysisUsesAcceptedGPSIntervals() {
+        let start = 1_700_000_000.0
+        let metersPerLongitudeDegree = 111_320.0 * cos(51.0 * .pi / 180.0)
+        let points = [0.0, 100, 200].enumerated().map { index, meters in
+            gpsPoint(
+                time: start + Double(index * 10),
+                altitude: nil,
+                longitude: 13.0 + meters / metersPerLongitudeDegree
+            )
+        }
+        let ride = Ride(
+            id: "performance-gps",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 35,
+            pausedMs: 5_000,
+            pauseStarted: nil,
+            status: "completed",
+            points: points,
+            barometerSamples: [],
+            importedFromId: nil
+        )
+        let result = RidePerformanceAnalysis(ride: ride)
+        expect(result.gpsDistanceMeters > 195 && result.gpsDistanceMeters < 205, "performance distance uses shared accepted GPS intervals")
+        expect(close(result.elapsedSeconds, to: 30), "elapsed duration subtracts recorded pauses")
+        expect(close(result.movingSeconds, to: 20), "moving time sums accepted GPS intervals only")
+        expect((result.averageSpeedMetersPerSecond ?? 0) > 9.8 && (result.averageSpeedMetersPerSecond ?? 0) < 10.2, "average speed uses accepted distance and moving time")
+        expect((result.maximumSpeedMetersPerSecond ?? 0) > 9.8 && (result.maximumSpeedMetersPerSecond ?? 0) < 10.2, "maximum speed uses accepted GPS segment speed")
+        expect(result.gpsSegmentCount == 2, "accepted GPS interval count is exposed")
+
+        let gapPoints = [0.0, 10, 70, 80].enumerated().map { index, offset in
+            gpsPoint(
+                time: start + offset,
+                altitude: nil,
+                longitude: 13.0 + Double(index) * 100 / metersPerLongitudeDegree
+            )
+        }
+        var gapRide = ride
+        gapRide.points = gapPoints
+        gapRide.endedAt = start + 90
+        gapRide.pausedMs = 0
+        let gapResult = RidePerformanceAnalysis(ride: gapRide)
+        expect(gapResult.gpsSegmentCount == 2, "long GPS gap is excluded from performance intervals")
+        expect(close(gapResult.movingSeconds, to: 20), "long GPS gap does not inflate moving time")
+    }
+
+    private static func testPerformanceAnalysisAggregatesWatchSamples() {
+        let start = 1_700_000_000.0
+        let rideID = "performance-watch"
+        let samples = [
+            watchSample(rideID: rideID, kind: .heartRateBPM, value: 120, time: start + 1, id: "hr-1"),
+            watchSample(rideID: rideID, kind: .heartRateBPM, value: 140, time: start + 3, id: "hr-2"),
+            watchSample(rideID: rideID, kind: .heartRateBPM, value: 130, time: start + 5, id: "hr-3"),
+            watchSample(rideID: rideID, kind: .cadenceRPM, value: 80, time: start + 2, id: "cad-1"),
+            watchSample(rideID: rideID, kind: .cadenceRPM, value: 90, time: start + 4, id: "cad-2"),
+            watchSample(rideID: rideID, kind: .cyclingPowerWatts, value: 200, time: start + 2, id: "power-1"),
+            watchSample(rideID: rideID, kind: .cyclingPowerWatts, value: 300, time: start + 4, id: "power-2"),
+            watchSample(rideID: rideID, kind: .speedMetersPerSecond, value: 5, time: start + 2, id: "speed-1"),
+            watchSample(rideID: rideID, kind: .speedMetersPerSecond, value: 7, time: start + 4, id: "speed-2"),
+            watchSample(rideID: rideID, kind: .activeEnergyKcal, value: 2, time: start + 2, id: "energy-1"),
+            watchSample(rideID: rideID, kind: .activeEnergyKcal, value: 5, time: start + 5, id: "energy-2"),
+            watchSample(rideID: rideID, kind: .distanceMeters, value: 1_000, time: start + 2, id: "watch-distance-1"),
+            watchSample(rideID: rideID, kind: .distanceMeters, value: 1_500, time: start + 5, id: "watch-distance-2"),
+            watchSample(rideID: "another-ride", kind: .heartRateBPM, value: 200, time: start + 6, id: "other-ride-hr")
+        ]
+        let ride = Ride(
+            id: rideID,
+            name: nil,
+            startedAt: start,
+            endedAt: start + 60,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [],
+            barometerSamples: [],
+            watchSamples: samples,
+            importedFromId: nil
+        )
+        let result = RidePerformanceAnalysis(ride: ride)
+        expect(result.watchSampleCount == 13, "Watch metrics exclude samples from other rides")
+        expect(close(result.averageHeartRateBPM, to: 130), "heart-rate average uses recorded samples")
+        expect(close(result.maximumHeartRateBPM, to: 140), "maximum heart rate uses recorded samples")
+        expect(close(result.averageCadenceRPM, to: 85), "cadence average uses recorded samples")
+        expect(close(result.maximumCadenceRPM, to: 90), "maximum cadence uses recorded samples")
+        expect(close(result.averagePowerWatts, to: 250), "power average uses recorded samples")
+        expect(close(result.maximumPowerWatts, to: 300), "maximum power uses recorded samples")
+        expect(close(result.averageWatchSpeedMetersPerSecond, to: 6), "Watch speed average remains distinct from GPS speed")
+        expect(close(result.maximumWatchSpeedMetersPerSecond, to: 7), "Watch maximum speed remains distinct from GPS speed")
+        expect(close(result.activeEnergyKcal, to: 5), "cumulative active energy uses latest HealthKit snapshot")
+        expect(close(result.watchDistanceMeters, to: 1_500), "cumulative Watch distance uses latest HealthKit snapshot")
+    }
+
+    private static func testPerformanceAnalysisLeavesMissingSensorsUnavailable() {
+        let start = 1_700_000_000.0
+        let ride = Ride(
+            id: "performance-no-sensors",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 60,
+            pausedMs: 0,
+            pauseStarted: nil,
+            status: "completed",
+            points: [gpsPoint(time: start, altitude: nil)],
+            barometerSamples: [],
+            watchSamples: [],
+            importedFromId: nil
+        )
+        let result = RidePerformanceAnalysis(ride: ride)
+        expect(result.gpsDistanceMeters == 0, "single GPS point does not fabricate distance")
+        expect(result.averageSpeedMetersPerSecond == nil, "average speed is unavailable without accepted intervals")
+        expect(result.maximumSpeedMetersPerSecond == nil, "maximum speed is unavailable without accepted intervals")
+        expect(result.averageHeartRateBPM == nil && result.maximumHeartRateBPM == nil, "missing heart rate remains unavailable")
+        expect(result.averagePowerWatts == nil && result.averageCadenceRPM == nil, "missing power and cadence remain unavailable")
+        expect(result.activeEnergyKcal == nil && result.watchDistanceMeters == nil, "missing cumulative Watch metrics remain unavailable")
+    }
+
+    private static func watchSample(
+        rideID: String,
+        kind: WatchSensorSample.Kind,
+        value: Double,
+        time: Double,
+        id: String
+    ) -> WatchSensorSample {
+        let payload: [String: Any] = [
+            "schemaVersion": 1,
+            "id": id,
+            "rideID": rideID,
+            "kind": kind.rawValue,
+            "timestampMs": Int64((time * 1_000).rounded()),
+            "value": value,
+            "source": "healthKit"
+        ]
+        guard let sample = WatchSensorSample(payload: payload) else {
+            fatalError("Failed to create Watch validation sample")
+        }
+        return sample
+    }
+
+    private static func testPauseIntervalsExcludeShortGPSBridges() {
+        let start = 1_700_000_000.0
+        let metersPerLongitudeDegree = 111_320.0 * cos(51.0 * .pi / 180.0)
+        let points = [
+            gpsPoint(time: start, altitude: nil, longitude: 13.0),
+            gpsPoint(time: start + 10, altitude: nil, longitude: 13.0 + 100 / metersPerLongitudeDegree)
+        ]
+        var ride = Ride(
+            id: "short-pause",
+            name: nil,
+            startedAt: start,
+            endedAt: start + 10,
+            pausedMs: 2_000,
+            pauseStarted: nil,
+            status: "completed",
+            points: points,
+            barometerSamples: [],
+            importedFromId: nil
+        )
+        RidePauseIntervals.begin(&ride, at: start + 4)
+        expect(RidePauseIntervals.intervals(in: ride).count == 1, "pause start is stored in compatible metadata")
+        expect(RidePauseIntervals.intervals(in: ride)[0].endedAtSeconds == nil, "open pause remains open until resume")
+        RidePauseIntervals.end(&ride, at: start + 6)
+        let interval = RidePauseIntervals.intervals(in: ride).first
+        expect(close(interval?.startedAtSeconds, to: start + 4), "pause start round-trips from milliseconds")
+        expect(close(interval?.endedAtSeconds, to: start + 6), "pause end round-trips from milliseconds")
+
+        let result = RidePerformanceAnalysis(ride: ride)
+        expect(result.gpsDistanceMeters == 0, "GPS interval crossing a short pause is not counted")
+        expect(result.movingSeconds == 0, "GPS interval crossing a short pause does not inflate moving time")
+
+        let segmentedPoints = [
+            gpsPoint(time: start, altitude: nil, longitude: 13.0),
+            gpsPoint(time: start + 3, altitude: nil, longitude: 13.0 + 30 / metersPerLongitudeDegree),
+            gpsPoint(time: start + 7, altitude: nil, longitude: 13.0 + 35 / metersPerLongitudeDegree),
+            gpsPoint(time: start + 10, altitude: nil, longitude: 13.0 + 60 / metersPerLongitudeDegree)
+        ]
+        var segmentedRide = ride
+        segmentedRide.points = segmentedPoints
+        let segmented = RidePerformanceAnalysis(ride: segmentedRide)
+        expect(segmented.gpsDistanceMeters > 50 && segmented.gpsDistanceMeters < 60, "GPS intervals before and after pause remain countable")
+        expect(close(segmented.movingSeconds, to: 6), "moving time excludes the paused interval")
     }
 
     private static func makeRide(

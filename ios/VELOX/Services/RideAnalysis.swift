@@ -18,6 +18,90 @@ struct RideSlopePoint: Equatable, Identifiable {
     let segmentID: Int
 }
 
+/// Pause intervals use the PWA JSON-v1 wire representation (Unix milliseconds)
+/// inside Ride.additionalFields so older archives remain lossless and compatible.
+struct RidePauseInterval: Equatable {
+    let startedAtSeconds: Double
+    let endedAtSeconds: Double?
+}
+
+enum RidePauseIntervals {
+    static func intervals(in ride: Ride) -> [RidePauseInterval] {
+        guard case .array(let items) = ride.additionalFields["pauseIntervals"] else { return [] }
+        return items.compactMap { item in
+            guard case .object(let fields) = item,
+                  case .number(let startMs)? = fields["startedAt"],
+                  startMs.isFinite, startMs > 0 else { return nil }
+            let endMs: Double?
+            if let rawEnd = fields["endedAt"] {
+                switch rawEnd {
+                case .null:
+                    endMs = nil
+                case .number(let value) where value.isFinite && value >= startMs:
+                    endMs = value
+                default:
+                    return nil
+                }
+            } else {
+                endMs = nil
+            }
+            return RidePauseInterval(
+                startedAtSeconds: startMs / 1_000,
+                endedAtSeconds: endMs.map { $0 / 1_000 }
+            )
+        }
+    }
+
+    static func begin(_ ride: inout Ride, at seconds: Double) {
+        guard seconds.isFinite, seconds > 0 else { return }
+        var items: [JSONValue]
+        if case .array(let existing) = ride.additionalFields["pauseIntervals"] {
+            items = existing
+        } else {
+            items = []
+        }
+        items.append(.object([
+            "startedAt": .number(seconds * 1_000),
+            "endedAt": .null
+        ]))
+        ride.additionalFields["pauseIntervals"] = .array(items)
+    }
+
+    static func end(_ ride: inout Ride, at seconds: Double) {
+        guard seconds.isFinite, seconds > 0,
+              case .array(var items) = ride.additionalFields["pauseIntervals"] else { return }
+        for index in items.indices.reversed() {
+            guard case .object(var fields) = items[index] else { continue }
+            let isOpen: Bool
+            if let end = fields["endedAt"] {
+                if case .null = end { isOpen = true } else { isOpen = false }
+            } else {
+                isOpen = true
+            }
+            guard isOpen else { continue }
+            fields["endedAt"] = .number(seconds * 1_000)
+            items[index] = .object(fields)
+            break
+        }
+        ride.additionalFields["pauseIntervals"] = .array(items)
+    }
+}
+
+/// Shared GPS route-distance policy used by live recording, analysis and archive.
+/// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
+/// A GPS interval accepted by the shared route-quality policy.
+struct RideRouteSegment: Equatable {
+    let startTimeSeconds: Double
+    let endTimeSeconds: Double
+    let distanceMeters: Double
+
+    var elapsedSeconds: Double { endTimeSeconds - startTimeSeconds }
+    var speedMetersPerSecond: Double {
+        guard elapsedSeconds > 0 else { return 0 }
+        return distanceMeters / elapsedSeconds
+    }
+}
+
 /// Shared GPS route-distance policy used by live recording, analysis and archive.
 /// Invalid fixes break continuity; gaps and implausible jumps are never bridged.
 enum RideRouteMetrics {
@@ -47,8 +131,10 @@ enum RideRouteMetrics {
         return distanceMeters <= allowedDistance
     }
 
-    static func distanceMeters(for points: [RidePoint]) -> Double {
-        var total = 0.0
+    /// Returns only accepted moving intervals. This is the single source of truth
+    /// for GPS distance, moving time and GPS-derived speed metrics.
+    static func acceptedSegments(for points: [RidePoint]) -> [RideRouteSegment] {
+        var result: [RideRouteSegment] = []
         var previous: RidePoint?
 
         for point in points {
@@ -96,16 +182,49 @@ enum RideRouteMetrics {
             }
 
             if segment >= minimumSegmentMeters {
-                total += segment
+                result.append(RideRouteSegment(
+                    startTimeSeconds: prior.t,
+                    endTimeSeconds: point.t,
+                    distanceMeters: segment
+                ))
                 previous = point
             }
             // Sub-metre jitter is ignored without moving the anchor, allowing
             // consecutive small movements to accumulate on slow technical climbs.
         }
 
+        return result
+    }
+
+    static func acceptedSegments(for ride: Ride) -> [RideRouteSegment] {
+        let start = ride.startedAt.isFinite ? ride.startedAt : 0
+        let latestGPS = ride.points.map(\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
+        let candidateEnd = ride.endedAt ?? ride.pauseStarted ?? latestGPS
+        let end = max(start, candidateEnd.isFinite ? candidateEnd : start)
+        let points = ride.points.filter {
+            $0.t.isFinite && $0.t >= start - 10 && $0.t <= end + 10
+        }
+        let pauses = RidePauseIntervals.intervals(in: ride)
+        return acceptedSegments(for: points).filter { segment in
+            !pauses.contains { pause in
+                let pauseEnd = pause.endedAtSeconds ?? .infinity
+                return pause.startedAtSeconds < segment.endTimeSeconds &&
+                    pauseEnd > segment.startTimeSeconds
+            }
+        }
+    }
+
+    static func distanceMeters(for points: [RidePoint]) -> Double {
+        let total = acceptedSegments(for: points).reduce(0) { $0 + $1.distanceMeters }
+        return total.isFinite ? total : 0
+    }
+
+    static func distanceMeters(for ride: Ride) -> Double {
+        let total = acceptedSegments(for: ride).reduce(0) { $0 + $1.distanceMeters }
         return total.isFinite ? total : 0
     }
 }
+
 struct RideElevationAnalysis: Equatable {
     enum Reference: String, Equatable {
         case gpsCalibrated = "GPS-kalibriert"
@@ -631,5 +750,94 @@ extension RideElevationAnalysis {
             trustedBaseline = sample
         }
         return (ascent, descent)
+    }
+}
+
+
+/// Performance metrics derived from immutable GPS and Watch observations.
+/// Missing sensor streams remain nil; no zero values are fabricated.
+struct RidePerformanceAnalysis: Equatable {
+    let elapsedSeconds: Double
+    let movingSeconds: Double
+    let gpsDistanceMeters: Double
+    let averageSpeedMetersPerSecond: Double?
+    let maximumSpeedMetersPerSecond: Double?
+    let gpsSegmentCount: Int
+
+    let averageHeartRateBPM: Double?
+    let maximumHeartRateBPM: Double?
+    let averageCadenceRPM: Double?
+    let maximumCadenceRPM: Double?
+    let averagePowerWatts: Double?
+    let maximumPowerWatts: Double?
+    let averageWatchSpeedMetersPerSecond: Double?
+    let maximumWatchSpeedMetersPerSecond: Double?
+    /// HealthKit statistics are cumulative; use the latest observation, never sum snapshots.
+    let activeEnergyKcal: Double?
+    let watchDistanceMeters: Double?
+    let watchSampleCount: Int
+
+    init(ride: Ride) {
+        let start = ride.startedAt.isFinite ? ride.startedAt : 0
+        let lastGPS = ride.points.map(\.t).filter { $0.isFinite && $0 > 0 }.max() ?? start
+        let candidateEnd = ride.endedAt ?? ride.pauseStarted ?? lastGPS
+        let effectiveEnd = max(start, candidateEnd.isFinite ? candidateEnd : start)
+        let rawWallDuration = effectiveEnd - start
+        let wallDuration = rawWallDuration.isFinite ? max(0, rawWallDuration) : 0
+        let pauseMilliseconds = ride.pausedMs ?? 0
+        let completedPauseSeconds = pauseMilliseconds.isFinite ? max(0, pauseMilliseconds / 1_000) : 0
+        elapsedSeconds = max(0, wallDuration - completedPauseSeconds)
+
+        let segments = RideRouteMetrics.acceptedSegments(for: ride)
+        let distance = segments.reduce(0) { $0 + $1.distanceMeters }
+        let measuredMovingSeconds = segments.reduce(0) { $0 + $1.elapsedSeconds }
+        let safeMovingSeconds = measuredMovingSeconds.isFinite ? max(0, measuredMovingSeconds) : 0
+        movingSeconds = min(elapsedSeconds, safeMovingSeconds)
+        let safeDistance = distance.isFinite ? distance : 0
+        gpsDistanceMeters = safeDistance
+        gpsSegmentCount = segments.count
+        let averageGPSspeed = movingSeconds > 0 ? safeDistance / movingSeconds : nil
+        averageSpeedMetersPerSecond = averageGPSspeed?.isFinite == true ? averageGPSspeed : nil
+        maximumSpeedMetersPerSecond = segments.map(\.speedMetersPerSecond).filter(\.isFinite).max()
+
+        let lowerBoundMs = max(0, (start - 10) * 1_000)
+        let upperBoundMs = (effectiveEnd + 10) * 1_000
+        let watchSamples = (ride.watchSamples ?? []).filter {
+            $0.rideID == ride.id &&
+            $0.isValidObservation() &&
+            Double($0.timestampMs) >= lowerBoundMs &&
+            Double($0.timestampMs) <= upperBoundMs
+        }
+        watchSampleCount = watchSamples.count
+
+        func values(_ kind: WatchSensorSample.Kind) -> [Double] {
+            watchSamples.filter { $0.kind == kind }.map(\.value)
+        }
+        func average(_ kind: WatchSensorSample.Kind) -> Double? {
+            let items = values(kind)
+            guard !items.isEmpty else { return nil }
+            let result = items.reduce(0, +) / Double(items.count)
+            return result.isFinite ? result : nil
+        }
+        func maximum(_ kind: WatchSensorSample.Kind) -> Double? {
+            values(kind).max()
+        }
+        func latest(_ kind: WatchSensorSample.Kind) -> Double? {
+            watchSamples
+                .filter { $0.kind == kind }
+                .max { $0.timestampMs < $1.timestampMs }?
+                .value
+        }
+
+        averageHeartRateBPM = average(.heartRateBPM)
+        maximumHeartRateBPM = maximum(.heartRateBPM)
+        averageCadenceRPM = average(.cadenceRPM)
+        maximumCadenceRPM = maximum(.cadenceRPM)
+        averagePowerWatts = average(.cyclingPowerWatts)
+        maximumPowerWatts = maximum(.cyclingPowerWatts)
+        averageWatchSpeedMetersPerSecond = average(.speedMetersPerSecond)
+        maximumWatchSpeedMetersPerSecond = maximum(.speedMetersPerSecond)
+        activeEnergyKcal = latest(.activeEnergyKcal)
+        watchDistanceMeters = latest(.distanceMeters)
     }
 }

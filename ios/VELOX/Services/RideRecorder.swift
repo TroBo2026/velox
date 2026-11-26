@@ -86,6 +86,7 @@ final class RideRecorder: NSObject, ObservableObject {
         let now = Date().timeIntervalSince1970
         ride.status = "paused"
         ride.pauseStarted = now
+        RidePauseIntervals.begin(&ride, at: now)
         currentRide = ride
         state = .paused
         message = "Tour pausiert. GPS und Barometer sind gestoppt; beim Fortsetzen beginnt eine neue Barometersitzung."
@@ -97,6 +98,7 @@ final class RideRecorder: NSObject, ObservableObject {
         let now = Date().timeIntervalSince1970
         if let pauseStarted = ride.pauseStarted {
             ride.pausedMs = (ride.pausedMs ?? 0) + max(0, (now - pauseStarted) * 1_000)
+            RidePauseIntervals.end(&ride, at: now)
         }
         ride.pauseStarted = nil
         ride.status = "recording"
@@ -113,7 +115,9 @@ final class RideRecorder: NSObject, ObservableObject {
         manager.stopUpdatingLocation()
         barometer.stop()
         if let pauseStarted = ride.pauseStarted {
-            ride.pausedMs = (ride.pausedMs ?? 0) + max(0, (Date().timeIntervalSince1970 - pauseStarted) * 1_000)
+            let now = Date().timeIntervalSince1970
+            ride.pausedMs = (ride.pausedMs ?? 0) + max(0, (now - pauseStarted) * 1_000)
+            RidePauseIntervals.end(&ride, at: now)
         }
         ride.pauseStarted = nil
         ride.endedAt = Date().timeIntervalSince1970
@@ -212,7 +216,7 @@ final class RideRecorder: NSObject, ObservableObject {
         )
         ride.points.append(point)
         currentRide = ride
-        distanceMeters = RideRouteMetrics.distanceMeters(for: ride.points)
+        distanceMeters = RideRouteMetrics.distanceMeters(for: ride)
         lastAccuracyMeters = location.horizontalAccuracy
         message = "Aufzeichnung aktiv · GPS ±\(Int(location.horizontalAccuracy.rounded())) m"
         persist(ride)

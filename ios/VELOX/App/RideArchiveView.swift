@@ -188,14 +188,14 @@ private struct RideDetailView: View {
     let ride: Ride
 
     private var analysis: RideElevationAnalysis { RideElevationAnalysis(ride: ride) }
+    private var performance: RidePerformanceAnalysis { RidePerformanceAnalysis(ride: ride) }
 
     private var durationSeconds: Double {
-        let end = ride.endedAt ?? ride.startedAt
-        return max(0, end - ride.startedAt - (ride.pausedMs ?? 0) / 1_000)
+        performance.elapsedSeconds
     }
 
     private var distanceMeters: Double {
-        RideRouteMetrics.distanceMeters(for: ride.points)
+        RideRouteMetrics.distanceMeters(for: ride)
     }
 
     private var watchCounts: [WatchCountRow] {
@@ -214,6 +214,31 @@ private struct RideDetailView: View {
                 LabeledContent("Dauer", value: durationText)
                 LabeledContent("GPS-Strecke", value: String(format: "%.2f km", distanceMeters / 1_000))
                 LabeledContent("GPS-Punkte", value: String(ride.points.count))
+            }
+            Section("ANALYZE · Leistung") {
+                LabeledContent("Gesamtzeit", value: formattedDuration(performance.elapsedSeconds))
+                LabeledContent("Bewegungszeit", value: formattedDuration(performance.movingSeconds))
+                LabeledContent("Ø Geschwindigkeit", value: formattedSpeed(performance.averageSpeedMetersPerSecond))
+                LabeledContent("Maximalgeschwindigkeit", value: formattedSpeed(performance.maximumSpeedMetersPerSecond))
+                LabeledContent("GPS-Abschnitte", value: String(performance.gpsSegmentCount))
+                LabeledContent("Herzfrequenz Ø / max.", value: pairedMetric(
+                    performance.averageHeartRateBPM, performance.maximumHeartRateBPM, unit: "bpm", digits: 0
+                ))
+                LabeledContent("Trittfrequenz Ø / max.", value: pairedMetric(
+                    performance.averageCadenceRPM, performance.maximumCadenceRPM, unit: "rpm", digits: 0
+                ))
+                LabeledContent("Leistung Ø / max.", value: pairedMetric(
+                    performance.averagePowerWatts, performance.maximumPowerWatts, unit: "W", digits: 0
+                ))
+                LabeledContent("Watch-Geschwindigkeit Ø / max.", value: pairedSpeed(
+                    performance.averageWatchSpeedMetersPerSecond, performance.maximumWatchSpeedMetersPerSecond
+                ))
+                LabeledContent("Aktive Energie", value: formattedMetric(performance.activeEnergyKcal, unit: "kcal", digits: 0))
+                LabeledContent("Watch-Distanz", value: formattedDistance(performance.watchDistanceMeters))
+                LabeledContent("Gültige Watch-Proben", value: String(performance.watchSampleCount))
+                Text("GPS-Geschwindigkeit basiert auf akzeptierten Streckenabschnitten. Watch-Distanz und aktive Energie sind kumulative HealthKit-Snapshots; sie werden nicht mit der GPS-Strecke addiert. Durchschnittswerte der Watch sind Mittelwerte der empfangenen Proben, keine kontinuierliche Messung.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Höhenanalyse") {
                 LabeledContent("Referenz", value: analysis.reference.rawValue)
@@ -253,8 +278,39 @@ private struct RideDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var durationText: String {
-        let total = Int(durationSeconds)
+    private func formattedDuration(_ seconds: Double) -> String {
+        guard seconds.isFinite else { return "Nicht verfügbar" }
+        let safeSeconds = min(max(0, seconds), Double(Int.max / 2))
+        let total = Int(safeSeconds.rounded(.down))
         return String(format: "%02d:%02d:%02d", total / 3_600, (total % 3_600) / 60, total % 60)
+    }
+
+    private func formattedMetric(_ value: Double?, unit: String, digits: Int) -> String {
+        guard let value, value.isFinite else { return "Nicht verfügbar" }
+        return String(format: "%.*f %@", digits, value, unit)
+    }
+
+    private func pairedMetric(_ average: Double?, _ maximum: Double?, unit: String, digits: Int) -> String {
+        guard average != nil || maximum != nil else { return "Nicht verfügbar" }
+        return "\(formattedMetric(average, unit: unit, digits: digits)) / \(formattedMetric(maximum, unit: unit, digits: digits))"
+    }
+
+    private func formattedSpeed(_ metersPerSecond: Double?) -> String {
+        guard let metersPerSecond else { return "Nicht verfügbar" }
+        return formattedMetric(metersPerSecond * 3.6, unit: "km/h", digits: 1)
+    }
+
+    private func pairedSpeed(_ average: Double?, _ maximum: Double?) -> String {
+        guard average != nil || maximum != nil else { return "Nicht verfügbar" }
+        return "\(formattedSpeed(average)) / \(formattedSpeed(maximum))"
+    }
+
+    private func formattedDistance(_ meters: Double?) -> String {
+        guard let meters else { return "Nicht verfügbar" }
+        return formattedMetric(meters / 1_000, unit: "km", digits: 2)
+    }
+
+    private var durationText: String {
+        formattedDuration(durationSeconds)
     }
 }
