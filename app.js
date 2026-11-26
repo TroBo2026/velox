@@ -17,6 +17,7 @@
   let currentPage = "home";
   let activeRide = null;
   let watchId = null;
+  let watchGeneration = 0;
   let timerId = null;
   let liveMetricsCache = null;
   let liveMetricsRideId = null;
@@ -547,12 +548,22 @@
     if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null;}
     const status=$("sensorWakeStatus");if(status)status.textContent="Nicht aktiv";
   }
+  function stopWatching(){
+    watchGeneration++;
+    if(watchId!==null)navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+  }
   function startWatching(){
     // iOS Safari kann den Geolocation-Watcher nach einem App-Wechsel aussetzen.
     // Vor einem Neustart den alten Watcher sicher entfernen, damit nie zwei parallel laufen.
-    if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+    stopWatching();
+    const generation=watchGeneration;
     try{
-      watchId=navigator.geolocation.watchPosition(onPosition,onGeoError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+      watchId=navigator.geolocation.watchPosition(
+        pos=>{if(generation===watchGeneration)return onPosition(pos,generation);},
+        err=>{if(generation===watchGeneration)onGeoError(err);},
+        {enableHighAccuracy:true,maximumAge:1000,timeout:20000}
+      );
     }catch(error){
       console.error("GPS-Watcher konnte nicht gestartet werden:",error);
       $("trackingStatus").textContent="GPS konnte nicht gestartet werden – Standortfreigabe prüfen";
@@ -580,7 +591,7 @@
     scheduleLiveClock();
     if(navigator.onLine&&!window.L)ensureLeaflet().then(restoreOnlineMaps);
   }
-    async function onPosition(pos){
+  async function onPosition(pos,generation){
     if(!activeRide||activeRide.status!=="recording")return;
     const c=pos.coords,timestamp=Number.isFinite(pos.timestamp)&&pos.timestamp>0?pos.timestamp:Date.now();
     if(!Number.isFinite(c.latitude)||!Number.isFinite(c.longitude)||c.latitude < -90||c.latitude > 90||c.longitude < -180||c.longitude > 180)return;
@@ -595,8 +606,13 @@
     // Häufige, gebündelte Checkpoints begrenzen den möglichen Datenverlust bei iOS-Safari-Unterbrechungen.
     if(activeRide.points.length===1||pointsSincePersist>=3||Date.now()-lastPersistAt>=3000){
       pointsSincePersist=0;lastPersistAt=Date.now();
-      try{await persistActiveRide();}catch(error){console.error("GPS-Punkte konnten nicht dauerhaft gespeichert werden:",error);$("trackingStatus").textContent="Speicherfehler – Tourdaten prüfen";showToast("Lokales Speichern fehlgeschlagen.");return;}
+      try{await persistActiveRide();}catch(error){
+        console.error("GPS-Punkte konnten nicht dauerhaft gespeichert werden:",error);
+        if(generation===watchGeneration)$("trackingStatus").textContent="Speicherfehler – Tourdaten prüfen";
+        showToast("Lokales Speichern fehlgeschlagen.");return;
+      }
     }
+    if(generation!==watchGeneration)return;
     $("trackingStatus").textContent="Aufzeichnung läuft";$("trackingDot").style.background="var(--teal)";
     $("gpsAccuracy").textContent=Number.isFinite(c.accuracy)?"GPS ±"+Math.round(c.accuracy)+" m":"GPS-Genauigkeit nicht gemeldet";
     updateSensorStatus(point);drawLive(activeRide.points);updateLive(false);
@@ -670,13 +686,13 @@
     const mapCaption=$("liveMapCaption");if(mapCaption)mapCaption.textContent="GPS-STRECKENVERLAUF";
   }
   async function pauseRide(){
-    if(!activeRide)return;
+    if(!activeRide||activeRide.status==="completed")return;
     if(activeRide.status==="recording"){
       const pauseAt=Date.now();
       if(!Array.isArray(activeRide.pauseIntervals))activeRide.pauseIntervals=[];
       activeRide.pauseIntervals.push({startedAt:pauseAt,endedAt:null});
       activeRide.status="paused";activeRide.pauseStarted=pauseAt;
-      if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
+      stopWatching();
       releaseWakeLock();
       $("pauseRide").textContent="Fortsetzen";$("trackingStatus").textContent="Pausiert";
     }else{
@@ -687,7 +703,7 @@
       startWatching();acquireWakeLock();
       $("pauseRide").textContent="Pause";$("trackingStatus").textContent="Aufzeichnung läuft";
     }
-    try{await dbRequest("readwrite","put",activeRide);}catch(error){console.error(error);showToast("Speichern fehlgeschlagen.");}
+    try{await persistActiveRide();}catch(error){console.error(error);showToast("Speichern fehlgeschlagen.");}
     updateLive(true);
   }
 
@@ -764,10 +780,10 @@
       activeRide.pausedMs=(activeRide.pausedMs||0)+(resumedAt-(activeRide.pauseStarted||resumedAt));
       delete activeRide.pauseStarted;
     }
-    if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
+    stopWatching();
     if(timerId!==null)clearTimeout(timerId);timerId=null;
     releaseWakeLock();
-    activeRide.status="completed";activeRide.endedAt=Date.now();
+    activeRide.status="completed";activeRide.endedAt??=Date.now();
     const c=calcRide(activeRide);
     $("stopRide").disabled=true;$("pauseRide").disabled=true;
     $("trackingStatus").textContent="Aktivität wird lokal gesichert …";
@@ -779,7 +795,7 @@
     }catch(error){
       console.error(error);
       activeRide.status="completed";
-      try{await dbRequest("readwrite","put",activeRide);}catch(saveError){showToast("Speichern fehlgeschlagen. Bitte VELOX geöffnet lassen und erneut versuchen.");console.error(saveError);$("stopRide").disabled=false;return;}
+      try{await persistActiveRide();}catch(saveError){showToast("Speichern fehlgeschlagen. Bitte VELOX geöffnet lassen und erneut versuchen.");console.error(saveError);$("stopRide").disabled=false;return;}
     }
     activeRide=null;calcCache.clear();
     liveMetricsCache=null;liveMetricsRideId=null;syncTrackStartButton();

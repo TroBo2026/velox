@@ -68,11 +68,22 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(els.liveSpeedLabel.textContent==="Geschwindigkeit"&&els.liveAverageLabel.textContent==="Ø Geschwindigkeit"&&els.liveDurationLabel.textContent==="Fahrzeit","Fahrrad-Live-Bezeichnungen");
  ok(els.trackingStatus.textContent==="Aufzeichnung läuft","Status: "+els.trackingStatus.textContent);
  ok(els.sensorWakeStatus.textContent==="Bildschirm bleibt an","Wake Lock: "+els.sensorWakeStatus.textContent);
+ // Der GPS-Checkpoint wartet in der Schreibwarteschlange, während die Pause beginnt.
+ const oldWatch=geoCbs.ok;
+ const nextFix={timestamp:t+1000,coords:{latitude:LAT,longitude:13.7+(d+5)*M_LON,accuracy:5,altitude:215,altitudeAccuracy:6,speed:5}};
+ const checkpoint=oldWatch(nextFix);
+ await els.pauseRide.listeners.click[0]();
+ await checkpoint;
+ const activeInDB=()=>[...data.values()].find(r=>String(r.id).startsWith("ride-"));
+ ok(activeInDB()?.status==="paused"&&activeInDB()?.points.length===121,"Pause bleibt nach ausstehendem GPS-Checkpoint gespeichert");
+ ok(els.trackingStatus.textContent==="Pausiert","Ausstehender GPS-Checkpoint überschreibt Pausenstatus nicht");
+ await els.pauseRide.listeners.click[0]();
+ await oldWatch({...nextFix,timestamp:t+2000});
  // Tour beenden: Bestätigung "stop", Wetter "skip"
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
  ok(data.size===5&&data.has("legacy-run"),"Neue Fahrradtour gespeichert; vorhandener Legacy-Datensatz bleibt erhalten ("+data.size+" in DB)");
  const saved=[...data.values()].find(r=>String(r.id).startsWith("ride-"));
- ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===120&&saved.points[5].speed===5,"Fahrradaktivität vollständig gespeichert");
+ ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===121&&saved.points[5].speed===5,"Fahrradaktivität vollständig gespeichert, verspäteter Callback des alten GPS-Watchers verworfen");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const same=(a,b)=>Math.abs(a-b)<1e-6;
  ok(same(pro.distanceM,core.distanceM)&&same(pro.movingSeconds,core.movingSeconds),"Pro = Detail: Distanz/Fahrzeit ("+(pro.distanceM/1000).toFixed(3)+" km)");
