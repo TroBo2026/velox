@@ -59,7 +59,7 @@
     // Liefert das Gerät nie eine Doppler-Geschwindigkeit ≥ 1 m/s, sind die Werte (z. B. dauerhaft 0) nicht vertrauenswürdig.
     const dopplerUsable = points.some((p) => p && finite(p.speed) && p.speed >= 1);
     for (let i = 0; i < points.length; i++) {
-      if (!validPoint(points[i])) { rejected.invalid++; run++; continue; }
+      if (!validPoint(points[i])) { rejected.invalid++; run++; if (hasMoving && firstGapAfterFirst === Infinity) firstGapAfterFirst = i; continue; }
       if (i === 0 || !validPoint(points[i - 1])) continue;
       if (overlapsPause(points[i - 1].t, points[i].t)) {
         const pauseGap = { kind: "gap", reason: "pause", durationS: 0 };
@@ -215,6 +215,7 @@
 
   /* Splits über die kumulierte gültige Fahrstrecke (ein Split = genau splitM Meter, der letzte ggf. kürzer). */
   function splits(intervals, splitM) {
+    if (!finite(splitM) || splitM <= 0) return [];
     const out = new Map();
     let cursor = 0;
     for (const seg of intervals) {
