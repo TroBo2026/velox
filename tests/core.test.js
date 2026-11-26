@@ -194,4 +194,13 @@ test("Ungültige Split-Längen werden abgelehnt", () => {
   for (const size of [0, -1, NaN, Infinity]) assert.deepEqual(Core.splits(intervals, size), []);
 });
 
+test("Ältere Pause-Felder werden einheitlich berücksichtigt", () => {
+  const ride = makeRide({ lengthM: 1000, hNoise: 0.1 });
+  const pauses = [{ startedAt: ride.points[50].t + 100, endedAt: ride.points[51].t - 100 }];
+  const a = Core.analyze({ ...ride, pauses });
+  const b = Core.analyze({ ...ride, pauseIntervals: pauses });
+  assert.equal(a.distanceM, b.distanceM);
+  assert.equal(a.rejected.pause, 1);
+  assert.deepEqual(a.stops, b.stops);
+});
 console.log(`\n${passed} Tests bestanden`);
