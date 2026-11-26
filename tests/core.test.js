@@ -181,4 +181,26 @@ test("leere und kaputte Eingaben stürzen nicht ab", () => {
   assert.equal(Core.analyze({}).distanceM, 0);
 });
 
+test("Ungültiger GPS-Punkt trennt die Geradlinigkeitsanalyse", () => {
+  const ride = makeRide({ lengthM: 1000, hNoise: 0.1 });
+  ride.points[50].lat = NaN;
+  const r = Core.analyze(ride);
+  assert.equal(r.routeStraightness, null);
+  assert.equal(r.straightDistanceM, null);
+  assert.ok(r.rejected.invalid > 0);
+});
+test("Ungültige Split-Längen werden abgelehnt", () => {
+  const intervals = [{ distanceM: 100, durationS: 20 }];
+  for (const size of [0, -1, NaN, Infinity]) assert.deepEqual(Core.splits(intervals, size), []);
+});
+
+test("Ältere Pause-Felder werden einheitlich berücksichtigt", () => {
+  const ride = makeRide({ lengthM: 1000, hNoise: 0.1 });
+  const pauses = [{ startedAt: ride.points[50].t + 100, endedAt: ride.points[51].t - 100 }];
+  const a = Core.analyze({ ...ride, pauses });
+  const b = Core.analyze({ ...ride, pauseIntervals: pauses });
+  assert.equal(a.distanceM, b.distanceM);
+  assert.equal(a.rejected.pause, 1);
+  assert.deepEqual(a.stops, b.stops);
+});
 console.log(`\n${passed} Tests bestanden`);

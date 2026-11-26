@@ -59,7 +59,7 @@
     // Liefert das Gerät nie eine Doppler-Geschwindigkeit ≥ 1 m/s, sind die Werte (z. B. dauerhaft 0) nicht vertrauenswürdig.
     const dopplerUsable = points.some((p) => p && finite(p.speed) && p.speed >= 1);
     for (let i = 0; i < points.length; i++) {
-      if (!validPoint(points[i])) { rejected.invalid++; run++; continue; }
+      if (!validPoint(points[i])) { rejected.invalid++; run++; if (hasMoving && firstGapAfterFirst === Infinity) firstGapAfterFirst = i; continue; }
       if (i === 0 || !validPoint(points[i - 1])) continue;
       if (overlapsPause(points[i - 1].t, points[i].t)) {
         const pauseGap = { kind: "gap", reason: "pause", durationS: 0 };
@@ -215,6 +215,7 @@
 
   /* Splits über die kumulierte gültige Fahrstrecke (ein Split = genau splitM Meter, der letzte ggf. kürzer). */
   function splits(intervals, splitM) {
+    if (!finite(splitM) || splitM <= 0) return [];
     const out = new Map();
     let cursor = 0;
     for (const seg of intervals) {
@@ -237,7 +238,8 @@
   function analyze(ride, options) {
     const opts = options || {};
     const points = Array.isArray(ride && ride.points) ? ride.points : [];
-    const s = scan(points, opts.pauses || (ride && ride.pauseIntervals));
+    const pauses = opts.pauses || (ride && (ride.pauseIntervals || ride.pauses));
+    const s = scan(points, pauses);
     const profile = buildElevation(points, s.cls);
     const series = gradeSeries(profile.samples);
     const grades = gradeStats(series);
@@ -285,7 +287,7 @@
       /* Höhengewinn je Fahrstunde (kein klassisches VAM, das nur Anstiege zählt). */
       climbPerHour: movingSeconds > 0 ? profile.gain / (movingSeconds / 3600) : null,
       maxFromStartM, straightDistanceM, routeStraightness,
-      stops: stopStats(points, s.cls, opts.pauses || (ride && (ride.pauses || ride.pauseIntervals))),
+      stops: stopStats(points, s.cls, pauses),
       rejected: s.rejected, gapSeconds: s.gapSeconds, stoppedGpsSeconds: s.stoppedGpsSeconds
     };
   }
