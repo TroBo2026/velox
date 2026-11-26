@@ -238,7 +238,8 @@
   function analyze(ride, options) {
     const opts = options || {};
     const points = Array.isArray(ride && ride.points) ? ride.points : [];
-    const s = scan(points, opts.pauses || (ride && ride.pauseIntervals));
+    const pauses = opts.pauses || (ride && (ride.pauseIntervals || ride.pauses));
+    const s = scan(points, pauses);
     const profile = buildElevation(points, s.cls);
     const series = gradeSeries(profile.samples);
     const grades = gradeStats(series);
@@ -286,7 +287,7 @@
       /* Höhengewinn je Fahrstunde (kein klassisches VAM, das nur Anstiege zählt). */
       climbPerHour: movingSeconds > 0 ? profile.gain / (movingSeconds / 3600) : null,
       maxFromStartM, straightDistanceM, routeStraightness,
-      stops: stopStats(points, s.cls, opts.pauses || (ride && (ride.pauses || ride.pauseIntervals))),
+      stops: stopStats(points, s.cls, pauses),
       rejected: s.rejected, gapSeconds: s.gapSeconds, stoppedGpsSeconds: s.stoppedGpsSeconds
     };
   }
