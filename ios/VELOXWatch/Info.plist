@@ -18,8 +18,6 @@
     <true/>
     <key>WKCompanionAppBundleIdentifier</key>
     <string>app.velox.ride</string>
-    <key>WKWatchKitApp</key>
-    <true/>
     <key>NSHealthShareUsageDescription</key>
     <string>VELOX liest während einer ausdrücklich gestarteten Fahrradtour Herzfrequenz, Distanz und aktive Energie aus HealthKit für die Tourenanalyse.</string>
     <key>NSHealthUpdateUsageDescription</key>
