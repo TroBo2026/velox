@@ -70,6 +70,36 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Launch iPhone and Watch apps in Simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          launch_app() {
+            local platform="$1" app="$2" bundle="$3" device
+            device="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          prefix = "com.apple.CoreSimulator.SimRuntime." + sys.argv[1] + "-"
+          devices = json.load(sys.stdin)["devices"]
+          for runtime in reversed(list(devices)):
+              if runtime.startswith(prefix):
+                  for device in devices[runtime]:
+                      if device["isAvailable"] and device["name"].startswith(sys.argv[2]):
+                          print(device["udid"])
+                          sys.exit(0)
+          sys.exit("No available simulator for " + sys.argv[1])
+          ' "$platform" "$4")"
+            xcrun simctl bootstatus "$device" -b
+            xcrun simctl install "$device" "$app"
+            xcrun simctl launch "$device" "$bundle"
+            sleep 3
+            xcrun simctl terminate "$device" "$bundle"
+            xcrun simctl shutdown "$device"
+          }
+
+          launch_app iOS "$RUNNER_TEMP/VELOX-DerivedData/Build/Products/Debug-iphonesimulator/VELOX.app" app.velox.ride iPhone
+          launch_app watchOS "$RUNNER_TEMP/VELOX-Watch-DerivedData/Build/Products/Debug-watchsimulator/VELOXWatch.app" app.velox.ride.watchkitapp "Apple Watch"
+
       - name: Validate elevation analysis
         run: |
           set -o pipefail
