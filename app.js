@@ -39,7 +39,8 @@
   let personalHeatLayer = null;
   let personalHeatVisible = false;
   const personalVisibility = new Map();
-  const mapColors = ["#5bd6c5","#e7bd75","#8ca8ff","#d98ce8","#ff8e80","#8fd18b","#f0a75b","#7bd1e8"];
+  const routeColor = "#3d5ded";
+  const mapColors = [routeColor,"#a85512","#9836b3","#bd354e","#16746a","#71631c","#1680ac","#a34269"];
   let toastTimer = null;
   let saveQueue = Promise.resolve();
   let wakeLock = null;
@@ -268,9 +269,14 @@
     const paths=segments.map(segment=>segment.length>1?'<polyline points="'+segment.map(p=>project(p).join(",")).join(" ")+'"/>':"").join("");
     const a=project(all[0]),b=project(all[all.length-1]);
     host.innerHTML='<div class="offline-map-wrap"><svg class="offline-route-svg" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Offline-Streckenansicht der aufgezeichneten GPS-Route">'+
-      '<g class="offline-map-grid">'+grid.join("")+'</g><g class="offline-route-lines">'+paths+'</g>'+
+      '<g class="offline-map-grid">'+grid.join("")+'</g><g class="offline-route-outline">'+paths+'</g><g class="offline-route-lines">'+paths+'</g>'+
       '<circle class="offline-route-start" cx="'+a[0]+'" cy="'+a[1]+'" r="7"/><circle class="offline-route-end" cx="'+b[0]+'" cy="'+b[1]+'" r="7"/></svg>'+
       '<span class="offline-map-caption">Offline-Streckenansicht · '+all.length+' GPS-Punkte</span></div>';
+  }
+  function addRouteLine(map,coords,color=routeColor){
+    const outline=L.polyline(coords,{color:"#fff",weight:9,interactive:false}).addTo(map);
+    const line=L.polyline(coords,{color,weight:5,interactive:false}).addTo(map);
+    return [outline,line];
   }
   function initMap(elementId,center=[51.05,13.74],options={}){
     if(!window.L)return null;
@@ -298,14 +304,14 @@
       liveLines=[];
       validRouteSegments(points).forEach(segment=>{
         const coords=segment.map(point=>[point.lat,point.lon]);
-        if(coords.length>1)liveLines.push(L.polyline(coords,{color:"#5bd6c5",weight:5,opacity:.95,lineCap:"round",lineJoin:"round"}).addTo(liveMap));
+        if(coords.length>1)liveLines.push(...addRouteLine(liveMap,coords));
       });
     }
     const last=lastValid(points);
     if(last){
       const coordinate=[last.lat,last.lon];
       if(liveMarker)liveMarker.setLatLng(coordinate);
-      else liveMarker=L.circleMarker(coordinate,{radius:7,color:"#07131f",weight:3,fillColor:"#5bd6c5",fillOpacity:1}).addTo(liveMap);
+      else liveMarker=L.circleMarker(coordinate,{radius:7,color:"#fff",weight:3,fillColor:routeColor,fillOpacity:1}).addTo(liveMap);
       if(followLive)liveMap.setView(coordinate,Math.max(liveMap.getZoom(),15),{animate:false});
     }
   }
@@ -343,9 +349,10 @@
     if(routeSegments.length){
       const bounds=[];
       routeSegments.forEach((segment,index)=>{
-        const line=L.polyline(segment.map(p=>[p.lat,p.lon]),{color:"#5bd6c5",weight:5,opacity:.95,lineCap:"round",lineJoin:"round"}).addTo(detailMap);
-        line.getLatLngs().forEach(point=>bounds.push(point));
-        if(index===0)L.circleMarker([segment[0].lat,segment[0].lon],{radius:6,color:"#07131f",weight:2,fillColor:"#5bd6c5",fillOpacity:1}).addTo(detailMap).bindPopup("Start des aufgezeichneten Abschnitts");
+        const coords=segment.map(p=>[p.lat,p.lon]);
+        addRouteLine(detailMap,coords);
+        coords.forEach(point=>bounds.push(point));
+        if(index===0)L.circleMarker([segment[0].lat,segment[0].lon],{radius:6,color:"#fff",weight:2,fillColor:routeColor,fillOpacity:1}).addTo(detailMap).bindPopup("Start des aufgezeichneten Abschnitts");
       });
       const last=routeSegments[routeSegments.length-1].at(-1);
       L.circleMarker([last.lat,last.lon],{radius:6,color:"#07131f",weight:2,fillColor:"#d9b879",fillOpacity:1}).addTo(detailMap).bindPopup("Ende des aufgezeichneten Abschnitts");
@@ -361,10 +368,9 @@
     if(currentPage==="track")await ensureTrackMap();
     if(currentPage==="detail"&&lastDetailRide&&window.L)drawDetailMap(lastDetailRide);
   }
-  function setDetailHover(x){
+  function setDetailHover(row){
     if(!detailMap||!window.L)return;
-    if(x===null||!detailRows.length){if(detailHoverMarker){detailMap.removeLayer(detailHoverMarker);detailHoverMarker=null;}return;}
-    const row=detailRows[Charts.nearestIndex(detailRows,x)];
+    if(!row){if(detailHoverMarker){detailMap.removeLayer(detailHoverMarker);detailHoverMarker=null;}return;}
     if(!row||!Number.isFinite(row.lat)||!Number.isFinite(row.lon))return;
     if(detailHoverMarker)detailHoverMarker.setLatLng([row.lat,row.lon]);
     else detailHoverMarker=L.circleMarker([row.lat,row.lon],{radius:8,color:"#ffffff",weight:3,fillColor:"#e7bd75",fillOpacity:1}).addTo(detailMap);
@@ -446,9 +452,9 @@
       const layers=[];
       segments.forEach(segment=>{
         if(segment.length<2)return;
-        const line=L.polyline(segment.map(point=>[point.lat,point.lon]),{color,weight:4,opacity:.82,lineCap:"round",lineJoin:"round"}).addTo(personalMap);
-        layers.push(line);
-        line.getLatLngs().forEach(point=>bounds.push(point));
+        const coords=segment.map(point=>[point.lat,point.lon]);
+        layers.push(...addRouteLine(personalMap,coords,color));
+        coords.forEach(point=>bounds.push(point));
       });
       personalLines.set(String(ride.id),layers);
     });
@@ -847,9 +853,10 @@
       '</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">HÖHENPROFIL</span><h3>Höhenverlauf</h3><div class="chart-box" id="elevationChart"></div><p>GPS-Höhenqualität: '+gpsQuality+(Number.isFinite(c.elevationAccuracy)?' · Median der gemeldeten GPS-Höhengenauigkeit: '+fmt(c.elevationAccuracy)+' m':' · Keine durchgängige Genauigkeitsangabe')+'. Höhenmeter werden gefiltert und nicht als Barometer-Messung ausgegeben.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">'+"FAHRTEMPO"+'</span><h3>'+"Geschwindigkeit über die Strecke"+'</h3><div class="chart-box" id="speedChart"></div><div class="metric-grid detail-metrics">'+speedCards+'</div></div></section>'+
+      '<section class="detail-section panel detail-panel"><h3>Tempo je Streckenabschnitt</h3><label class="split-control" for="rideSplitLength">Abschnittslänge <select id="rideSplitLength"><option value="1000">1 km</option><option value="5000">5 km</option><option value="10000">10 km</option></select></label><div id="rideSplitChart"></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">GELÄNDE</span><h3>Steigungsprofil</h3><div class="chart-box" id="gradeChart"></div><div class="metric-grid detail-metrics">'+elevationCards+'</div>'+renderRideBreakdowns(c)+'</div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ROUTE</span><h3>Entfernung und Streckenform</h3><div class="metric-grid detail-metrics">'+routeCards+'</div><p>Geradlinigkeit wird nur angezeigt, wenn die Route ohne GPS-Lücken aufgezeichnet wurde. Bei einer Rundtour liegt sie naturgemäß nahe 0 %.</p></div></section>'+
-      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ZEIT & AUFZEICHNUNG</span><h3>Bewegungs- und Standzeiten</h3><div class="metric-grid detail-metrics">'+timeCards+'</div><p>Bewegungszeit wird aus akzeptierten GPS-Intervallen berechnet. Ein Stopp zählt ab 10 Sekunden Stillstand (unter 1,5 km/h oder laut GPS-Geschwindigkeit stehend); GPS-Lücken werden nicht als Stopp gewertet, sind aber in der Stand- und Lückenzeit enthalten. Die Erkennung ist eine GPS-Näherung.</p></div></section>'+
+      '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">ZEIT & AUFZEICHNUNG</span><h3>Bewegungs- und Standzeiten</h3>'+renderTimeDistribution(c)+'<div class="metric-grid detail-metrics">'+timeCards+'</div><p>Bewegungszeit wird aus akzeptierten GPS-Intervallen berechnet. Ein Stopp zählt ab 10 Sekunden Stillstand (unter 1,5 km/h oder laut GPS-Geschwindigkeit stehend); GPS-Lücken werden nicht als Stopp gewertet, sind aber in der Stand- und Lückenzeit enthalten. Die Erkennung ist eine GPS-Näherung.</p></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel"><span class="eyebrow">DATENQUELLEN & SENSORSTATUS</span><h3>Was wurde tatsächlich gemessen?</h3><div class="detail-source-list"><div><span>GPS-Positionen</span><strong>'+r.points.length+' gespeicherte Punkte</strong></div><div><span>GPS-Höhe</span><strong>'+c.elevationProfile.validCount+' verwertbare Höhenpunkte</strong></div><div><span>Barometer</span><strong>Keine nativen Barometerdaten in dieser Aktivität</strong></div><div><span>Kompass / Magnetometer</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Gyroskop / Beschleunigung</span><strong>Nicht in dieser PWA-Aufzeichnung gespeichert</strong></div><div><span>Herzfrequenz / Leistung / Kadenz</span><strong>Keine Datenquelle vorhanden</strong></div></div><p>Das iPhone XR besitzt zusätzliche Sensorhardware. Safari/PWA kann sie jedoch nicht wie eine native iOS-App vollständig über Core Motion auslesen. VELOX zeigt daher nur Daten, die wirklich in dieser Tour gespeichert wurden.</p></div></section>'+
       '<div class="tracking-actions"><button class="secondary-button" id="renameRide">Umbenennen</button><button class="secondary-button" id="exportGpx">GPX exportieren</button><button class="danger-outline" id="deleteRide">Aktivität löschen</button></div>';
     setPage("detail");
@@ -861,6 +868,8 @@
       renderGradeProfile(c);
       if(navigator.onLine&&!window.L)ensureLeaflet().then(restoreOnlineMaps);
     },180);
+    renderSplitChart(c,1000);
+    $("rideSplitLength").addEventListener("change",event=>renderSplitChart(c,Number(event.target.value)));
     $("exportGpx").onclick=()=>exportGPX(r);
     $("renameRide").onclick=async()=>{
       const result=await openSheet({title:"Fahrradtour umbenennen",body:'<label class="vx-field">Name<input name="name" type="text" maxlength="80" required value="'+escapeHtml(r.name||"Fahrradtour")+'"></label>',actions:[{id:"save",label:"Speichern",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
@@ -898,7 +907,7 @@
       bands:climb?[{from:climb.startM,to:climb.endM,label:"Längster Anstieg"}]:[],
       colorAt:(a,b)=>{const g=nearRow(gradeRows,(a.x+b.x)/2,60);return g?Charts.gradeColor(g.y):"#8fa6b8";},
       tooltip:(row)=>{const g=nearRow(gradeRows,row.x,60);return [["Distanz",fmt(row.x/1000,2)+" km"],["Höhe",Math.round(row.y)+" m"],["Steigung",g?gradeLabel(g.y):"–"]];},
-      onHover:(row)=>setDetailHover(row?row.x:null),
+      onHover:setDetailHover,
       ariaLabel:"Höhenprofil über "+fmt(p.distanceM/1000,1)+" Kilometer, Höhenbereich "+Math.round(p.minimum)+" bis "+Math.round(p.maximum)+" Meter."
     });
   }
@@ -909,7 +918,7 @@
       box.innerHTML='<div class="empty-state">Für die Steigungsanalyse liegen nicht genügend verlässliche Höhenabschnitte vor.</div>';
       return;
     }
-    const limit=Math.max(4,Math.ceil(Math.max(...rows.map(x=>Math.abs(x.y)))/2)*2);
+    const limit=Math.max(4,Math.ceil(rows.reduce((max,row)=>Math.max(max,Math.abs(row.y)),0)/2)*2);
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Steigung <strong>'+fmt(c.gradeAverage)+' %</strong></span><span class="elevation-stat">Max. Anstieg <strong>+'+fmt(Math.max(0,c.gradeMax))+' %</strong></span><span class="elevation-stat">Max. Gefälle <strong>'+fmt(Math.abs(Math.min(0,c.gradeMin)))+' %</strong></span></div>'+
       '<div class="vx-plot" id="gradePlot"></div>'+
       '<div class="grade-profile-legend"><span><i class="grade-up"></i>Anstieg</span><span><i class="grade-flat"></i>Flach</span><span><i class="grade-down"></i>Gefälle</span></div>'+
@@ -919,7 +928,7 @@
       yFormat:(v)=>fmt(v,0),
       colorAt:(a,b)=>Charts.gradeColor((a.y+b.y)/2),
       tooltip:(row)=>[["Distanz",fmt(row.x/1000,2)+" km"],["Steigung",gradeLabel(row.y)],["Höhe",Math.round(row.elevationM)+" m"]],
-      onHover:(row)=>setDetailHover(row?row.x:null),
+      onHover:row=>setDetailHover(row?nearRow(detailRows,row.x,60):null),
       ariaLabel:"Steigungsprofil, durchschnittlich "+fmt(c.gradeAverage)+" Prozent."
     });
   }
@@ -928,12 +937,12 @@
     c.intervals.forEach(it=>{
       distance+=it.distanceM;
       if(!runs.has(it.run))runs.set(it.run,[]);
-      runs.get(it.run).push({x:distance,speed:it.speedKmh,run:it.run});
+      runs.get(it.run).push({x:distance,speed:it.speedKmh,run:it.run,lat:it.to.lat,lon:it.to.lon});
     });
     const out=[];
     runs.forEach(list=>list.forEach((s,i)=>{
       const w=list.slice(Math.max(0,i-2),Math.min(list.length,i+3)).map(v=>v.speed).sort((a,b)=>a-b);
-      out.push({x:s.x,y:w[Math.floor(w.length/2)],segment:s.run});
+      out.push({x:s.x,y:w[Math.floor(w.length/2)],segment:s.run,lat:s.lat,lon:s.lon});
     }));
     return out.sort((a,b)=>a.x-b.x);
   }
@@ -943,13 +952,43 @@
     if(!Charts||rows.length<3){box.innerHTML='<div class="empty-state">Nicht genügend verlässliche GPS-Punkte für ein Geschwindigkeitsprofil vorhanden.</div>';return;}
     const sorted=rows.map(r=>r.y).sort((x,y)=>x-y),lo=sorted[Math.floor((sorted.length-1)*.1)]||0,hi=sorted[Math.floor((sorted.length-1)*.9)]||1;
     const color=v=>{const t=hi>lo?Math.max(0,Math.min(1,(v-lo)/(hi-lo))):.5;return "hsl("+(8+214*t).toFixed(0)+" 72% 62%)";};
-    const gaps=new Set(rows.map(r=>r.segment)).size-1,peak=Math.max(...rows.map(r=>r.y));
+    const gaps=new Set(rows.map(r=>r.segment)).size-1,peak=rows.reduce((max,row)=>Math.max(max,row.y),0);
     box.innerHTML='<div class="elevation-summary"><span class="elevation-stat">Ø Geschwindigkeit <strong>'+fmt(c.averageSpeed)+' km/h</strong></span><span class="elevation-stat">Spitze (geglättet) <strong>'+fmt(peak)+' km/h</strong></span><span class="elevation-stat">Median <strong>'+fmt(c.medianSpeed)+' km/h</strong></span></div>'+
-      '<div class="vx-plot" id="speedPlot"></div><div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zu dieser Tour</span></div>'+
+      '<div class="vx-plot" id="speedPlot"></div><p class="elevation-footnote">Gestrichelte Linie: Ø während der Bewegung.</p><div class="elevation-legend"><span>Langsamer</span><i aria-hidden="true"></i><span>Schneller</span><span class="legend-context">Farbe relativ zu dieser Tour</span></div>'+
       '<p class="elevation-footnote">'+c.intervals.length+' gültige GPS-Bewegungsintervalle'+(gaps>0?', '+gaps+' GPS-Lücke(n) werden nicht überbrückt':'')+'. Die Kurve zeigt den Median über 5 Intervalle; einzelne GPS-Ausreißer werden dadurch gedämpft.</p>';
-    Charts.profileChart($("speedPlot"),{rows,xMax:Math.max(1,c.elevationProfile.distanceM||rows[rows.length-1].x),yTitle:"km/h",unit:"km/h",height:180,yMin:0,snapMin:true,minPad:2,colorAt:(x,y)=>color((x.y+y.y)/2),
+    Charts.profileChart($("speedPlot"),{rows,xMax:Math.max(1,c.elevationProfile.distanceM||rows[rows.length-1].x),yTitle:"km/h",unit:"km/h",height:180,yMin:0,snapMin:true,minPad:2,reference:c.averageSpeed,colorAt:(x,y)=>color((x.y+y.y)/2),
       tooltip:row=>{const e=nearRow(detailRows,row.x,60);return [["Distanz",fmt(row.x/1000,2)+" km"],["Tempo",fmt(row.y)+" km/h"]].concat(e?[["Höhe",Math.round(e.y)+" m"]]:[]);},
-      onHover:row=>setDetailHover(row?row.x:null),ariaLabel:"Geschwindigkeitsprofil, durchschnittlich "+fmt(c.averageSpeed)+" Kilometer pro Stunde."});
+      onHover:setDetailHover,ariaLabel:"Geschwindigkeitsprofil, durchschnittlich "+fmt(c.averageSpeed)+" Kilometer pro Stunde."});
+  }
+  function renderSplitChart(c,length){
+    const box=$("rideSplitChart");
+    const splits=Core.splits(c.intervals,[1000,5000,10000].includes(length)?length:1000);
+    if(!splits.length){
+      $("rideSplitLength").disabled=true;
+      box.innerHTML='<p class="empty-state">Keine auswertbaren Bewegungsabschnitte.</p>';
+      return;
+    }
+    const max=splits.reduce((value,split)=>Math.max(value,split.averageSpeed),1);
+    box.innerHTML='<ol class="split-chart" aria-label="Durchschnittstempo während der Bewegung je Abschnitt">'+splits.map(split=>
+      '<li class="split-row"><span>Abschnitt '+split.number+' <small>'+fmt(split.distanceM/1000,2)+' km'+(split.complete?'':' · Rest')+'</small></span>'+
+      '<span class="split-track" aria-hidden="true"><i style="width:'+split.averageSpeed/max*100+'%"></i></span>'+
+      '<strong>'+fmt(split.averageSpeed)+' km/h</strong></li>'
+    ).join("")+'</ol>';
+  }
+  function renderTimeDistribution(c){
+    if(!c.elapsedSeconds)return "";
+    const moving=Math.min(c.movingSeconds,c.elapsedSeconds);
+    const standing=Math.min(c.stoppedGpsSeconds,c.elapsedSeconds-moving);
+    const parts=[
+      {label:"Bewegung",seconds:moving,key:"moving"},
+      {label:"GPS-Stillstand",seconds:standing,key:"standing"},
+      {label:"Nicht zugeordnet",seconds:c.elapsedSeconds-moving-standing,key:"unknown"}
+    ];
+    return '<div class="ride-time-bar" aria-hidden="true">'+parts.map(part=>
+      '<i class="ride-time-'+part.key+'" style="width:'+part.seconds/c.elapsedSeconds*100+'%"></i>'
+    ).join("")+'</div><ul class="ride-time-labels">'+parts.map(part=>
+      '<li><i class="ride-time-'+part.key+'" aria-hidden="true"></i>'+part.label+' <strong>'+fmtTime(part.seconds)+'</strong></li>'
+    ).join("")+'</ul><p>Ohne manuelle Pausen. Nicht zugeordnete Zeit umfasst unter anderem GPS-Lücken.</p>';
   }
   /* ---------- Export / Import ---------- */
   function exportGPX(r){

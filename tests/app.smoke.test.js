@@ -48,6 +48,12 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(/vx-band/.test(els.elevationPlot.innerHTML),"Längster Anstieg als Band markiert");
  ok(/vx-svg/.test(els.speedPlot.innerHTML),"Tempo-Grafik gerendert");
  ok(/vx-svg/.test(els.gradePlot.innerHTML),"Steigungs-Grafik gerendert");
+ ok(els.speedPlot.innerHTML.includes('class="vx-reference"'),"Tempodiagramm zeigt Bewegungsschnitt");
+ ok(els.detailMap.innerHTML.includes('class="offline-route-outline"'),"Offline-Karte zeigt Streckenkontur");
+ ok((els.rideSplitChart.innerHTML.match(/class="split-row"/g)||[]).length>=7,"1-km-Abschnitte werden angezeigt");
+ els.rideSplitLength.listeners.change[0]({target:{value:"5000"}});
+ ok((els.rideSplitChart.innerHTML.match(/class="split-row"/g)||[]).length===2&&els.rideSplitChart.innerHTML.includes("Rest"),"5-km-Abschnitte werden mit Rest neu berechnet");
+ ok(/ride-time-moving.*ride-time-standing.*ride-time-unknown/.test(els.rideDetail.innerHTML),"Zeitgrafik unterscheidet Bewegung, GPS-Stillstand und übrige Zeit");
  ok(/Stopps/.test(els.rideDetail.innerHTML)&&/Erkannte Stopps<\/span><strong>1<\/strong>/.test(els.rideDetail.innerHTML),"1 Stopp erkannt");
  ok(!/Strecken-Geradlinigkeit<\/span><strong>–/.test(els.rideDetail.innerHTML),"Geradlinigkeit trotz Stopp berechnet");
  // Wrapped

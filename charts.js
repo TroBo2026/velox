@@ -36,11 +36,12 @@
     if (!box) return null;
     const rows = (cfg.rows || []).filter((r) => finite(r.x) && finite(r.y));
     if (rows.length < 2) { box.innerHTML = '<div class="empty-state">' + esc(cfg.emptyText || "Nicht genügend Daten.") + "</div>"; return null; }
-    const W = 640, H = cfg.height || 200, L = 46, R = 12, T = 14, B = 26, pw = W - L - R, ph = H - T - B;
+    const W = Math.max(240, Math.min(640, box.clientWidth || 640)), H = cfg.height || 200, L = 46, R = 16, T = 22, B = 26, pw = W - L - R, ph = H - T - B;
     const id = "vx" + (++uid), zeroBase = cfg.baseline === "zero";
     const xMax = Math.max(1, cfg.xMax || rows[rows.length - 1].x);
     let yLo = Infinity, yHi = -Infinity;
     rows.forEach((r) => { if (r.y < yLo) yLo = r.y; if (r.y > yHi) yHi = r.y; });
+    if (finite(cfg.reference)) { yLo = Math.min(yLo, cfg.reference); yHi = Math.max(yHi, cfg.reference); }
     if (cfg.yMin !== undefined) yLo = Math.min(yLo, cfg.yMin);
     if (cfg.yMax !== undefined) yHi = Math.max(yHi, cfg.yMax);
     if (zeroBase) { yLo = Math.min(yLo, 0); yHi = Math.max(yHi, 0); }
@@ -57,11 +58,12 @@
       const y = yFor(v);
       grid += '<line class="vx-grid" x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (W - R) + '" y2="' + y.toFixed(1) + '"/><text class="vx-axis-label" x="' + (L - 6) + '" y="' + (y + 3.5).toFixed(1) + '" text-anchor="end">' + yFmt(v) + "</text>";
     }
-    const kmMax = xMax / 1000, kmStep = niceStep(kmMax, 5);
+    const kmMax = xMax / 1000, kmStep = niceStep(kmMax, Math.max(2, Math.floor(pw / 62)));
+    const kmDigits = Math.max(0, Math.ceil(-Math.log10(kmStep)));
     let xTicks = "";
     for (let k = 0; k <= kmMax + 1e-9; k += kmStep) {
       const x = xFor(k * 1000);
-      xTicks += '<line class="vx-tick" x1="' + x.toFixed(1) + '" y1="' + (T + ph) + '" x2="' + x.toFixed(1) + '" y2="' + (T + ph + 4) + '"/><text class="vx-axis-label" x="' + x.toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle">' + fmt(k, kmStep < 1 ? 1 : 0) + (k === 0 ? " km" : "") + "</text>";
+      xTicks += '<line class="vx-tick" x1="' + x.toFixed(1) + '" y1="' + (T + ph) + '" x2="' + x.toFixed(1) + '" y2="' + (T + ph + 4) + '"/><text class="vx-axis-label" x="' + x.toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle">' + fmt(k, kmDigits) + (k === 0 ? " km" : "") + "</text>";
     }
 
     const shown = thin(rows, cfg.maxPoints || 480);
@@ -103,17 +105,20 @@
     const ends = '<circle class="vx-end vx-start" cx="' + xFor(a0.x).toFixed(1) + '" cy="' + yFor(a0.y).toFixed(1) + '" r="3.6"/><circle class="vx-end vx-finish" cx="' + xFor(a1.x).toFixed(1) + '" cy="' + yFor(a1.y).toFixed(1) + '" r="3.6"/>';
     const zero = zeroBase ? '<line class="vx-zero" x1="' + L + '" y1="' + base.toFixed(1) + '" x2="' + (W - R) + '" y2="' + base.toFixed(1) + '"/>' : "";
 
+    const reference = finite(cfg.reference) ? '<line class="vx-reference" x1="' + L + '" x2="' + (W - R) + '" y1="' + yFor(cfg.reference) + '" y2="' + yFor(cfg.reference) + '"/>' : "";
+
     box.innerHTML = '<div class="vx-chart"><svg class="vx-svg" viewBox="0 0 ' + W + " " + H + '" tabindex="0" role="img" aria-label="' + esc(cfg.ariaLabel || "Profil") + ' Mit Pfeiltasten oder Wischen Werte ansehen.">' +
       '<defs><linearGradient id="' + id + 'g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + (cfg.areaColor || "#6d91b8") + '" stop-opacity=".34"/><stop offset="100%" stop-color="' + (cfg.areaColor || "#6d91b8") + '" stop-opacity=".02"/></linearGradient></defs>' +
       (cfg.yTitle ? '<text class="vx-axis-title" x="' + L + '" y="9" text-anchor="start">' + esc(cfg.yTitle) + "</text>" : "") +
-      grid + bands + areas + zero + '<line class="vx-axis" x1="' + L + '" y1="' + (T + ph) + '" x2="' + (W - R) + '" y2="' + (T + ph) + '"/>' + xTicks + lines + marks + ends +
-      '<g class="vx-cursor" hidden><line class="vx-cross" y1="' + T + '" y2="' + (T + ph) + '"/><circle class="vx-dot" r="4.6"/></g></svg><div class="vx-tip" hidden></div></div>';
+      grid + bands + areas + zero + reference + '<line class="vx-axis" x1="' + L + '" y1="' + (T + ph) + '" x2="' + (W - R) + '" y2="' + (T + ph) + '"/>' + xTicks + lines + marks + ends +
+      '<g class="vx-cursor" hidden><line class="vx-cross" y1="' + T + '" y2="' + (T + ph) + '"/><circle class="vx-dot" r="4.6"/></g></svg><div class="vx-tip" hidden></div><span class="vx-value-announcement" aria-live="polite"></span></div>';
 
     const svg = box.querySelector(".vx-svg"), tip = box.querySelector(".vx-tip"), cursor = box.querySelector(".vx-cursor");
     if (!svg || !tip || !cursor) return { rows };
     const cross = cursor.querySelector(".vx-cross"), dot = cursor.querySelector(".vx-dot");
+    const announcement = box.querySelector(".vx-value-announcement");
     let hideTimer = null, index = 0;
-    function showAt(i) {
+    function showAt(i, announce = false) {
       index = Math.max(0, Math.min(rows.length - 1, i));
       const r = rows[index], x = xFor(r.x), y = yFor(r.y);
       cursor.removeAttribute("hidden");
@@ -122,7 +127,8 @@
       const lines = (cfg.tooltip ? cfg.tooltip(r) : [["Distanz", fmt(r.x / 1000, 2) + " km"], [cfg.yTitle || "Wert", yFmt(r.y)]]);
       tip.innerHTML = lines.map((l) => "<span>" + esc(l[0]) + "</span><strong>" + esc(l[1]) + "</strong>").join("");
       tip.removeAttribute("hidden");
-      tip.style.left = Math.max(16, Math.min(84, x / W * 100)) + "%";
+      tip.style.left = "clamp(" + tip.offsetWidth / 2 + "px, " + x / W * 100 + "%, calc(100% - " + tip.offsetWidth / 2 + "px))";
+      if (announce && announcement) announcement.textContent = lines.map((line) => line.join(" ")).join(", ");
       if (cfg.onHover) cfg.onHover(r);
     }
     function hide() {
@@ -137,10 +143,13 @@
     svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) { clearTimeout(hideTimer); showAt(fromClient(e.clientX)); } });
     svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
     svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 3500); } });
+    svg.addEventListener("pointercancel", hide);
     svg.addEventListener("keydown", (e) => {
       const step = Math.max(1, Math.round(rows.length / 60));
-      if (e.key === "ArrowRight") { e.preventDefault(); showAt(index + step); }
-      else if (e.key === "ArrowLeft") { e.preventDefault(); showAt(index - step); }
+      if (e.key === "ArrowRight") { e.preventDefault(); showAt(index + step, true); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); showAt(index - step, true); }
+      else if (e.key === "Home") { e.preventDefault(); showAt(0, true); }
+      else if (e.key === "End") { e.preventDefault(); showAt(rows.length - 1, true); }
       else if (e.key === "Escape") hide();
     });
     svg.addEventListener("blur", hide);
