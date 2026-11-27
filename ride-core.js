@@ -45,13 +45,16 @@
     return { kind: moving ? "moving" : "stopped", distanceM, durationS, speedKmh };
   }
 
-  function scan(points, pauses) {
-    const pauseList = Array.isArray(pauses) ? pauses : [];
-    const overlapsPause = (start, end) => pauseList.some((pause) => {
+  const ridePauses = (ride) => ride?.pauseIntervals ?? ride?.pauses;
+  function overlapsPause(start, end, pauses) {
+    return Array.isArray(pauses) && pauses.some((pause) => {
       const pauseStart = pause && (finite(pause.start) ? pause.start : pause.startedAt);
       const pauseEnd = pause && (finite(pause.end) ? pause.end : pause.endedAt);
       return finite(pauseStart) && Math.max(start, pauseStart) < Math.min(end, finite(pauseEnd) ? pauseEnd : Infinity);
     });
+  }
+
+  function scan(points, pauses) {
     const cls = new Array(points.length).fill(null), intervals = [], speedValues = [];
     const rejected = { invalid: 0, clock: 0, gap: 0, jump: 0, speed: 0, accuracy: 0, pause: 0 };
     let run = 0, distanceM = 0, movingSeconds = 0, gapSeconds = 0, stoppedGpsSeconds = 0, acceptedIntervals = 0;
@@ -60,7 +63,7 @@
     for (let i = 0; i < points.length; i++) {
       if (!validPoint(points[i])) { rejected.invalid++; run++; continue; }
       if (i === 0 || !validPoint(points[i - 1])) continue;
-      if (overlapsPause(points[i - 1].t, points[i].t)) {
+      if (overlapsPause(points[i - 1].t, points[i].t, pauses)) {
         const pauseGap = { kind: "gap", reason: "pause", durationS: 0 };
         cls[i] = pauseGap;
         rejected.pause++;
@@ -191,17 +194,12 @@
 
   /* Stopps: zusammenhängende Stillstands-Intervalle ab 10 s; Pausen der App beenden einen Stopp. */
   function stopStats(points, cls, pauses) {
-    const list = Array.isArray(pauses) ? pauses : [];
-    const overlapsPause = (t0, t1) => list.some((p) => {
-      const a = p && (finite(p.start) ? p.start : p.startedAt), b = p && (finite(p.end) ? p.end : p.endedAt);
-      return finite(a) && Math.max(t0, a) < Math.min(t1, finite(b) ? b : Infinity);
-    });
     let count = 0, total = 0, longest = 0, current = 0, valid = 0;
     const finish = () => { if (current >= 10) { count++; total += current; longest = Math.max(longest, current); } current = 0; };
     for (let i = 1; i < points.length; i++) {
       const c = cls[i];
       if (!c) { finish(); continue; }
-      if (c.kind === "gap" || overlapsPause(points[i - 1].t, points[i].t)) { finish(); continue; }
+      if (c.kind === "gap" || overlapsPause(points[i - 1].t, points[i].t, pauses)) { finish(); continue; }
       valid++;
       if (c.kind === "stopped") current += c.durationS; else finish();
     }
@@ -211,6 +209,7 @@
 
   /* Splits über die kumulierte gültige Fahrstrecke (ein Split = genau splitM Meter, der letzte ggf. kürzer). */
   function splits(intervals, splitM) {
+    if (!finite(splitM) || splitM < 1) return [];
     const out = new Map();
     let cursor = 0;
     for (const seg of intervals) {
@@ -233,7 +232,8 @@
   function analyze(ride, options) {
     const opts = options || {};
     const points = Array.isArray(ride && ride.points) ? ride.points : [];
-    const s = scan(points, opts.pauses || (ride && ride.pauseIntervals));
+    const pauses = opts.pauses ?? ridePauses(ride);
+    const s = scan(points, pauses);
     const profile = buildElevation(points, s.cls);
     const series = gradeSeries(profile.samples);
     const grades = gradeStats(series);
@@ -281,11 +281,11 @@
       /* Höhengewinn je Fahrstunde (kein klassisches VAM, das nur Anstiege zählt). */
       climbPerHour: movingSeconds > 0 ? profile.gain / (movingSeconds / 3600) : null,
       maxFromStartM, straightDistanceM, routeStraightness,
-      stops: stopStats(points, s.cls, opts.pauses || (ride && (ride.pauses || ride.pauseIntervals))),
+      stops: stopStats(points, s.cls, pauses),
       rejected: s.rejected, gapSeconds: s.gapSeconds, stoppedGpsSeconds: s.stoppedGpsSeconds
     };
   }
 
-  return { FILTERS, GRADE, haversine, validPoint, classify, scan, buildElevation, gradeSeries, gradeStats,
+  return { FILTERS, GRADE, haversine, validPoint, classify, ridePauses, overlapsPause, scan, buildElevation, gradeSeries, gradeStats,
     fastestKilometer, stopStats, splits, analyze, calcRide: analyze, quantile };
 });

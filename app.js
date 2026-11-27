@@ -138,8 +138,7 @@
   }
   function computeRide(ride){
     const c=Core.calcRide(ride,{
-      elapsedSeconds:activeSeconds(ride),
-      pauses:(Array.isArray(ride.pauseIntervals)?ride.pauseIntervals:[]).map(p=>({start:p&&p.startedAt,end:p&&p.endedAt}))
+      elapsedSeconds:activeSeconds(ride)
     });
     c.speedZones=speedZoneStats(c.intervals);
     c.movingRatio=c.movingRatio===null?0:c.movingRatio*100;
@@ -244,9 +243,9 @@
     const nav=e.target.closest("[data-page]");
     if(nav){e.preventDefault();setPage(nav.dataset.page);}
   });
-  function renderOfflineRoute(elementId,points){
+  function renderOfflineRoute(elementId,points,pauses){
     const host=$(elementId);if(!host)return;
-    const segments=validRouteSegments(points),all=segments.flat();
+    const segments=validRouteSegments(points,pauses),all=segments.flat();
     if(!all.length){
       host.innerHTML='<div class="offline-map-empty">GPS wird gesucht. Die Aufzeichnung kann auch ohne Internet starten.</div>';
       return;
@@ -297,12 +296,12 @@
   function drawLive(points,force=false){
     if(!navigator.onLine&&liveMap){liveMap.remove();liveMap=null;liveLines=[];liveMarker=null;}
     const now=Date.now(),redraw=force||now-liveDrawAt>=3000;
-    if(!liveMap){if(redraw){liveDrawAt=now;renderOfflineRoute("liveMap",points);}return;}
+    if(!liveMap){if(redraw){liveDrawAt=now;renderOfflineRoute("liveMap",points,Core.ridePauses(activeRide));}return;}
     if(redraw){
       liveDrawAt=now;
       liveLines.forEach(line=>liveMap.removeLayer(line));
       liveLines=[];
-      validRouteSegments(points).forEach(segment=>{
+      validRouteSegments(points,Core.ridePauses(activeRide)).forEach(segment=>{
         const coords=segment.map(point=>[point.lat,point.lon]);
         if(coords.length>1)liveLines.push(...addRouteLine(liveMap,coords));
       });
@@ -331,9 +330,9 @@
   }
   async function ensureTrackMap(){
     const points=activeRide&&Array.isArray(activeRide.points)?activeRide.points:[];
-    if(!navigator.onLine){if(!liveMap)renderOfflineRoute("liveMap",points);return;}
+    if(!navigator.onLine){if(!liveMap)renderOfflineRoute("liveMap",points,Core.ridePauses(activeRide));return;}
     const loaded=await ensureLeaflet();
-    if(!loaded){if(!liveMap)renderOfflineRoute("liveMap",points);return;}
+    if(!loaded){if(!liveMap)renderOfflineRoute("liveMap",points,Core.ridePauses(activeRide));return;}
     if(!liveMap){
       const last=lastValid(points);
       liveMap=initMap("liveMap",last?[last.lat,last.lon]:[51.05,13.74]);
@@ -342,7 +341,7 @@
   }
   function drawDetailMap(r){
     if(detailMap){detailMap.remove();detailMap=null;detailHoverMarker=null;}
-    const routeSegments=validRouteSegments(r.points);
+    const routeSegments=validRouteSegments(r.points,Core.ridePauses(r));
     const first=routeSegments[0]?.[0]||r.points.find(validRidePoint);
     detailMap=navigator.onLine&&window.L?initMap("detailMap",first?[first.lat,first.lon]:[51.05,13.74]):null;
     if(!detailMap)return false;
@@ -447,7 +446,7 @@
     const rides=selectedMapRides().filter(ride=>personalVisibility.get(String(ride.id))!==false);
     const bounds=[];
     rides.forEach(ride=>{
-      const segments=validRouteSegments(Array.isArray(ride.points)?ride.points:[]);
+      const segments=validRouteSegments(Array.isArray(ride.points)?ride.points:[],Core.ridePauses(ride));
       const color=mapColors[personalRidesCache.indexOf(ride)%mapColors.length];
       const layers=[];
       segments.forEach(segment=>{
@@ -462,7 +461,7 @@
       const cells=new Map();
       rides.forEach(ride=>{
         const touched=new Set();
-        validRouteSegments(Array.isArray(ride.points)?ride.points:[]).flat().forEach(point=>{
+        validRouteSegments(Array.isArray(ride.points)?ride.points:[],Core.ridePauses(ride)).flat().forEach(point=>{
           const key=Math.round(point.lat/0.0005)+":"+Math.round(point.lon/0.0005);
           if(touched.has(key))return;
           touched.add(key);
@@ -485,7 +484,7 @@
   }
   async function renderPersonalMap(){
     personalRidesCache=await allRides();
-    const points=personalRidesCache.flatMap(ride=>validRouteSegments(Array.isArray(ride.points)?ride.points:[]).flat());
+    const points=personalRidesCache.flatMap(ride=>validRouteSegments(Array.isArray(ride.points)?ride.points:[],Core.ridePauses(ride)).flat());
     const box=$("personalMap");
     if(!points.length){
       if(personalMap){personalMap.remove();personalMap=null;}
@@ -519,7 +518,7 @@
     }).join("");
     container.querySelectorAll("[data-ride]").forEach(el=>el.addEventListener("click",()=>openDetail(el.dataset.ride)));
   }
-  function validRouteSegments(points,includeSingletons=false){
+  function validRouteSegments(points,pauses,includeSingletons=false){
     const segments=[];let current=[];
     for(let i=0;i<points.length;i++){
       const point=points[i];
@@ -528,7 +527,7 @@
       const previous=points[i-1],dt=(point.t-previous.t)/1000,d=haversine(previous,point);
       // Kartenansicht ist toleranter als die Messwert-Analyse; lange Ausfälle bleiben getrennt.
       const valid=validRidePoint(previous)&&Number.isFinite(dt)&&dt>0&&dt<=180&&
-        Number.isFinite(d)&&d>=0.1&&d<=300&&d/dt*3.6<=180;
+        Number.isFinite(d)&&d>=0.1&&d<=300&&d/dt*3.6<=180&&!Core.overlapsPause(previous.t,point.t,pauses);
       if(valid)current.push(point);
       else{if(current.length>(includeSingletons?0:1))segments.push(current);current=[point];}
     }
@@ -844,7 +843,7 @@
     const autoWeather=weather&&weather.source&&String(weather.source).startsWith("open-meteo");
     $("rideDetail").innerHTML=
       '<div class="detail-header"><span class="eyebrow">'+"FAHRRADTOUR"+'</span><h1>'+escapeHtml(r.name||"Fahrradtour")+'</h1><p class="muted">'+date+'</p><div class="ride-time-strip"><div><span>START</span><strong>'+startTime+' Uhr</strong></div><div><span>ENDE</span><strong>'+endTime+' Uhr</strong></div></div></div>'+
-      '<section class="detail-route-section"><div class="detail-section-heading"><span class="eyebrow">DEINE STRECKE</span><span class="detail-map-distance">'+fmt(c.distanceM/1000,2)+' km</span></div><div class="detail-map detail-map-primary" id="detailMap" role="img" aria-label="Karte der aufgezeichneten Strecke"></div><div class="detail-route-legend"><span>● Start</span><span>● Ziel</span><span>'+validRouteSegments(r.points).length+' GPS-Abschnitte</span></div></section>'+
+      '<section class="detail-route-section"><div class="detail-section-heading"><span class="eyebrow">DEINE STRECKE</span><span class="detail-map-distance">'+fmt(c.distanceM/1000,2)+' km</span></div><div class="detail-map detail-map-primary" id="detailMap" role="img" aria-label="Karte der aufgezeichneten Strecke"></div><div class="detail-route-legend"><span>● Start</span><span>● Ziel</span><span>'+validRouteSegments(r.points,Core.ridePauses(r)).length+' GPS-Abschnitte</span></div></section>'+
       '<section class="detail-section"><div class="panel detail-panel weather-panel"><span class="eyebrow">WETTER WÄHREND DIESER AKTIVITÄT</span><h3>'+(weather?escapeHtml(weather.condition||"Wetter erfasst"):"Keine Wetterangabe")+'</h3><div class="metric-grid detail-metrics">'+metric("Temperatur",weather&&Number.isFinite(weather.temperatureC)?fmt(weather.temperatureC,1)+" °C":"–")+metric("Niederschlag",weather&&Number.isFinite(weather.precipitationMm)?fmt(weather.precipitationMm,1)+" mm":"Nicht verfügbar")+metric("Bewölkung",weather&&Number.isFinite(weather.cloudCoverPct)?fmt(weather.cloudCoverPct,0)+" %":"Nicht verfügbar")+metric("Quelle",weather?escapeHtml(weather.sourceLabel||"Fahrerangabe"):"Keine Angabe")+'</div><p>'+(autoWeather?"Wetterdaten am nächstgelegenen Stundenwert und an einer repräsentativen GPS-Position der Aktivität.":"Wetterangabe für diese Aktivität; Temperatur ist eine ungefähre Angabe.")+'</p></div></section>'+
       '<section class="detail-section"><span class="eyebrow">AUF EINEN BLICK</span><div class="metric-grid detail-metrics">'+
       metric("Distanz",fmt(c.distanceM/1000,2)+" km")+metric("Bewegungszeit",fmtTime(c.movingSeconds))+
@@ -862,7 +861,7 @@
     setPage("detail");
     setTimeout(()=>{
       if(detailMap){detailMap.remove();detailMap=null;detailHoverMarker=null;}
-      if(!drawDetailMap(r))renderOfflineRoute("detailMap",r.points);
+      if(!drawDetailMap(r))renderOfflineRoute("detailMap",r.points,Core.ridePauses(r));
       renderElevation(c);
       renderSpeedProfile(c);
       renderGradeProfile(c);
@@ -992,7 +991,7 @@
   }
   /* ---------- Export / Import ---------- */
   function exportGPX(r){
-    const pts=Array.isArray(r.points)?r.points:[],segments=validRouteSegments(pts,true);
+    const pts=Array.isArray(r.points)?r.points:[],segments=validRouteSegments(pts,Core.ridePauses(r),true);
     if(!segments.length){showToast("Keine gültigen GPS-Punkte zum Export vorhanden.");return;}
     const esc=s=>String(s).replace(/[<>&'"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c]));
     const trk=segments.map(segment=>'<trkseg>'+segment.map(p=>'<trkpt lat="'+p.lat+'" lon="'+p.lon+'">'+(Number.isFinite(p.alt)?'<ele>'+p.alt+'</ele>':'')+'<time>'+new Date(p.t).toISOString()+'</time></trkpt>').join("")+'</trkseg>').join("");
