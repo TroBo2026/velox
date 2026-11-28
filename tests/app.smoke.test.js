@@ -22,7 +22,7 @@ const sb={document:doc,navigator:{onLine:false,geolocation:{watchPosition:(ok,er
  isSecureContext:true,scrollTo(){},addEventListener(){},console,setTimeout,clearTimeout,Date,Math,JSON,Number,String,Array,Object,Map,Set,Promise,Blob:class{},URL,Error,
  indexedDB:{open(){const req={};const db={objectStoreNames:{contains:()=>true},createObjectStore(){},close(){},
   transaction(){const tx={};const mk=fn=>{const r={};setTimeout(()=>{r.result=fn();r.onsuccess&&r.onsuccess()},0);return r};
-   tx.objectStore=()=>({getAll:()=>mk(()=>[...data.values()].map(v=>JSON.parse(JSON.stringify(v)))),put:v=>mk(()=>{data.set(v.id,JSON.parse(JSON.stringify(v)));return v.id}),add:v=>mk(()=>{data.set(v.id,v)}),delete:id=>mk(()=>{data.delete(id)}),clear:()=>mk(()=>data.clear())});
+   tx.objectStore=()=>({getAll:()=>mk(()=>[...data.values()].map(v=>JSON.parse(JSON.stringify(v)))),put:v=>mk(()=>{data.set(v.id,JSON.parse(JSON.stringify(v)));return v.id}),add:v=>mk(()=>{if(data.has(v.id)){tx.error=new Error("ConstraintError");tx.onerror?.();return;}data.set(v.id,v)}),delete:id=>mk(()=>{data.delete(id)}),clear:()=>mk(()=>data.clear())});
    setTimeout(()=>tx.oncomplete&&tx.oncomplete(),8);return tx}};
   setTimeout(()=>{req.result=db;req.onsuccess&&req.onsuccess()},0);return req}},
  localStorage:{getItem:()=>null,setItem(){}}};
@@ -85,6 +85,10 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(els.trackingStatus.textContent==="Pausiert","Ausstehender GPS-Checkpoint überschreibt Pausenstatus nicht");
  await els.pauseRide.listeners.click[0]();
  await oldWatch({...nextFix,timestamp:t+2000});
+ dialogAnswers.push("delete");
+ await els.deleteAll.listeners.click[0]();
+ ok(data.has("a")&&activeInDB()?.status==="recording","Archivlöschung schützt eine laufende Tour");
+ dialogAnswers.pop();
  // Tour beenden: Bestätigung "stop", Wetter "skip"
  dialogAnswers.push("stop","skip");await els.stopRide.listeners.click[0]();await sleep(300);
  ok(data.size===5&&data.has("legacy-run"),"Neue Fahrradtour gespeichert; vorhandener Legacy-Datensatz bleibt erhalten ("+data.size+" in DB)");
@@ -96,5 +100,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(same(pro.elevation.gain,core.elevationGain)&&same(pro.elevation.loss,core.elevationLoss),"Pro = Detail: Aufstieg/Abstieg (+"+pro.elevation.gain.toFixed(1)+" / -"+pro.elevation.loss.toFixed(1)+")");
  ok(same(pro.elevation.averageGrade,core.gradeAverage)&&same(pro.maxSpeed,core.maxSpeed),"Pro = Detail: Ø Steigung/Max-Tempo");
  ok(pro.splits.length===2&&pro.splits[0].complete,"Pro: Splits ("+pro.splits.map(x=>x.distanceM.toFixed(0)).join("/")+" m)");
+ await els.backupFile.listeners.change[0]({target:{files:[{text:async()=>JSON.stringify({app:"VELOX",version:1,rides:[{...r,id:"legacy-run"}]})}]}});
+ ok(data.get("legacy-run").activityType==="running"&&[...data.values()].some(ride=>ride.importedFromId==="legacy-run"),"Import ordnet eine ID-Kollision mit einer ausgeblendeten Alttour neu zu");
  console.log(process.exitCode?"\nFEHLER":"\nRauchtest bestanden");
 })().catch(e=>{console.log("ABSTURZ",e);process.exit(1)});
