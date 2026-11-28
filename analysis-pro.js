@@ -38,9 +38,7 @@
     const Core = window.VELOXCore;
     if (!Core) throw new Error("Rechenkern (ride-core.js) nicht geladen.");
     const points = Array.isArray(ride.points) ? ride.points : [];
-    const pauses = (Array.isArray(ride.pauseIntervals) ? ride.pauseIntervals : [])
-      .map((p) => ({ start: p && p.startedAt, end: p && p.endedAt }));
-    const c = Core.analyze(ride, { pauses });
+    const c = Core.analyze(ride);
     const e = c.elevationProfile;
 
     const gradeBands = GRADE_BANDS.map((band) => ({ ...band, distance: 0 }));

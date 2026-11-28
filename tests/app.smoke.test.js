@@ -56,6 +56,8 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(/ride-time-moving.*ride-time-standing.*ride-time-unknown/.test(els.rideDetail.innerHTML),"Zeitgrafik unterscheidet Bewegung, GPS-Stillstand und übrige Zeit");
  ok(/Stopps/.test(els.rideDetail.innerHTML)&&/Erkannte Stopps<\/span><strong>1<\/strong>/.test(els.rideDetail.innerHTML),"1 Stopp erkannt");
  ok(!/Strecken-Geradlinigkeit<\/span><strong>–/.test(els.rideDetail.innerHTML),"Geradlinigkeit trotz Stopp berechnet");
+ const offlineSegmentCount=()=> (els.detailMap.innerHTML.split('<g class="offline-route-lines">')[1]?.split("</g>")[0]?.match(/<polyline/g)||[]).length;
+ const segmentsBeforePause=offlineSegmentCount();
  // Wrapped
  docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"wrapped"}})},preventDefault(){}}));await sleep(300);
  ok(/Persönliche Rekorde/.test(els.wrappedContent.innerHTML)&&!/NaN|undefined/.test(els.wrappedContent.innerHTML),"Wrapped gerendert ohne NaN/undefined");
@@ -100,6 +102,14 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(same(pro.elevation.gain,core.elevationGain)&&same(pro.elevation.loss,core.elevationLoss),"Pro = Detail: Aufstieg/Abstieg (+"+pro.elevation.gain.toFixed(1)+" / -"+pro.elevation.loss.toFixed(1)+")");
  ok(same(pro.elevation.averageGrade,core.gradeAverage)&&same(pro.maxSpeed,core.maxSpeed),"Pro = Detail: Ø Steigung/Max-Tempo");
  ok(pro.splits.length===2&&pro.splits[0].complete,"Pro: Splits ("+pro.splits.map(x=>x.distanceM.toFixed(0)).join("/")+" m)");
+ const beforePause=r.points[100].t;
+ const paused={...r,pauseIntervals:undefined,pauses:[{start:beforePause+1,end:beforePause+999}],pausedMs:998};
+ data.set(r.id,paused);
+ const pausedPro=sb.VELOXProAnalysis.analyzeRide(paused,5);
+ ok(pausedPro.distanceM<pro.distanceM,"Pro-Analyse zieht die Strecke über eine ältere manuelle Pause ab");
+ await els["ride:a:recentRides"].listeners.click[0]();
+ await sleep(350);
+ ok(segmentsBeforePause>0&&offlineSegmentCount()===segmentsBeforePause+1,"Offline-Karte trennt die Route an einer manuellen Pause");
  await els.backupFile.listeners.change[0]({target:{files:[{text:async()=>JSON.stringify({app:"VELOX",version:1,rides:[{...r,id:"legacy-run"}]})}]}});
  ok(data.get("legacy-run").activityType==="running"&&[...data.values()].some(ride=>ride.importedFromId==="legacy-run"),"Import ordnet eine ID-Kollision mit einer ausgeblendeten Alttour neu zu");
  console.log(process.exitCode?"\nFEHLER":"\nRauchtest bestanden");

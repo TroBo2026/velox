@@ -68,4 +68,24 @@ assert.equal(invalidPointResult.scan.intervals.length, 2);
 assert.equal(invalidPointResult.scan.rejected.invalid, 1);
 assert.equal(invalidPointResult.routeStraightness, null, "invalid coordinates split the route");
 
+const pausedRide = {
+  startedAt: 1000, endedAt: 6000, pausedMs: 2000,
+  points: [
+    {lat: 51, lon: 13, t: 1000},
+    {lat: 51, lon: 13.0001, t: 2000},
+    {lat: 51, lon: 13.0003, t: 5000},
+    {lat: 51, lon: 13.0004, t: 6000}
+  ]
+};
+const currentPause = Core.analyze({...pausedRide, pauseIntervals:[{startedAt:2500, endedAt:4500}]});
+const legacyPause = Core.analyze({...pausedRide, pauses:[{start:2500, end:4500}]});
+assert.equal(currentPause.rejected.pause, 1);
+assert.equal(legacyPause.rejected.pause, 1);
+assert.equal(currentPause.movingSeconds, 2);
+assert.equal(legacyPause.distanceM, currentPause.distanceM);
+assert.equal(legacyPause.routeStraightness, null);
+for (const length of [0,-1,NaN,Infinity,0.00001]) {
+  assert.deepEqual(Core.splits(currentPause.intervals,length),[]);
+}
+
 console.log("VELOX ANALYZE contract: all checks passed");
