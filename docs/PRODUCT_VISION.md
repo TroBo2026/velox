@@ -94,7 +94,9 @@ Eine Funktion gilt erst als fertig, wenn:
 
 **Leitgedanke:** Erst ein verlässliches Fahrerlebnis. Dann ein vollständiges Ökosystem.
 
-## Nächste Aufträge für die persönliche Fahrradkarte
+## Persönliche Fahrradkarte – umgesetzt in der Web-App
+
+Bedienung, Messregeln und synthetischer Gerätetest stehen im [Web-Handbuch](../README.md#wrapped-und-abgeleitete-kennzahlen).
 
 1. **Messqualität im Tourdetail.** Aus Position und Zeit lassen sich Bewegung, Tempo je Abschnitt und erkannte Stopps ableiten. Eine Zeitgrafik kann Bewegung, beobachteten Stillstand, manuelle Pausen und ungeklärte Zeit getrennt ausweisen. Beim vorhandenen Höhenprofil den Anteil der Strecke mit zusammenhängenden, brauchbaren Höhenwerten anzeigen. Gemeldete vertikale Unsicherheit über 35 m, Höhensprünge und fehlende Höhen trennen das Profil. Fehlende Genauigkeit als unbekannt kennzeichnen. Eine einzelne Höhe reicht für eine Punktangabe, für Höhengewinn braucht es einen zusammenhängenden Verlauf. Puls, Leistung und Trittfrequenz benötigen eigene Sensorwerte.
 2. **Wrapped nach Kalenderjahr.** Das gewählte Jahr nach lokalem Startdatum aus abgeschlossenen Fahrradtouren bilden. Gewertete Kilometer summieren, die längste Fahrt anhand ihrer gewerteten Distanz bestimmen und als aktivsten Monat den Monat mit den meisten Kilometern anzeigen. Bei Gleichstand alle führenden Monate nennen. Fahrten ohne verwertbare Strecke separat zählen. Leere Jahre und den Jahreswechsel mit synthetischen Fahrten prüfen.

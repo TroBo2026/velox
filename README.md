@@ -7,11 +7,11 @@
 
 VELOX ist ein local-first Fahrrad-Tracker. Die Produktvision steht in [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md). Dieses Repository enthält einen testbaren **Web-App-Prototyp (PWA) für iPhone und iPad** sowie ein vorbereitetes **natives SwiftUI-Projekt** (`ios/`).
 
-**Inhalt:** [Aktueller Stand](#aktueller-stand--version-0121) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
+**Inhalt:** [Aktueller Stand](#aktueller-stand--version-0130) · [Datenschutz](#datenschutz-und-datenspeicherung) · [Sensoren](#sensoren-und-messgenauigkeit) · [Grenzen](#grenzen-des-web-prototyps) · [Dateien](#dateien) · [Bereitstellung](#kostenlos-testen-und-bereitstellen) · [Entwicklung und Tests](#entwicklung-und-tests) · [Erster iPhone-Test](#erster-test-am-iphone-xr-webpwa) · [Kennzahlen](#wrapped-und-abgeleitete-kennzahlen) · [Native iOS App](#native-ios-app) · [Roadmap](#geplante-entwicklung) · [Versionsverlauf](#versionsverlauf)
 
 ---
 
-## Aktueller Stand – Version 0.12.1
+## Aktueller Stand – Version 0.13.0
 
 ### Aufzeichnung
 - GPS-Aufzeichnung mit Pause, Fortsetzen und Tourabschluss; Start auf der Startseite oder direkt auf der Track-Seite. Eine laufende Tour kann nicht versehentlich ein zweites Mal gestartet werden.
@@ -27,7 +27,7 @@ VELOX ist ein local-first Fahrrad-Tracker. Die Produktvision steht in [`docs/PRO
 - Geglättetes Geschwindigkeitsprofil, Höhenprofil und Steigungsprofil in jeder Tour-Detailansicht; GPS-Lücken werden nicht überbrückt.
 - Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start, Strecken-Geradlinigkeit sowie GPS-erkannte Stopps (ab 10 s unter 1,5 km/h; manuelle Pausen und GPS-Lücken zählen nicht).
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken.
-- **Wrapped:** automatisch berechneter Archiv-Rückblick (Gesamtzeit im Sattel, Distanz, Auf-/Abstieg, persönliche Rekorde, längster zusammenhängender Anstieg, schnellster voller Kilometer, VAM, Gelände- und Tempo-Zonen). Erreichbar unter „Mehr“.
+- **Wrapped** zeigt unter „Mehr“ den persönlichen Jahresrückblick mit Entdeckungskarte und exportierbarer Jahresgrafik. Die Rekorde des gesamten Archivs sind weiterhin aufklappbar.
 - **VELOX Pro Analyse:** optionale Einzeltour- und Archiv-Auswertung mit 1/5/10-km-Splits, Tempozonen, Steigungsverteilung, GPS-Qualitätsbericht, Höhen-Ausreißerbericht und Archiv-Rekorden. Sie liest nur vorhandene IndexedDB-Daten.
 - **Persönliche VELOX MAP:** mehrere gespeicherte Touren mit individuellen Farben, Ein-/Ausblenden einzelner Touren, Zeitfiltern und lokaler Streckendichte-Ansicht.
 
@@ -117,7 +117,7 @@ Empfohlene Cloudflare-Pages-Einstellungen:
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
 
-**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v45`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
+**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v46`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
 
 ## Entwicklung und Tests
 
@@ -127,6 +127,7 @@ Voraussetzung: Node.js 20 oder neuer. Es gibt keinen Build-Schritt.
 node --check app.js              # Syntax prüfen (analog für die übrigen .js-Dateien)
 node tests/core.test.js   # Barometer-Fusion und Zeitstempel-Regeln
 node tests/app.smoke.test.js     # App lädt ohne Fehler; Distanz, Stillstand, Cache, Robustheit
+node tests/wrapped.test.js       # Jahresauswertung, Wegvergleich und Profilabdeckung
 node tests/plus.test.js          # Wochenziele und Wochenstatistiken
 node tests/consistency.test.js   # Offline-Cache und Versionskonsistenz
 ```
@@ -152,6 +153,12 @@ Für einen Test ohne Standortfreigabe die [synthetische Testsicherung](tests/fix
 **Grenze:** iOS kann Safari/PWAs im Hintergrund anhalten. VELOX verspricht keine zuverlässige GPS-Aufzeichnung bei gesperrtem Bildschirm.
 
 ## Wrapped und abgeleitete Kennzahlen
+
+Der Jahresrückblick zählt abgeschlossene Radfahrten nach lokalem Startdatum. Ältere Datensätze ohne Status zählen mit gespeichertem Ende. Der aktivste Monat richtet sich nach Kilometern, Gleichstände auf einen Meter gerundet erscheinen gemeinsam. Fahrten ohne auswertbare GPS-Intervalle werden separat gezählt.
+
+Die Entdeckungskarte vergleicht akzeptierte Fahrintervalle mit früheren lokalen Strecken in beiden Fahrtrichtungen. Sie tastet die Linien in höchstens 10 m Abstand ab. Die Toleranz beträgt je nach gemeldeter Genauigkeit 10 bis 18 m. Ein weiterer 6-m-Rand, schwach bestimmte Positionen und Abschnitte unter 45 m bleiben ungewertet. Die Zuordnung ist eine GPS-Näherung. Ohne Vergleichsfahrten bezeichnet „neu“ den ersten Nachweis im eigenen Archiv. Die schematische Karte und das Export-PNG funktionieren offline. Nur die optionale Straßenkarte lädt Kartenkacheln. Das PNG enthält Jahr, Gesamtkilometer, Länge der längsten Fahrt und den aktivsten Monat bzw. die führenden Monate.
+
+**Test auf dem iPhone XR:** Die [synthetische Wrapped-Sicherung](tests/fixtures/wrapped.json) über „Mehr → Import“ einlesen. In einem leeren Testarchiv zeigt Wrapped für 2026 **0,44 km** insgesamt, **0,24 km** als längste Fahrt und **Mai** als aktivsten Monat. Der leicht versetzte Rückweg aus Januar ist bekannt, der Abzweig im Mai ergibt rund **0,12 km** neu. Bei eigenen Fahrten derselben Jahre ändern sich die Summen entsprechend. 2025 zeigt die Erstaufnahme ohne älteren Vergleich. „Jahresgrafik ansehen“ öffnen und das PNG speichern. Für den Offline-Test VELOX einmal online öffnen, anschließend im Flugmodus erneut starten.
 
 Der Wrapped-Reiter liest das vorhandene Tourenarchiv und berechnet Summen und Rekorde bei jedem Öffnen neu. Es wird kein neues IndexedDB-Feld benötigt und keine Tour verändert. Die Steigungsverteilung nutzt auswertbare geglättete GPS-Höhenabschnitte (Anstieg über +1,5 %, Gefälle unter −1,5 %). Tempo-Zonen verwenden akzeptierte Bewegungsintervalle (<15, 15–25 und >25 km/h). Der längste Anstieg wird aus zusammenhängenden Höhenabschnitten ab +1,5 % ermittelt. Die Netto-Höhenänderung wird zwischen erstem und letztem verlässlichem geglättetem Höhenpunkt derselben Tour bestimmt; der Höhenbereich ist Maximum minus Minimum der verlässlichen Höhenpunkte. VAM ist Höhengewinn geteilt durch Bewegungszeit. Die Strecken-Geradlinigkeit ist Luftlinie Start–Ziel geteilt durch die gefilterte GPS-Strecke und wird bei GPS-Unterbrechungen nicht angegeben.
 
@@ -179,6 +186,8 @@ Das native Datenmodell bildet derzeit nur ausdrücklich definierte Felder ab. **
 ---
 
 ## Versionsverlauf
+
+**0.13.0** – Lokaler Jahresrückblick, Entdeckungskarte, teilbare Grafik und Profilabdeckung.
 
 **0.12.1** – Wochenziel und Wochenüberblick, Aufzeichnungs-Puls, UI-Feinschliff sowie Konsistenzprüfungen; siehe `CHANGELOG.md`.
 

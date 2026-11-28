@@ -93,7 +93,8 @@ test("Höhenmeter und Steigung bei realistischem Rauschen (σ 3 m)", () => {
 });
 
 test("Stopp unterbricht das Höhenprofil NICHT und zählt keine Strecke", () => {
-  const r = Core.analyze(makeRide({ stopAtM: 1000, stopSeconds: 60, hNoise: 0.3 }));
+  // Geringes Höhenrauschen isoliert den Stopp von separat geprüften Höhenausreißern.
+  const r = Core.analyze(makeRide({ stopAtM: 1000, stopSeconds: 60, hNoise: 0.3, vNoise: 1 }));
   const segs = new Set(r.elevationProfile.samples.map((s) => s.segment));
   assert.equal(segs.size, 1, "ein einziges Höhensegment");
   near(r.distanceM, 8000, 160, "Distanz trotz Stopp");

@@ -22,9 +22,10 @@
 
   function screenSpikes(valid) {
     const screened = [];
-    let spikesRejected = 0;
+    let spikesRejected = 0, segment = 0;
     for (let i = 0; i < valid.length; i++) {
       const s = valid[i], neighborhood = [];
+      if(i>0 && valid[i-1].segment!==s.segment)segment++;
       for (let j = Math.max(0, i - 2); j <= Math.min(valid.length - 1, i + 2); j++) {
         const n = valid[j];
         if (n.segment === s.segment && Math.abs(n.distanceM - s.distanceM) <= 90 &&
@@ -32,8 +33,8 @@
       }
       const center = median(neighborhood);
       const tolerance = Math.max(8, finite(s.accuracy) ? s.accuracy * 1.8 : 8);
-      if (neighborhood.length >= 3 && Math.abs(s.altitude - center) > tolerance) { spikesRejected++; continue; }
-      screened.push(s);
+      if (neighborhood.length >= 3 && Math.abs(s.altitude - center) > tolerance) { spikesRejected++; segment++; continue; }
+      screened.push({...s,segment});
     }
     return { screened, spikesRejected };
   }
@@ -129,6 +130,7 @@
       finite(s.time) && finite(s.segment) && s.altitude >= -1000 && s.altitude <= 10000 &&
       (!finite(s.accuracy) || (s.accuracy >= 0 && s.accuracy <= maxAccuracy)));
     const { screened, spikesRejected } = screenSpikes(valid);
+    const coveredM=screened.reduce((sum,p,i)=>i && screened[i-1].segment===p.segment ? sum+Math.max(0,p.distanceM-screened[i-1].distanceM) : sum,0);
     const smoothed = screened.map((s, i) => ({ ...s, elevationM: smoothAt(screened, i) }));
 
     const rows = [];
@@ -162,7 +164,7 @@
       if (max === null || r.elevationM > max) max = r.elevationM;
     }
     return {
-      samples: profileRows, gain, loss, min, max, medianAccuracy, validCount: screened.length,
+      samples: profileRows, coveredM, gain, loss, min, max, medianAccuracy, validCount: screened.length, missingAccuracyCount: screened.length-accuracies.length,
       totalCount: (input || []).length, spikesRejected, barometerCount, quality,
       climbThresholdM: climbThreshold, stepM: STEP_M
     };

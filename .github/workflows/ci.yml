@@ -27,6 +27,9 @@ jobs:
           node --check elevation-core.js
           node --check ride-core.js
           node --check sensor-core.js
+          node --check wrapped-core.js
+          node --check wrapped-view.js
+          node --check wrapped-worker.js
           node --check sw.js
           node --check tests/core.test.js
           node --check tests/app.smoke.test.js
@@ -37,6 +40,8 @@ jobs:
         run: node tests/core.test.js
       - name: Run ANALYZE contract regressions
         run: node tests/analysis-contract.test.js
+      - name: Run local year comparison tests
+        run: node tests/wrapped.test.js
       - name: Run application smoke test
         run: node tests/app.smoke.test.js
       - name: Run VELOX Plus tests

@@ -1,4 +1,4 @@
-/* VELOX Plus 0.12.1 — Wochenziel, Wochenüberblick und Aufzeichnungs-Puls.
+/* VELOX Plus 0.13.0 — Wochenziel, Wochenüberblick und Aufzeichnungs-Puls.
    Reine Zusatzdatei: liest nur vorhandene IndexedDB-Daten (wie analysis-pro.js) und verändert nie eine Tour.
    Browser: window.VELOXPlus · Node: module.exports (für tests/plus.test.js). */
 (function (root, factory) {
@@ -189,5 +189,5 @@
     else mount();
   }
 
-  return { weekStart, weeklyBuckets, streakWeeks, goalProgress, normalizeGoal, ringSvg, barsSvg, start, version: "0.12.1" };
+  return { weekStart, weeklyBuckets, streakWeeks, goalProgress, normalizeGoal, ringSvg, barsSvg, start, version: "0.13.0" };
 });

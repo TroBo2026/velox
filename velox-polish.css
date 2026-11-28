@@ -1,4 +1,4 @@
-/* VELOX 0.12.1 — Feinschliff: Sicherheitsbereiche, ruhigere Grafiken, Wochenziel.
+/* VELOX 0.13.0 — Feinschliff: Sicherheitsbereiche, ruhigere Grafiken, Wochenziel.
    Wird nach styles.css und velox-extras.css geladen und überschreibt nur gezielt.
    Bewusst zurückhaltend: eine einzige Bewegung (Aufdecken der Profile), Rest reagiert auf Eingaben. */
 
@@ -100,3 +100,28 @@ dialog.vx-sheet[open]{animation:vxSheet .22s var(--vx-ease)}
   .ride-summary{grid-template-columns:1fr}
   .ride-summary .metric-card{display:flex;align-items:center;justify-content:space-between}
 }
+
+.year-select,.year-actions,.year-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.year-select{color:var(--muted);font-size:14px;margin:16px 0}
+.year-select select{min-height:44px;font:inherit;border-radius:10px;background:var(--panel);color:var(--text);padding:0 12px}
+.year-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.year-kpis article{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow-wrap:anywhere}
+.year-kpis article:first-child{background:#123335}
+.year-kpis span,.year-kpis small{display:block;color:var(--muted);font-size:13px}
+.year-kpis strong{display:block;font-size:22px;margin:4px 0}
+.year-explore{margin:18px 0}
+#yearMap{height:clamp(220px,36vh,360px);border-radius:14px;background:#102536;display:grid;place-items:center;overflow:hidden}
+#yearMap.leaflet-container{display:block}
+#yearMap svg:not(.leaflet-zoom-animated){width:100%;height:100%}
+.year-route,.year-new{stroke:#93a5b6;stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.year-new{stroke:#66e2cd;stroke-width:5}
+.year-legend{font-size:13px;margin:12px 0}
+.year-legend span:before{content:"";display:inline-block;width:16px;height:4px;background:#93a5b6;margin-right:6px;vertical-align:middle}
+.year-legend span+span:before{background:#66e2cd}
+.year-archive{margin:24px 0}
+.year-archive summary{padding:12px 0;cursor:pointer}
+dialog.year-preview{max-height:85vh;overflow:auto}
+.year-preview canvas{width:100%;height:auto;border-radius:10px}
+.year-actions a{text-decoration:none;display:inline-flex;align-items:center}
+.year-actions [hidden],#yearMapTiles[hidden]{display:none}
+.ride-time-paused{background:#be9be9}

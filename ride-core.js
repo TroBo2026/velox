@@ -113,9 +113,9 @@
     }
     const processed = elevation.process(raw);
     return {
-      samples: processed.samples, gain: processed.gain, loss: processed.loss, distanceM: distance,
+      samples: processed.samples, coveredM: processed.coveredM, gain: processed.gain, loss: processed.loss, distanceM: distance,
       validCount: processed.validCount, totalCount: points.length, minimum: processed.min, maximum: processed.max,
-      medianAccuracy: processed.medianAccuracy, quality: processed.quality, spikesRejected: processed.spikesRejected,
+      medianAccuracy: processed.medianAccuracy, missingAccuracyCount: processed.missingAccuracyCount, quality: processed.quality, spikesRejected: processed.spikesRejected,
       climbThresholdM: processed.climbThresholdM, barometerCount: processed.barometerCount, stepM: processed.stepM
     };
   }
@@ -229,6 +229,22 @@
   const ZONES = [{ label: "0–10 km/h", min: 0, max: 10 }, { label: "10–20 km/h", min: 10, max: 20 },
     { label: "20–30 km/h", min: 20, max: 30 }, { label: "Über 30 km/h", min: 30, max: Infinity }];
 
+  function recordedPauseMs(ride,start,end){
+    const span=Math.max(0,end-start);
+    const recorded=finite(ride?.pausedMs)?Math.max(0,Math.min(span,ride.pausedMs)):0;
+    const pauses=ridePauses(ride);
+    if(!Array.isArray(pauses))return recorded;
+    const ranges=pauses.map(p=>[p?.start??p?.startedAt,p?.end??p?.endedAt])
+      .filter(([a,b])=>finite(a)&&finite(b)&&b>a).sort((a,b)=>a[0]-b[0]);
+    let until=start,total=0;
+    for(const [a,b] of ranges){
+      const stop=Math.min(end,b);
+      total+=Math.max(0,stop-Math.max(until,a));
+      until=Math.max(until,stop);
+    }
+    return Math.max(total,recorded);
+  }
+
   function analyze(ride, options) {
     const opts = options || {};
     const points = Array.isArray(ride && ride.points) ? ride.points : [];
@@ -241,7 +257,7 @@
     const last = points[points.length - 1];
     const start = finite(ride && ride.startedAt) ? ride.startedAt : (points[0] && points[0].t) || 0;
     const end = finite(ride && ride.endedAt) ? ride.endedAt : (last && last.t) || start;
-    const elapsedSeconds = finite(opts.elapsedSeconds) ? opts.elapsedSeconds : Math.max(0, (end - start - (Number(ride && ride.pausedMs) || 0)) / 1000);
+    const elapsedSeconds = finite(opts.elapsedSeconds) ? opts.elapsedSeconds : Math.max(0, (end - start - recordedPauseMs(ride,start,end)) / 1000);
     const movingSeconds = s.movingSeconds;
     const stoppedSeconds = Math.max(0, elapsedSeconds - movingSeconds);
 

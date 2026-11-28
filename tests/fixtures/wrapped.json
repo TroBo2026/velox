@@ -1,0 +1,182 @@
+{
+  "app": "VELOX",
+  "version": 1,
+  "rides": [
+    {
+      "id": "wrapped-demo-2025-12",
+      "name": "Demo · Vorjahr",
+      "startedAt": 1765800000000,
+      "endedAt": 1765800040000,
+      "points": [
+        {
+          "lat": 50.0,
+          "lon": 12.0,
+          "t": 1765800000000,
+          "accuracy": 5,
+          "alt": 100,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0005596,
+          "t": 1765800008000,
+          "accuracy": 5,
+          "alt": 101,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0011193,
+          "t": 1765800016000,
+          "accuracy": 5,
+          "alt": 102,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0016789,
+          "t": 1765800024000,
+          "accuracy": 5,
+          "alt": null,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0022386,
+          "t": 1765800032000,
+          "accuracy": 5,
+          "alt": 104,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0027982,
+          "t": 1765800040000,
+          "accuracy": 5,
+          "alt": 105,
+          "altAccuracy": 5
+        }
+      ]
+    },
+    {
+      "id": "wrapped-demo-2026-1",
+      "name": "Demo · Rückweg",
+      "startedAt": 1768478400000,
+      "endedAt": 1768478440000,
+      "points": [
+        {
+          "lat": 50.000045,
+          "lon": 12.0027982,
+          "t": 1768478400000,
+          "accuracy": 5,
+          "alt": 100,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.000045,
+          "lon": 12.0022386,
+          "t": 1768478408000,
+          "accuracy": 5,
+          "alt": 101,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.000045,
+          "lon": 12.0016789,
+          "t": 1768478416000,
+          "accuracy": 5,
+          "alt": 102,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.000045,
+          "lon": 12.0011193,
+          "t": 1768478424000,
+          "accuracy": 5,
+          "alt": null,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.000045,
+          "lon": 12.0005596,
+          "t": 1768478432000,
+          "accuracy": 5,
+          "alt": 104,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.000045,
+          "lon": 12.0,
+          "t": 1768478440000,
+          "accuracy": 5,
+          "alt": 105,
+          "altAccuracy": 5
+        }
+      ]
+    },
+    {
+      "id": "wrapped-demo-2026-5",
+      "name": "Demo · Abzweig",
+      "startedAt": 1778846400000,
+      "endedAt": 1778846448000,
+      "points": [
+        {
+          "lat": 50.0,
+          "lon": 12.0,
+          "t": 1778846400000,
+          "accuracy": 5,
+          "alt": 100,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0005596,
+          "t": 1778846408000,
+          "accuracy": 5,
+          "alt": 101,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0011193,
+          "t": 1778846416000,
+          "accuracy": 5,
+          "alt": 102,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0,
+          "lon": 12.0016789,
+          "t": 1778846424000,
+          "accuracy": 5,
+          "alt": null,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0003597,
+          "lon": 12.0016789,
+          "t": 1778846432000,
+          "accuracy": 5,
+          "alt": 104,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0007195,
+          "lon": 12.0016789,
+          "t": 1778846440000,
+          "accuracy": 5,
+          "alt": 105,
+          "altAccuracy": 5
+        },
+        {
+          "lat": 50.0010792,
+          "lon": 12.0016789,
+          "t": 1778846448000,
+          "accuracy": 5,
+          "alt": 106,
+          "altAccuracy": 5
+        }
+      ]
+    }
+  ]
+}

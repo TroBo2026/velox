@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0 – Jahresrückblick
+
+Lokaler Jahresvergleich mit Entdeckungskarte, Jahreskennzahlen und PNG-Vorschau. Die Fahrtanalyse zeigt die Abdeckung des Höhenprofils und manuelle Pausen in der Zeitverteilung.
+
 ## 0.12.1 – Fehlerbehebungen, Feinschliff und Wochenziel
 
 Geprüft per Code-Durchsicht und automatischen Tests (`node tests/plus.test.js`, `node tests/consistency.test.js`, bestehende Tests). Auf einem echten iPhone ist 0.12.1 **noch nicht** getestet.
