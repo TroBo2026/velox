@@ -1020,7 +1020,8 @@
       const data=JSON.parse(await file.text());
       if(data.app!=="VELOX"||!Array.isArray(data.rides))throw new Error("Ungültige VELOX-Sicherung");
       if(data.version!==1)throw new Error("Nicht unterstützte VELOX-Sicherungsversion");
-      const existing=await allRides(),usedIds=new Set(existing.map(ride=>String(ride.id)));
+      const existing=await dbRequest("readonly","all");
+      const usedIds=new Set(existing.map(ride=>String(ride.id)));
       const imported=[];let remapped=0,skipped=0;
       data.rides.forEach((source,index)=>{
         if(!validImportedRide(source)){skipped++;return;}
@@ -1086,11 +1087,18 @@
   $("stopRide").addEventListener("click",stopRide);
   $("exportBackup").addEventListener("click",exportBackup);
   $("importBackup").addEventListener("click",()=>$("backupFile").click());
-  $("backupFile").addEventListener("change",e=>{if(e.target.files[0])importBackup(e.target.files[0]);e.target.value="";});
+  $("backupFile").addEventListener("change",e=>{const file=e.target.files[0];e.target.value="";if(file)return importBackup(file);});
   $("deleteAll").addEventListener("click",async()=>{
+    if(activeRide){showToast("Beende zuerst die aktive Tour.");return;}
     const result=await openSheet({title:"Alle Aktivitäten löschen?",body:'<p>Alle lokal gespeicherten VELOX-Aktivitäten werden unwiderruflich von diesem Gerät entfernt. Erstelle vorher eine Sicherung, wenn du die Daten behalten möchtest.</p>',actions:[{id:"delete",label:"Alles löschen",primary:true},{id:"cancel",label:"Abbrechen",skip:true}]});
     if(result.action!=="delete")return;
-    await dbRequest("readwrite","clear");calcCache.clear();await refresh();showToast("Alle lokalen Tourdaten gelöscht.");
+    if(activeRide){showToast("Beende zuerst die aktive Tour.");return;}
+    try{
+      await dbRequest("readwrite","clear");
+      calcCache.clear();
+      await refresh();
+      showToast("Alle lokalen Tourdaten gelöscht.");
+    }catch(error){console.error(error);showToast("Tourarchiv konnte nicht vollständig aktualisiert werden.");}
   });
   $("installHint").addEventListener("click",()=>showToast('Safari: Teilen → „Zum Home-Bildschirm“ hinzufügen.'));
   async function recoverUnfinishedRide(){
