@@ -23,6 +23,7 @@ VELOX ist ein local-first Fahrrad-Tracker. Die Produktvision steht in [`docs/PRO
 
 ### Auswertung
 - Tourenanalyse: Distanz, Fahrzeit, Standzeit, Durchschnitts- und Maximaltempo, Auf- und Abstieg, höchster/tiefster Punkt, durchschnittliche und steilste Steigung, steilste Abfahrt.
+- Nach dem Speichern öffnet sich die Tour mit Strecke, Fahrtdauer von Start bis Ende (einschließlich Pausen) und Ø-Tempo während der Bewegung. Ein Tipp ins Tempoprofil markiert den zugehörigen GPS-Punkt auf der Online- oder Offline-Karte.
 - Geglättetes Geschwindigkeitsprofil, Höhenprofil und Steigungsprofil in jeder Tour-Detailansicht; GPS-Lücken werden nicht überbrückt.
 - Erweiterte Tourendetails: Steigungsverteilung, Zeit in Geschwindigkeitszonen, längster Anstieg, VAM, Median-Tempo, maximale Entfernung vom Start, Strecken-Geradlinigkeit sowie GPS-erkannte Stopps (ab 10 s unter 1,5 km/h; manuelle Pausen und GPS-Lücken zählen nicht).
 - Automatischer Vergleich der letzten drei gespeicherten Touren in den Statistiken.
@@ -116,7 +117,7 @@ Empfohlene Cloudflare-Pages-Einstellungen:
 
 Nach erfolgreichem Deployment die HTTPS-Adresse auf dem iPhone in Safari öffnen und den Standortzugriff erlauben. Optional über Safari → Teilen → Zum Home-Bildschirm hinzufügen.
 
-**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v38`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
+**Wichtig bei jeder Änderung an App-Dateien:** In `sw.js` die Konstante `CACHE` hochzählen (zuletzt `velox-shell-v45`) und neue Dateien in die Liste `SHELL` aufnehmen. Der CI-Check meldet Dateien, die `index.html` lädt, aber im Offline-Cache fehlen.
 
 ## Entwicklung und Tests
 
@@ -135,6 +136,9 @@ Der Workflow `ci.yml` führt JavaScript-Syntaxprüfung, Rechenkern-, App-Rauch-,
 ---
 
 ## Erster Test am iPhone XR (Web/PWA)
+
+Für einen Test ohne Standortfreigabe die [synthetische Testsicherung](tests/fixtures/fahrtuebersicht.json) in „Dateien“ sichern. In VELOX unter **Mehr → Daten importieren → Import** einlesen. Unter **Aktivitäten** „Testfahrt · Tempowechsel“ öffnen. Erwartet werden 0,06 km, 00:01:06 Fahrtdauer und rund 14,4 km/h in Bewegung. Die Route hat drei Abschnitte. Die langsamere Stelle in der Kurve antippen, dann ihr Ende. Die Markierung muss wandern. Im Flugmodus die Tour erneut öffnen und wiederholen. Bei „Testfahrt · Einzelpunkt“ fehlen Strecke, Dauer und Tempo. Die beiden Testfahrten lassen sich danach einzeln löschen.
+
 
 1. Vor dem Test in VELOX unter „Mehr“ eine JSON-Sicherung exportieren und an einem sicheren Ort behalten.
 2. VELOX über eine HTTPS-Adresse in Safari öffnen. Bei der Standortabfrage „Beim Verwenden“ wählen und „Genauer Standort“ aktivieren.

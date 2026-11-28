@@ -96,6 +96,7 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(data.size===5&&data.has("legacy-run"),"Neue Fahrradtour gespeichert; vorhandener Legacy-Datensatz bleibt erhalten ("+data.size+" in DB)");
  const saved=[...data.values()].find(r=>String(r.id).startsWith("ride-"));
  ok(saved&&saved.status==="completed"&&saved.activityType==="cycling"&&saved.name==="Fahrradtour"&&saved.points.length===121&&saved.points[5].speed===5,"Fahrradaktivität vollständig gespeichert, verspäteter Callback des alten GPS-Watchers verworfen");
+ ok(els.rideDetail.innerHTML.includes("<h1>Fahrradtour</h1>"),"Speichern öffnet direkt die abgeschlossene Fahrt");
  const r=data.get("a"),pro=sb.VELOXProAnalysis.analyzeRide(r,5),core=sb.VELOXCore.analyze(r);
  const same=(a,b)=>Math.abs(a-b)<1e-6;
  ok(same(pro.distanceM,core.distanceM)&&same(pro.movingSeconds,core.movingSeconds),"Pro = Detail: Distanz/Fahrzeit ("+(pro.distanceM/1000).toFixed(3)+" km)");
@@ -112,5 +113,15 @@ const ok=(c,m)=>{if(!c){console.log("  ✗",m);process.exitCode=1}else console.l
  ok(segmentsBeforePause>0&&offlineSegmentCount()===segmentsBeforePause+1,"Offline-Karte trennt die Route an einer manuellen Pause");
  await els.backupFile.listeners.change[0]({target:{files:[{text:async()=>JSON.stringify({app:"VELOX",version:1,rides:[{...r,id:"legacy-run"}]})}]}});
  ok(data.get("legacy-run").activityType==="running"&&[...data.values()].some(ride=>ride.importedFromId==="legacy-run"),"Import ordnet eine ID-Kollision mit einer ausgeblendeten Alttour neu zu");
+ const fixtures=require("./fixtures/fahrtuebersicht.json").rides;
+ for(const fixture of fixtures)data.set(fixture.id,fixture);
+ docL.click.forEach(f=>f({target:{closest:()=>({dataset:{page:"rides"}})},preventDefault(){}}));
+ await sleep(100);
+ await els["ride:velox-demo-tempo:allRides"].listeners.click[0]();
+ ok(offlineSegmentCount()===3,"Detailkarte trennt GPS-Lücke und Positionssprung");
+ ok(["0,06 km","00:01:06","14,4 km/h"].every(label=>els.rideDetail.innerHTML.includes(label)),"Testsicherung liefert die erwarteten drei Kennzahlen ohne optionale Sensorwerte");
+ await els["ride:velox-demo-legacy:allRides"].listeners.click[0]();
+ ok(["Strecke","Fahrtdauer","Ø in Bewegung","Aufstieg"].every(label=>els.rideDetail.innerHTML.includes(label+"</span><strong>–</strong>")),"Ältere Tour mit Einzelpunkt zeigt fehlende Werte");
+ ok(els.speedChart.innerHTML.includes("Nicht genügend")&&els.detailMap.innerHTML.includes("Keine zusammenhängenden"),"Karte und Tempo behandeln fehlende Messintervalle");
  console.log(process.exitCode?"\nFEHLER":"\nRauchtest bestanden");
 })().catch(e=>{console.log("ABSTURZ",e);process.exit(1)});

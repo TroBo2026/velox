@@ -81,3 +81,22 @@ dialog.vx-sheet[open]{animation:vxSheet .22s var(--vx-ease)}
   .vx-recording .status-dot{animation:none}
   dialog.vx-sheet[open]{animation:none}
 }
+
+/* Fahrtübersicht */
+.ride-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
+.ride-summary .metric-card{padding:12px 8px;min-width:0}
+.ride-summary .metric-card span{font-size:12px;letter-spacing:normal;text-transform:none}
+.ride-summary .metric-card strong{font-size:clamp(15px,4vw,23px);font-variant-numeric:tabular-nums}
+.offline-selection{fill:#e7bd75;stroke:#fff;stroke-width:3;vector-effect:non-scaling-stroke}
+.vx-isolated{fill:var(--teal)}
+#speedChart .speed-help{font-size:14px;line-height:1.45}
+#speedPlot .vx-axis-label,#speedPlot .vx-axis-title{font-size:12px}
+#speedPlot .vx-tip{font-size:13px}
+@media(max-width:480px){
+  .detail-map-primary{height:clamp(230px,31vh,280px)}
+  .detail-route-legend{font-size:12px}
+}
+@media(max-width:350px){
+  .ride-summary{grid-template-columns:1fr}
+  .ride-summary .metric-card{display:flex;align-items:center;justify-content:space-between}
+}

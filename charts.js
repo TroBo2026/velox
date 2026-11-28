@@ -35,7 +35,7 @@
   function profileChart(box, cfg) {
     if (!box) return null;
     const rows = (cfg.rows || []).filter((r) => finite(r.x) && finite(r.y));
-    if (rows.length < 2) { box.innerHTML = '<div class="empty-state">' + esc(cfg.emptyText || "Nicht genügend Daten.") + "</div>"; return null; }
+    if (!rows.length) { box.innerHTML = '<div class="empty-state">' + esc(cfg.emptyText || "Nicht genügend Daten.") + "</div>"; return null; }
     const W = Math.max(240, Math.min(640, box.clientWidth || 640)), H = cfg.height || 200, L = 46, R = 16, T = 22, B = 26, pw = W - L - R, ph = H - T - B;
     const id = "vx" + (++uid), zeroBase = cfg.baseline === "zero";
     const xMax = Math.max(1, cfg.xMax || rows[rows.length - 1].x);
@@ -77,6 +77,10 @@
       g.map((r) => xFor(r.x).toFixed(1) + " " + yFor(r.y).toFixed(1)).join(" L ") + " L " + xFor(g[g.length - 1].x).toFixed(1) + " " + base.toFixed(1) + ' Z"/>').join("");
     let lines = "";
     groups.forEach((g) => {
+      if (g.length === 1) {
+        lines += '<circle class="vx-isolated" cx="' + xFor(g[0].x) + '" cy="' + yFor(g[0].y) + '" r="3"/>';
+        return;
+      }
       let run = [], color = null;
       const flush = () => { if (run.length > 1) lines += '<path class="vx-line" stroke="' + color + '" d="M ' + run.join(" L ") + '"/>'; run = []; };
       for (let i = 1; i < g.length; i++) {
@@ -133,16 +137,16 @@
     }
     function hide() {
       cursor.setAttribute("hidden", ""); tip.setAttribute("hidden", "");
-      if (cfg.onHover) cfg.onHover(null);
+      if (cfg.onHover && svg.isConnected) cfg.onHover(null);
     }
     const fromClient = (clientX) => {
       const rect = svg.getBoundingClientRect();
       return nearestIndex(rows, ((clientX - rect.left) / rect.width * W - L) / pw * xMax);
     };
     svg.addEventListener("pointerdown", (e) => { clearTimeout(hideTimer); showAt(fromClient(e.clientX)); });
-    svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) { clearTimeout(hideTimer); showAt(fromClient(e.clientX)); } });
-    svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
-    svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 3500); } });
+    svg.addEventListener("pointermove", (e) => { if ((!cfg.keepSelection && e.pointerType === "mouse") || e.buttons) { clearTimeout(hideTimer); showAt(fromClient(e.clientX)); } });
+    svg.addEventListener("pointerleave", (e) => { if (!cfg.keepSelection && e.pointerType === "mouse") hide(); });
+    svg.addEventListener("pointerup", (e) => { if (!cfg.keepSelection && e.pointerType !== "mouse") { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 3500); } });
     svg.addEventListener("pointercancel", hide);
     svg.addEventListener("keydown", (e) => {
       const step = Math.max(1, Math.round(rows.length / 60));
@@ -152,7 +156,7 @@
       else if (e.key === "End") { e.preventDefault(); showAt(rows.length - 1, true); }
       else if (e.key === "Escape") hide();
     });
-    svg.addEventListener("blur", hide);
+    if (!cfg.keepSelection) svg.addEventListener("blur", hide);
     return { rows, showAt, hide };
   }
 
